@@ -27,8 +27,9 @@ export default function Display() {
   useEffect(() => {
     refresh();
     const unsub = connectWS(refresh);
+    const poll = setInterval(refresh, 5000);
     const tick = setInterval(() => setTick((x) => x + 1), 30_000);
-    return () => { unsub(); clearInterval(tick); };
+    return () => { unsub(); clearInterval(poll); clearInterval(tick); };
   }, []);
 
   const mode = config?.mode ?? "departures";
@@ -111,6 +112,8 @@ export default function Display() {
               <div className="flex flex-row items-center gap-2">
                 {train.type_logo ? (
                   <img src={fileUrl(train.type_logo)} className="h-8" alt={train.type_code || ""} />
+                ) : train.operator_logo ? (
+                  <img src={fileUrl(train.operator_logo)} className="h-8" alt={train.operator_name || ""} />
                 ) : train.type_code ? (
                   <span
                     className="inline-block self-start text-xs font-bold px-2 py-1 rounded text-white tracking-widest"
