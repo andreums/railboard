@@ -8,13 +8,13 @@ const STYLES = {
     Cancelled: "text-board-red font-bold uppercase",
 };
 const LABEL_ES = {
-    Scheduled: "A horario",
+    Scheduled: "En Hora",
     Boarding: "Embarcando",
-    Delayed: "Retrasado",
+    Delayed: "Demorado",
     Departed: "Salido",
-    Arrived: "Llegado",
+    Arrived: "Llegadas",
     Cancelled: "Suprimido",
 };
-export default function StatusPill({ status }) {
-    return _jsx("span", { className: `uppercase text-sm tracking-widest ${STYLES[status]}`, children: LABEL_ES[status] });
+export default function StatusPill({ status, large }) {
+    return _jsx("span", { className: `uppercase ${large ? "text-xs" : "text-sm"} tracking-widest ${STYLES[status]}`, children: LABEL_ES[status] });
 }

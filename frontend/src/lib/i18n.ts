@@ -2,7 +2,7 @@ export type Language = "es" | "ca" | "en" | "fr" | "eu" | "gl";
 
 export const LANGUAGES: Record<Language, string> = {
   es: "Español",
-  ca: "Català/Valencià",
+  ca: "Valencià",
   en: "English",
   fr: "Français",
   eu: "Euskera",
@@ -69,7 +69,7 @@ export const i18n: Record<Language, Record<string, string>> = {
   },
   ca: {
     "station": "Estació",
-    "departures": "SORTIDES",
+    "departures": "EIXIDES",
     "arrivals": "ARRIBADES",
     "platform": "Via",
     "no-trains": "No hi ha trens programats",

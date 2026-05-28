@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useEffect, useMemo, useState } from "react";
-import { api, connectWS } from "../lib/api";
+import { api, connectWS, fileUrl } from "../lib/api";
 import Clock from "../components/Clock";
 import StatusPill from "../components/StatusPill";
 import { t } from "../lib/i18n";
@@ -26,8 +26,9 @@ export default function Display() {
     useEffect(() => {
         refresh();
         const unsub = connectWS(refresh);
+        const poll = setInterval(refresh, 5000);
         const tick = setInterval(() => setTick((x) => x + 1), 30_000);
-        return () => { unsub(); clearInterval(tick); };
+        return () => { unsub(); clearInterval(poll); clearInterval(tick); };
     }, []);
     const mode = config?.mode ?? "departures";
     const lang = config?.language ?? "es";
@@ -46,6 +47,6 @@ export default function Display() {
                         const place = mode === "departures" ? train.destination : train.origin;
                         const minutes = minutesUntil(train.expected_time);
                         const delayed = train.expected_time !== train.scheduled_time;
-                        return (_jsxs("div", { className: "grid grid-cols-[110px_1fr_200px_130px_70px] gap-4 px-10 py-4 items-center border-b border-white/5", style: { backgroundColor: i % 2 === 0 ? rowBgColor : altBgColor }, children: [_jsxs("div", { className: "font-mono text-center", children: [_jsx("div", { className: "text-3xl font-bold mb-1", children: train.expected_time }), minutes < 10 && train.status !== "Cancelled" && (_jsx("div", { className: `text-4xl font-bold ${minutes <= 0 ? "text-board-green animate-blink" : ""}`, children: minutes <= 0 ? t("now", lang) : `${minutes} min` }))] }), _jsxs("div", { className: "overflow-hidden flex flex-col gap-1", children: [_jsx("div", { className: "font-display tracking-wide leading-tight", style: { fontSize: `${destinationFontSize}px` }, children: place }), train.stops?.length > 0 && (_jsx("div", { className: "text-board-dim text-sm overflow-x-auto whitespace-nowrap", children: train.stops.join(" · ") }))] }), _jsxs("div", { className: "flex flex-col gap-1", children: [train.type_code && (_jsx("span", { className: "inline-block self-start text-xs font-bold px-2 py-1 rounded text-white tracking-widest", style: { backgroundColor: train.type_color || "#7c1d2e" }, children: train.type_code })), _jsx("span", { className: "font-mono text-board-dim text-sm", children: train.number })] }), _jsx("div", { children: _jsx(StatusPill, { status: train.status }) }), _jsx("div", { className: "text-center", children: _jsx("div", { className: "font-display text-5xl text-board-amber leading-none", children: train.platform }) })] }, train.id));
+                        return (_jsxs("div", { className: "grid grid-cols-[110px_1fr_200px_130px_70px] gap-4 px-10 py-4 items-center border-b border-white/5", style: { backgroundColor: i % 2 === 0 ? rowBgColor : altBgColor }, children: [_jsx("div", { className: "font-mono text-center", children: _jsx("div", { className: "text-3xl font-bold mb-1", children: train.expected_time }) }), _jsxs("div", { className: "overflow-hidden flex flex-col gap-1", children: [_jsx("div", { className: "font-display tracking-wide leading-tight", style: { fontSize: `${destinationFontSize}px` }, children: place }), train.stops?.length > 0 && (_jsx("div", { className: "text-board-dim text-sm overflow-x-auto whitespace-nowrap", children: train.stops.join(" · ") }))] }), _jsxs("div", { className: "flex flex-row items-center gap-2", children: [train.type_logo ? (_jsx("img", { src: fileUrl(train.type_logo), className: "h-8", alt: train.type_code || "" })) : train.operator_logo ? (_jsx("img", { src: fileUrl(train.operator_logo), className: "h-8", alt: train.operator_name || "" })) : train.type_code ? (_jsx("span", { className: "inline-block self-start text-xs font-bold px-2 py-1 rounded text-white tracking-widest", style: { backgroundColor: train.type_color || "#7c1d2e" }, children: train.type_code })) : null, _jsx("span", { className: "font-mono text-board-dim text-sm", children: train.number })] }), _jsx("div", { className: "text-center", children: _jsx(StatusPill, { status: train.status, large: true }) }), _jsx("div", { className: "text-center", children: _jsx("div", { className: "font-display text-5xl text-board-amber leading-none", children: train.platform }) })] }, train.id));
                     })] }), _jsx("footer", { className: "border-t border-white/10 bg-black/30 overflow-hidden py-3", children: _jsx("div", { className: "whitespace-nowrap animate-marquee flex gap-16 text-board-dim text-sm tracking-widest uppercase", children: Array.from({ length: 2 }).map((_, k) => (_jsxs("span", { children: [t("welcome", lang), " ", config?.station_name, " \u00B7 ", t("ticket", lang), " \u00B7 ", t("tracks", lang), " \u00B7 ", t("wifi", lang), " \u00B7 ", t("event", lang)] }, k))) }) })] }));
 }

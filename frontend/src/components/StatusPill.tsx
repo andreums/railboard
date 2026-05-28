@@ -19,5 +19,5 @@ const LABEL_ES: Record<Train["status"], string> = {
 };
 
 export default function StatusPill({ status, large }: { status: Train["status"]; large?: boolean }) {
-  return <span className={`uppercase ${large ? "text-4xl" : "text-sm"} tracking-widest ${STYLES[status]}`}>{LABEL_ES[status]}</span>;
+  return <span className={`uppercase ${large ? "text-xs" : "text-sm"} tracking-widest ${STYLES[status]}`}>{LABEL_ES[status]}</span>;
 }

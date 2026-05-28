@@ -181,6 +181,7 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
   refresh: () => void;
   STATUSES: Train["status"][];
   onEdit: (t: Train) => void;
+  dragHandle?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(train.id) });
 

@@ -11,6 +11,7 @@ export const api = {
     getConfig: () => json("/config"),
     setConfig: (c) => json("/config", { method: "PUT", body: JSON.stringify(c) }),
     listTrains: () => json("/trains"),
+    reorderTrains: (ids) => json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
     createTrain: (t) => json("/trains", { method: "POST", body: JSON.stringify(t) }),
     updateTrain: (id, t) => json(`/trains/${id}`, { method: "PUT", body: JSON.stringify(t) }),
     setStatus: (id, status) => json(`/trains/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),

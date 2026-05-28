@@ -1,6 +1,6 @@
 export const LANGUAGES = {
     es: "Español",
-    ca: "Català/Valencià",
+    ca: "Valencià",
     en: "English",
     fr: "Français",
     eu: "Euskera",
@@ -66,7 +66,7 @@ export const i18n = {
     },
     ca: {
         "station": "Estació",
-        "departures": "SORTIDES",
+        "departures": "EIXIDES",
         "arrivals": "ARRIBADES",
         "platform": "Via",
         "no-trains": "No hi ha trens programats",

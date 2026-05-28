@@ -111,9 +111,9 @@ export default function Display() {
               {/* Train type + number */}
               <div className="flex flex-row items-center gap-2">
                 {train.type_logo ? (
-                  <img src={fileUrl(train.type_logo)} className="h-8" alt={train.type_code || ""} />
+                  <img src={fileUrl(train.type_logo)!} className="h-8" alt={train.type_code || ""} />
                 ) : train.operator_logo ? (
-                  <img src={fileUrl(train.operator_logo)} className="h-8" alt={train.operator_name || ""} />
+                  <img src={fileUrl(train.operator_logo)!} className="h-8" alt={train.operator_name || ""} />
                 ) : train.type_code ? (
                   <span
                     className="inline-block self-start text-xs font-bold px-2 py-1 rounded text-white tracking-widest"
