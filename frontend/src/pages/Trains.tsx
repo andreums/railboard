@@ -57,6 +57,7 @@ export default function Trains() {
     const newIndex = trainIds.indexOf(String(over.id));
     const newTrains = arrayMove(trains, oldIndex, newIndex);
     setTrains(newTrains);
+    api.reorderTrains(newTrains.map(t => t.id));
   };
 
   const speak = (text: string) => {

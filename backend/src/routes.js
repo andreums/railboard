@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
 import {
+  db,
   getConfig, setConfig,
   listTrains, createTrain, updateTrain, deleteTrain, getTrain,
   addMinutes,
@@ -36,6 +37,18 @@ r.put("/config", (req, res) => {
 
 // ----- trains -----
 r.get("/trains", (_req, res) => res.json(listTrains()));
+
+function reorderTrains(ids: number[]) {
+  const stmt = db.prepare("UPDATE trains SET sort_order = ? WHERE id = ?");
+  ids.forEach((id, idx) => stmt.run(idx, id));
+}
+
+r.put("/trains/reorder", (req, res) => {
+  reorderTrains(req.body.ids);
+  ping();
+  res.json(listTrains());
+});
+
 r.post("/trains", (req, res) => {
   const t = createTrain(req.body);
   ping();

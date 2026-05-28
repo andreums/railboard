@@ -58,6 +58,8 @@ export const api = {
     json("/config", { method: "PUT", body: JSON.stringify(c) }),
 
   listTrains: (): Promise<Train[]> => json("/trains"),
+  reorderTrains: (ids: number[]) =>
+    json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
   createTrain: (t: Partial<Train>) =>
     json("/trains", { method: "POST", body: JSON.stringify(t) }),
   updateTrain: (id: number, t: Partial<Train>) =>

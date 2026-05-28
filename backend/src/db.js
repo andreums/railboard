@@ -23,7 +23,7 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS train_types (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    code     TEXT NOT NULL UNIQUE,   -- e.g. AVE, AVLO, MD
+    code     TEXT NOT NULL UNIQUE,
     name     TEXT NOT NULL,
     color    TEXT NOT NULL DEFAULT '#7c1d2e',
     logo_url TEXT
@@ -41,15 +41,23 @@ db.exec(`
     train_type_id   INTEGER REFERENCES train_types(id) ON DELETE SET NULL,
     origin          TEXT NOT NULL,
     destination     TEXT NOT NULL,
-    stops           TEXT NOT NULL DEFAULT '[]',  -- JSON array of strings
-    scheduled_time  TEXT NOT NULL,               -- "HH:MM"
-    expected_time   TEXT NOT NULL,               -- "HH:MM"
+    stops           TEXT NOT NULL DEFAULT '[]',
+    scheduled_time  TEXT NOT NULL,
+    expected_time   TEXT NOT NULL,
     platform        TEXT NOT NULL DEFAULT '-',
     sector          TEXT NOT NULL DEFAULT '-',
     status          TEXT NOT NULL DEFAULT 'Scheduled',
+    sort_order      INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
 `);
+
+-- migrate existing trains with a default sort_order
+const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c: any) => c.name === "sort_order");
+if (!hasSort) {
+  db.exec("ALTER TABLE trains ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+  db.exec("UPDATE trains SET sort_order = id");
+}
 
 // Defaults
 const seedConfig = db.prepare(
@@ -91,7 +99,7 @@ export function listTrains() {
        FROM trains t
        LEFT JOIN operators   op ON op.id = t.operator_id
        LEFT JOIN train_types tt ON tt.id = t.train_type_id
-       ORDER BY t.expected_time ASC, t.scheduled_time ASC`
+        ORDER BY t.sort_order ASC, t.expected_time ASC`
     )
     .all();
   return rows.map(rowToTrain);
