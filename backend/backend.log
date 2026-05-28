@@ -1,0 +1,6 @@
+
+> railboard-backend@1.0.0 dev
+> node --watch src/index.js
+
+RailBoard backend on http://localhost:4000
+WebSocket on ws://localhost:4000/ws
