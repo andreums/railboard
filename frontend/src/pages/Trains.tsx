@@ -31,6 +31,7 @@ export default function Trains() {
   const [trainTypes, setTrainTypes] = useState<TrainType[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [editing, setEditing] = useState<Partial<Train> | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
 
   const refresh = async () => {
     const [c, t, op, tt, pl] = await Promise.all([
@@ -55,6 +56,7 @@ export default function Trains() {
     const oldIndex = trainIds.indexOf(String(active.id));
     const newIndex = trainIds.indexOf(String(over.id));
     const newTrains = arrayMove(trains, oldIndex, newIndex);
+    setTrains(newTrains);
   };
 
   const speak = (text: string) => {
@@ -78,7 +80,11 @@ export default function Trains() {
     <div className="min-h-screen bg-board-bg text-board-ink p-8 font-body">
       <header className="flex justify-between items-center mb-8">
         <h1 className="font-display text-4xl tracking-wide">RailBoard · Trenes</h1>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
+          <span className="text-board-dim text-sm">Editar:</span>
+          <a href="/train-settings" className="text-board-amber underline text-sm">Operadores</a>
+          <a href="/train-settings" className="text-board-amber underline text-sm">Tipos de tren</a>
+          <span className="text-board-dim">|</span>
           <a href="/admin" className="text-board-amber underline">Configuración</a>
           <a href="/" target="_blank" className="text-board-amber underline">
             Pantalla pública →
@@ -89,32 +95,64 @@ export default function Trains() {
       <section className="bg-board-row rounded-lg p-5">
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-display text-2xl">Trenes ({trains.length})</h2>
-          <button
-            onClick={() => setEditing(EMPTY)}
-            className="bg-board-amber text-board-bg px-3 py-1 rounded font-bold"
-          >
-            + Nuevo
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setReorderMode(!reorderMode)}
+              className={`px-3 py-1 rounded font-bold ${reorderMode ? "bg-board-green text-white" : "bg-white/10 text-board-dim"}`}
+            >
+              {reorderMode ? "✕ Hecho" : "↕ Reordenar"}
+            </button>
+            <button
+              onClick={() => setEditing(EMPTY)}
+              className="bg-board-amber text-board-bg px-3 py-1 rounded font-bold"
+            >
+              + Nuevo
+            </button>
+          </div>
         </div>
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={trainIds} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2 mb-4">
-              {trains.length === 0 ? (
-                <div className="text-board-dim text-sm py-4">Arrastra para reordenar</div>
-              ) : (
-                trains.map((train) => (
-                  <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} STATUSES={STATUSES} onEdit={setEditing} />
-                ))
-              )}
-            </div>
-          </SortableContext>
-        </DndContext>
+        {reorderMode ? (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={trainIds} strategy={verticalListSortingStrategy}>
+              <div className="space-y-2 mb-4">
+                {trains.length === 0 ? (
+                  <div className="text-board-dim text-sm py-4">Arrastra para reordenar</div>
+                ) : (
+                  trains.map((train) => (
+                    <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} STATUSES={STATUSES} onEdit={setEditing} dragHandle />
+                  ))
+                )}
+              </div>
+            </SortableContext>
+          </DndContext>
+        ) : (
+          <div className="space-y-2 mb-4">
+            {trains.length === 0 ? (
+              <div className="text-board-dim text-sm py-4">Sin trenes</div>
+            ) : (
+              trains.map((train) => (
+                <div key={train.id} className="bg-black/20 rounded p-3 flex gap-3 items-center flex-wrap">
+                  <span className="w-24 text-center">{train.scheduled_time}</span>
+                  <span className="w-16 text-center">{train.number}</span>
+                  <span className="flex-1 min-w-48">{train.destination}</span>
+                  <span className="w-12 text-center">{train.platform}</span>
+                  <span className="text-board-dim text-sm">{train.status}</span>
+                  <button onClick={(e) => { e.preventDefault(); announce(train); }} className="text-board-green">🔊</button>
+                  <button onClick={(e) => { e.preventDefault(); setEditing(train); }} className="text-board-amber">Editar</button>
+                  <button onClick={(e) => { e.preventDefault(); if (confirm("¿Eliminar tren?")) api.deleteTrain(train.id).then(refresh); }} className="text-board-red">✕</button>
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
-        {editing && (
-          <div className="bg-black/40 rounded-lg p-5 mt-4 border border-white/10">
+      </section>
+
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setEditing(null)}>
+          <div className="bg-board-row rounded-lg p-6 w-full max-w-xl mx-4 border border-white/10" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-display text-xl">{editing?.id ? "Editar tren" : "Nuevo tren"}</h3>
-              <button onClick={() => setEditing(null)} className="text-board-dim hover:text-white">✕</button>
+              <h3 className="font-display text-2xl">{editing?.id ? "Editar tren" : "Nuevo tren"}</h3>
+              <button onClick={() => setEditing(null)} className="text-board-dim hover:text-white text-2xl leading-none">✕</button>
             </div>
             <TrainForm
               value={editing}
@@ -130,8 +168,8 @@ export default function Trains() {
               }}
             />
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </div>
   );
 }
@@ -155,30 +193,26 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-black/20 rounded p-3 flex gap-3 items-center flex-wrap cursor-grab ${isDragging ? "cursor-grabbing" : ""}`}
-      {...attributes}
-      {...listeners}
+      className={`bg-black/20 rounded p-3 flex gap-3 items-center flex-wrap ${isDragging ? "opacity-50" : ""}`}
     >
+      <span {...attributes} {...listeners} className="cursor-grab text-board-dim text-lg select-none">⠿</span>
       <input
         type="time"
         className="bg-black/40 rounded px-2 py-1 w-24"
         value={train.scheduled_time}
         onChange={(e) => api.updateTrain(train.id, { scheduled_time: e.target.value }).then(refresh)}
-        onClick={(e) => e.stopPropagation()}
       />
       <input
         type="text"
         className="bg-black/40 rounded px-2 py-1 w-16"
         value={train.number}
         onChange={(e) => api.updateTrain(train.id, { number: e.target.value }).then(refresh)}
-        onClick={(e) => e.stopPropagation()}
       />
       <input
         type="text"
         className="bg-black/40 rounded px-2 py-1 flex-1 min-w-48"
         value={train.destination}
         onChange={(e) => api.updateTrain(train.id, { destination: e.target.value }).then(refresh)}
-        onClick={(e) => e.stopPropagation()}
         placeholder="Destino"
       />
       <input
@@ -186,13 +220,11 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
         className="bg-black/40 rounded px-2 py-1 w-12"
         value={train.platform}
         onChange={(e) => api.updateTrain(train.id, { platform: e.target.value }).then(refresh)}
-        onClick={(e) => e.stopPropagation()}
       />
       <select
         className="bg-black/40 rounded px-2 py-1"
         value={train.status}
         onChange={(e) => api.setStatus(train.id, e.target.value as Train["status"]).then(refresh)}
-        onClick={(e) => e.stopPropagation()}
       >
         {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
       </select>
@@ -254,10 +286,10 @@ function TrainForm({
         </select>
       </Field>
       <Field label="Origen">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" list={dataListId} value={v.origin || ""} onChange={(e) => set("origin", e.target.value)} />
+        <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.origin || ""} onChange={(e) => set("origin", e.target.value)} />
       </Field>
       <Field label="Destino">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" list={dataListId} value={v.destination || ""} onChange={(e) => set("destination", e.target.value)} />
+        <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.destination || ""} onChange={(e) => set("destination", e.target.value)} />
       </Field>
       <Field label="Hora programada">
         <input className="bg-black/40 rounded px-3 py-2 w-full" type="time" value={v.scheduled_time || ""} onChange={(e) => set("scheduled_time", e.target.value)} />

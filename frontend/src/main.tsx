@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Display from "./pages/Display";
 import Admin from "./pages/Admin";
 import Trains from "./pages/Trains";
+import TrainSettings from "./pages/TrainSettings";
 import "./styles/index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -13,6 +14,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="/" element={<Display />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/trains" element={<Trains />} />
+        <Route path="/train-settings" element={<TrainSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

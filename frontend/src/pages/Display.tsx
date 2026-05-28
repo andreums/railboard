@@ -107,16 +107,18 @@ export default function Display() {
                 )}
               </div>
 
-              {/* Train type badge + number */}
-              <div className="flex flex-col gap-1">
-                {train.type_code && (
+              {/* Train type + number */}
+              <div className="flex flex-row items-center gap-2">
+                {train.type_logo ? (
+                  <img src={fileUrl(train.type_logo)} className="h-8" alt={train.type_code || ""} />
+                ) : train.type_code ? (
                   <span
                     className="inline-block self-start text-xs font-bold px-2 py-1 rounded text-white tracking-widest"
                     style={{ backgroundColor: train.type_color || "#7c1d2e" }}
                   >
                     {train.type_code}
                   </span>
-                )}
+                ) : null}
                 <span className="font-mono text-board-dim text-sm">{train.number}</span>
               </div>
 
