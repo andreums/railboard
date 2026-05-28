@@ -52,8 +52,7 @@ db.exec(`
   );
 `);
 
--- migrate existing trains with a default sort_order
-const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c: any) => c.name === "sort_order");
+const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "sort_order");
 if (!hasSort) {
   db.exec("ALTER TABLE trains ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   db.exec("UPDATE trains SET sort_order = id");

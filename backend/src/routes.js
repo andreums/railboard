@@ -38,7 +38,7 @@ r.put("/config", (req, res) => {
 // ----- trains -----
 r.get("/trains", (_req, res) => res.json(listTrains()));
 
-function reorderTrains(ids: number[]) {
+function reorderTrains(ids) {
   const stmt = db.prepare("UPDATE trains SET sort_order = ? WHERE id = ?");
   ids.forEach((id, idx) => stmt.run(idx, id));
 }
