@@ -44,6 +44,9 @@ export type Config = {
   destinationFontSize?: string;
   countdownFontSize?: string;
   timeFormat?: "24h" | "12h";
+  clockMode?: "real" | "fake";
+  clockFakeTime?: string;
+  clockFakeStepSeconds?: string;
 };
 
 const json = (path: string, init?: RequestInit) =>

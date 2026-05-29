@@ -250,7 +250,11 @@ export default function Display() {
             fontSize: "clamp(3rem, 6.5dvh, 7rem)",
             lineHeight: 1,
           }}>
-            <Clock />
+            <Clock
+              mode={config?.clockMode === "fake" ? "fake" : "real"}
+              fakeTime={config?.clockFakeTime || "12:00:00"}
+              fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
+            />
           </div>
           <span style={{ fontSize: "clamp(1rem, 2.5dvh, 2.4rem)", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.75, marginTop: "0.1rem", fontWeight: 700 }}>
             {t("platform", lang)}
@@ -313,7 +317,7 @@ export default function Display() {
               <div style={{
                 width: W_TIME,
                 height: "60%",
-                fontSize: "50%",
+                fontSize: "46%",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "center",
@@ -341,7 +345,7 @@ export default function Display() {
               <div style={{
                 width: W_DEST,
                 height: "60%",
-                fontSize: "50%",
+                fontSize: "46%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -372,7 +376,7 @@ export default function Display() {
               <div style={{
                 width: W_PROD,
                 height: "60%",
-                fontSize: "60%",   // Gravita: .train-product font-size: 60%
+                fontSize: "54%",
                 display: "flex",
                 flexWrap: "nowrap",
                 justifyContent: "center",
@@ -445,7 +449,7 @@ export default function Display() {
               <div style={{
                 width: W_PLAT,
                 height: "60%",
-                fontSize: "50%",
+                fontSize: "46%",
                 display: "flex",
                 justifyContent: "flex-end",
                 alignItems: "center",
@@ -466,7 +470,7 @@ export default function Display() {
               <div style={{
                 width: W_TIME,
                 height: "40%",
-                fontSize: "25%",
+                fontSize: "20%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -494,7 +498,7 @@ export default function Display() {
               <div style={{
                 width: W_DEST,
                 height: "40%",
-                fontSize: "25%",
+                fontSize: "23%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -517,11 +521,11 @@ export default function Display() {
               {/* MARGIN */}
               <div style={{ width: W_MARG, height: "40%" }} />
 
-              {/* OBSERVATIONS — spans logo/number and platform columns */}
+              {/* OBSERVATIONS — only under type + train number column */}
               <div style={{
-                width: `calc(${W_PROD} + ${W_PLAT})`,
+                width: W_PROD,
                 height: "40%",
-                fontSize: "25%",
+                fontSize: "23%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -536,6 +540,9 @@ export default function Display() {
                   />
                 )}
               </div>
+
+              {/* PLATFORM lower (empty, keeps column alignment) */}
+              <div style={{ width: W_PLAT, height: "40%" }} />
 
             </div>
           );

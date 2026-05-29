@@ -747,12 +747,25 @@ r.post("/generate-random-train", (_req, res) => {
     const d = new Date(Date.now() + offsetMin * 60_000);
     return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
   };
-  const statusForOffset = (offset) => {
+  const profileForType = (typeCode) => {
+    if (/^(C(-\d+)?|R\d+[A-Z]?|R2N)$/i.test(typeCode)) {
+      return { delayedProb: 0.16, cancelledProb: 0.03, advancedProb: 0.04, delayMin: 2, delayMax: 9 };
+    }
+    if (/^(MD)$/i.test(typeCode)) {
+      return { delayedProb: 0.14, cancelledProb: 0.03, advancedProb: 0.03, delayMin: 4, delayMax: 16 };
+    }
+    if (/^(AVANT|AVE|IRYO|OUIGO|INOUI|EMD)$/i.test(typeCode)) {
+      return { delayedProb: 0.09, cancelledProb: 0.02, advancedProb: 0.02, delayMin: 3, delayMax: 14 };
+    }
+    return { delayedProb: 0.12, cancelledProb: 0.03, advancedProb: 0.03, delayMin: 3, delayMax: 12 };
+  };
+  const statusForOffset = (offset, profile, modeValue) => {
+    if (offset < 0) return modeValue === "arrivals" ? "Arrived" : "Departed";
     if (offset <= 8) return "Boarding";
     const roll = Math.random();
-    if (roll < 0.08) return "Cancelled";
-    if (roll < 0.22) return "Delayed";
-    if (roll < 0.28) return "Advanced";
+    if (roll < profile.cancelledProb) return "Cancelled";
+    if (roll < profile.cancelledProb + profile.delayedProb) return "Delayed";
+    if (roll < profile.cancelledProb + profile.delayedProb + profile.advancedProb) return "Advanced";
     return "Scheduled";
   };
   const config = getConfig();
@@ -784,12 +797,16 @@ r.post("/generate-random-train", (_req, res) => {
     .filter((offset) => offset > -5)
     .sort((a, b) => a - b);
   const lastOffset = sameLineUpcoming.length ? sameLineUpcoming[sameLineUpcoming.length - 1] : randomInt(2, 10);
-  const scheduledOffset = Math.min(240, Math.max(3, lastOffset + route.headwayMin + randomInt(-3, 4)));
-  const rawStatus = statusForOffset(scheduledOffset);
+  // Add some historical services for admin realism (Departed/Arrived) while most remain upcoming.
+  const scheduledOffset = Math.random() < 0.14
+    ? -randomInt(2, 25)
+    : Math.min(240, Math.max(3, lastOffset + route.headwayMin + randomInt(-3, 4)));
+  const profile = profileForType(route.code);
+  const rawStatus = statusForOffset(scheduledOffset, profile, mode);
   const expectedOffset = rawStatus === "Delayed"
-    ? scheduledOffset + randomInt(5, 18)
+    ? scheduledOffset + randomInt(profile.delayMin, profile.delayMax)
     : rawStatus === "Advanced"
-      ? Math.max(1, scheduledOffset - randomInt(2, 8))
+      ? Math.max(1, scheduledOffset - randomInt(1, Math.min(7, profile.delayMax)))
       : scheduledOffset;
   const status = rawStatus === "Advanced" ? "Scheduled" : rawStatus;
   const maxStopLimit = Math.min(9, routeStops.length);

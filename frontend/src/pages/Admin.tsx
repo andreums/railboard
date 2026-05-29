@@ -154,6 +154,27 @@ export default function Admin() {
               <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Texto pie de pantalla</label>
               <input className="w-full bg-black/40 rounded px-3 py-2" value={config.footerText || ""} onChange={(e) => setConfig({ ...config, footerText: e.target.value })} />
             </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Reloj</label>
+                <select className="w-full bg-black/40 rounded px-3 py-2" value={config.clockMode || "real"} onChange={(e) => setConfig({ ...config, clockMode: e.target.value as Config["clockMode"] })}>
+                  <option value="real">Sistema</option>
+                  <option value="fake">Ficticio</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Hora ficticia</label>
+                <input type="time" step="1" className="w-full bg-black/40 rounded px-3 py-2" value={config.clockFakeTime || "12:00:00"} onChange={(e) => setConfig({ ...config, clockFakeTime: e.target.value })} disabled={(config.clockMode || "real") !== "fake"} />
+              </div>
+              <div>
+                <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Avance</label>
+                <select className="w-full bg-black/40 rounded px-3 py-2" value={config.clockFakeStepSeconds || "1"} onChange={(e) => setConfig({ ...config, clockFakeStepSeconds: e.target.value })} disabled={(config.clockMode || "real") !== "fake"}>
+                  {[1, 2, 5, 10, 15].map((seconds) => (
+                    <option key={seconds} value={String(seconds)}>{seconds}s / segundo</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <button onClick={handleSaveConfig} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full">Guardar</button>
             <button onClick={handleSeedTrains} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Cargar trenes ficticios</button>
             <button onClick={handleGenerateRandomBoard} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Generar panel random</button>
