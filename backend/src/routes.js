@@ -500,8 +500,23 @@ const minutesFromHHMM = (hhmm) => {
   return h * 60 + m;
 };
 
-const minutesUntilHHMM = (hhmm) => {
-  let diff = minutesFromHHMM(hhmm) - (new Date().getHours() * 60 + new Date().getMinutes());
+const clockBaseFromConfig = (config) => {
+  if (config?.clockMode !== "fake") return new Date();
+  const [h = 12, m = 0, s = 0] = String(config.clockFakeTime || "12:00:00")
+    .split(":")
+    .map((part) => Number(part));
+  const d = new Date();
+  d.setHours(Number.isFinite(h) ? h : 12, Number.isFinite(m) ? m : 0, Number.isFinite(s) ? s : 0, 0);
+  return d;
+};
+
+const hhmmFromOffsetAt = (baseDate, offsetMin) => {
+  const d = new Date(baseDate.getTime() + offsetMin * 60_000);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+};
+
+const minutesUntilHHMM = (hhmm, baseDate = new Date()) => {
+  let diff = minutesFromHHMM(hhmm) - (baseDate.getHours() * 60 + baseDate.getMinutes());
   if (diff < -12 * 60) diff += 24 * 60;
   if (diff > 12 * 60) diff -= 24 * 60;
   return diff;
@@ -743,10 +758,6 @@ r.post("/generate-random-train", (_req, res) => {
 
   const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
   const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-  const hhmmFromOffset = (offsetMin) => {
-    const d = new Date(Date.now() + offsetMin * 60_000);
-    return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-  };
   const profileForType = (typeCode) => {
     if (/^(C(-\d+)?|R\d+[A-Z]?|R2N)$/i.test(typeCode)) {
       return { delayedProb: 0.16, cancelledProb: 0.03, advancedProb: 0.04, delayMin: 2, delayMax: 9 };
@@ -769,6 +780,8 @@ r.post("/generate-random-train", (_req, res) => {
     return "Scheduled";
   };
   const config = getConfig();
+  const clockBase = clockBaseFromConfig(config);
+  const hhmmFromOffset = (offsetMin) => hhmmFromOffsetAt(clockBase, offsetMin);
   const mode = config.mode === "arrivals" ? "arrivals" : "departures";
   const station = config.station_name || "Madrid Puerta de Atocha";
   const routesAtStation = RODALIA_ROUTES.filter((r) => stationIndex(r.stations, station) >= 0);
@@ -793,7 +806,7 @@ r.post("/generate-random-train", (_req, res) => {
   const type = typeList.find((t) => t.code === route.code) || randomItem(typeList);
   const sameLineUpcoming = existing
     .filter((t) => t.type_code === route.code)
-    .map((t) => minutesUntilHHMM(t.scheduled_time))
+    .map((t) => minutesUntilHHMM(t.scheduled_time, clockBase))
     .filter((offset) => offset > -5)
     .sort((a, b) => a - b);
   const lastOffset = sameLineUpcoming.length ? sameLineUpcoming[sameLineUpcoming.length - 1] : randomInt(2, 10);

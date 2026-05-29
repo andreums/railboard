@@ -278,6 +278,7 @@ export default function Display() {
           const expectedDelta = clockMinuteDelta(train.scheduled_time, train.expected_time);
           const isAhead = expectedDelta < 0;
           const isBoarding = train.status === "Boarding";
+          const isLeaving = !isCancelled && (isBoarding || (minutes >= 0 && minutes <= 2));
           const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
           const showCountdown = !isCancelled && !isDelayed && minutes >= 0 && minutes <= 15;
           const timeStruck = isCancelled || isDelayed;
@@ -333,6 +334,7 @@ export default function Display() {
                   textDecoration: timeStruck ? "line-through" : "none",
                   textDecorationColor: isCancelled ? "#555" : "#999",
                   color: isCancelled ? "#4a5568" : "#ffffff",
+                  animation: isLeaving ? "departure-time-blink 0.9s ease-in-out infinite" : "none",
                 }}>
                   {showCountdown
                     ? <>{Math.max(0, minutes)}<span style={{ fontSize: "40%", marginLeft: "0.2em" }}>{t("minute-short", lang)}</span></>
@@ -486,11 +488,6 @@ export default function Display() {
                 )}
                 {isCancelled && (
                   <span style={{ color: "#FF8557" }}>{t("cancelled", lang)}</span>
-                )}
-                {isBoarding && !isDelayed && !isCancelled && (
-                  <span style={{ color: "#5FE0AF" }}>
-                    {t("boarding", lang)}
-                  </span>
                 )}
               </div>
 
