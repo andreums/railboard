@@ -18,14 +18,17 @@ export type Train = {
   expected_time: string;
   platform: string;
   sector: string;
+  observations?: string;
+  created_at?: string;
+  sort_order?: number;
   status:
-    | "Scheduled" | "Boarding" | "Delayed"
-    | "Departed"  | "Arrived"  | "Cancelled";
+  | "Scheduled" | "Boarding" | "Delayed"
+  | "Departed" | "Arrived" | "Cancelled";
 };
 
-export type Operator  = { id: number; name: string; logo_url: string | null };
+export type Operator = { id: number; name: string; logo_url: string | null };
 export type TrainType = { id: number; code: string; name: string; color: string; logo_url: string | null };
-export type Place     = { id: number; name: string };
+export type Place = { id: number; name: string; logo_url?: string | null };
 export type Config = {
   station_name: string;
   mode: "departures" | "arrivals";
@@ -67,10 +70,13 @@ export const api = {
   setStatus: (id: number, status: Train["status"]) =>
     json(`/trains/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   addDelay: (id: number, minutes: number) =>
-    json(`/trains/${id}/delay`, { method: "PATCH", body: JSON.stringify({ minutes }) }),
+    json(`/trains/${id} / delay`, { method: "PATCH", body: JSON.stringify({ minutes }) }),
   setPlatform: (id: number, platform: string, sector: string) =>
-    json(`/trains/${id}/platform`, { method: "PATCH", body: JSON.stringify({ platform, sector }) }),
+    json(`/ trains / ${id}/platform`, { method: "PATCH", body: JSON.stringify({ platform, sector }) }),
   deleteTrain: (id: number) => json(`/trains/${id}`, { method: "DELETE" }),
+  clearTrains: () => json("/trains", { method: "DELETE" }),
+  generateRandomTrain: (): Promise<Train> =>
+    json("/generate-random-train", { method: "POST", body: JSON.stringify({}) }),
 
   listOperators: (): Promise<Operator[]> => json("/operators"),
   createOperator: (name: string, logo?: File | null) => {
@@ -103,9 +109,21 @@ export const api = {
   deleteTrainType: (id: number) => json(`/train-types/${id}`, { method: "DELETE" }),
 
   listPlaces: (): Promise<Place[]> => json("/places"),
-  createPlace: (name: string) =>
-    json("/places", { method: "POST", body: JSON.stringify({ name }) }),
+  createPlace: (name: string, logo?: File | null) => {
+    const fd = new FormData();
+    fd.append("name", name);
+    if (logo) fd.append("logo", logo);
+    return fetch(`${API_URL}/api/places`, { method: "POST", body: fd }).then((r) => r.json());
+  },
+  updatePlace: (id: number, name: string, logo?: File | null) => {
+    const fd = new FormData();
+    fd.append("name", name);
+    if (logo) fd.append("logo", logo);
+    return fetch(`${API_URL}/api/places/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
+  },
   deletePlace: (id: number) => json(`/places/${id}`, { method: "DELETE" }),
+
+  seedTrains: (): Promise<Train[]> => json("/seed-trains", { method: "POST" }),
 };
 
 export function connectWS(onUpdate: () => void) {

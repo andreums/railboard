@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/components/clock.tsx","./src/components/statuspill.tsx","./src/lib/api.ts","./src/lib/i18n.ts","./src/pages/admin.tsx","./src/pages/display.tsx","./src/pages/trainsettings.tsx","./src/pages/trains.tsx"],"version":"5.9.3"}
+{"root":["./src/main.tsx","./src/components/clock.tsx","./src/components/statuspill.tsx","./src/components/steamtrain.tsx","./src/lib/api.ts","./src/lib/i18n.ts","./src/pages/admin.tsx","./src/pages/display.tsx","./src/pages/trainsettings.tsx","./src/pages/trains.tsx"],"version":"5.9.3"}

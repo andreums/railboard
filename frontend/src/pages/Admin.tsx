@@ -5,10 +5,19 @@ import {
 } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
 
+type Modal = { show: boolean; title: string; message: string; type: "success" | "error" };
+
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [newPlace, setNewPlace] = useState("");
+  const [modal, setModal] = useState<Modal>({ show: false, title: "", message: "", type: "success" });
+
+  const showModal = (title: string, message: string, type: "success" | "error" = "success") => {
+    setModal({ show: true, title, message, type });
+  };
+
+  const closeModal = () => setModal({ ...modal, show: false });
 
   const refresh = async () => {
     const [c, pl] = await Promise.all([
@@ -18,6 +27,81 @@ export default function Admin() {
   };
 
   useEffect(() => { refresh(); return connectWS(refresh); }, []);
+
+  const handleSaveConfig = async () => {
+    try {
+      await api.setConfig(config!);
+      showModal("Configuración guardada", "Los cambios se han guardado correctamente.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudo guardar la configuración.", "error");
+    }
+  };
+
+  const handleSeedTrains = async () => {
+    try {
+      await api.seedTrains();
+      await refresh();
+      showModal("Trenes cargados", "Se han cargado 9 trenes ficticios.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudieron cargar los trenes.", "error");
+    }
+  };
+
+  const handleClearTrains = async () => {
+    if (!confirm("¿Borrar todos los trenes?")) return;
+    try {
+      await api.clearTrains();
+      showModal("Trenes eliminados", "Se han borrado todos los trenes.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudieron borrar los trenes.", "error");
+    }
+  };
+
+  const handleGenerateRandomBoard = async () => {
+    try {
+      await api.clearTrains();
+      for (let i = 0; i < 8; i += 1) {
+        await api.generateRandomTrain();
+      }
+      showModal("Panel random generado", "Se han generado 8 trenes con horarios escalonados.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudo generar el panel random.", "error");
+    }
+  };
+
+  const handleSaveStyles = async () => {
+    try {
+      await api.setConfig(config!);
+      showModal("Estilos guardados", "Los estilos se han actualizado.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudieron guardar los estilos.", "error");
+    }
+  };
+
+  const handleDeletePlace = async (id: number) => {
+    try {
+      await api.deletePlace(id);
+      await refresh();
+      showModal("Lugar eliminado", "El lugar se ha eliminado correctamente.", "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudo eliminar el lugar.", "error");
+    }
+  };
+
+  const handleAddPlace = async () => {
+    if (!newPlace.trim()) {
+      showModal("Advertencia", "Ingresa un nombre para el lugar.", "error");
+      return;
+    }
+    try {
+      await api.createPlace(newPlace);
+      setNewPlace("");
+      await refresh();
+      showModal("Lugar agregado", `${newPlace} se ha agregado correctamente.`, "success");
+    } catch (err: any) {
+      showModal("Error", err.message || "No se pudo agregar el lugar.", "error");
+    }
+  };
 
   if (!config) return <div className="p-10 text-board-dim">Cargando…</div>;
 
@@ -70,7 +154,10 @@ export default function Admin() {
               <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Texto pie de pantalla</label>
               <input className="w-full bg-black/40 rounded px-3 py-2" value={config.footerText || ""} onChange={(e) => setConfig({ ...config, footerText: e.target.value })} />
             </div>
-            <button onClick={() => api.setConfig(config)} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full">Guardar</button>
+            <button onClick={handleSaveConfig} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full">Guardar</button>
+            <button onClick={handleSeedTrains} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Cargar trenes ficticios</button>
+            <button onClick={handleGenerateRandomBoard} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Generar panel random</button>
+            <button onClick={handleClearTrains} className="bg-board-red text-white font-bold px-4 py-2 rounded w-full mt-2">Borrar todos los trenes</button>
           </div>
         </section>
 
@@ -103,7 +190,7 @@ export default function Admin() {
               <input type="number" className="w-full bg-black/40 rounded px-3 py-2" min="20" max="100" value={parseInt(config.destinationFontSize || "48")} onChange={(e) => setConfig({ ...config, destinationFontSize: e.target.value })} />
             </div>
           </div>
-          <button onClick={() => api.setConfig(config)} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full mt-5">Guardar estilos</button>
+          <button onClick={handleSaveStyles} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full mt-5">Guardar estilos</button>
         </section>
 
         {/* Places */}
@@ -113,17 +200,35 @@ export default function Admin() {
             {places.map((p) => (
               <span key={p.id} className="inline-flex items-center gap-2 bg-black/30 rounded-full px-3 py-1.5 text-sm">
                 {p.name}
-                <button onClick={() => api.deletePlace(p.id).then(refresh)} className="text-board-red hover:text-white leading-none">✕</button>
+                <button onClick={() => handleDeletePlace(p.id)} className="text-board-red hover:text-white leading-none">✕</button>
               </span>
             ))}
             {places.length === 0 && <span className="text-board-dim text-sm">Vacío</span>}
           </div>
           <div className="flex gap-2">
-            <input className="flex-1 bg-black/40 rounded px-3 py-2" placeholder="Nuevo lugar" value={newPlace} onChange={(e) => setNewPlace(e.target.value)} />
-            <button onClick={async () => { if (newPlace) { await api.createPlace(newPlace); setNewPlace(""); refresh(); }}} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded">+</button>
+            <input className="flex-1 bg-black/40 rounded px-3 py-2" placeholder="Nuevo lugar" value={newPlace} onChange={(e) => setNewPlace(e.target.value)} onKeyPress={(e) => e.key === "Enter" && handleAddPlace()} />
+            <button onClick={handleAddPlace} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded">+</button>
           </div>
         </section>
       </div>
+
+      {/* Modal */}
+      {modal.show && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-board-row rounded-lg p-6 max-w-sm w-full shadow-2xl border border-white/10">
+            <h3 className={`text-xl font-bold mb-2 ${modal.type === "success" ? "text-board-green" : "text-board-red"}`}>
+              {modal.title}
+            </h3>
+            <p className="text-board-dim text-sm mb-5">{modal.message}</p>
+            <button
+              onClick={closeModal}
+              className="w-full bg-board-amber text-board-bg font-bold px-4 py-2 rounded hover:opacity-90 transition"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

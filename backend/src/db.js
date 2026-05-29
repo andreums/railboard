@@ -30,8 +30,9 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS places (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    name     TEXT NOT NULL UNIQUE,
+    logo_url TEXT
   );
 
   CREATE TABLE IF NOT EXISTS trains (
@@ -56,6 +57,16 @@ const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.na
 if (!hasSort) {
   db.exec("ALTER TABLE trains ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
   db.exec("UPDATE trains SET sort_order = id");
+}
+
+const hasObservations = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "observations");
+if (!hasObservations) {
+  db.exec("ALTER TABLE trains ADD COLUMN observations TEXT DEFAULT ''");
+}
+
+const hasPlaceLogo = db.prepare("PRAGMA table_info('places')").all().some((c) => c.name === "logo_url");
+if (!hasPlaceLogo) {
+  db.exec("ALTER TABLE places ADD COLUMN logo_url TEXT");
 }
 
 // Defaults
@@ -112,10 +123,10 @@ export function createTrain(t) {
   const stmt = db.prepare(`
     INSERT INTO trains
       (number, operator_id, train_type_id, origin, destination, stops,
-       scheduled_time, expected_time, platform, sector, status)
+       scheduled_time, expected_time, platform, sector, status, observations)
     VALUES
       (@number, @operator_id, @train_type_id, @origin, @destination, @stops,
-       @scheduled_time, @expected_time, @platform, @sector, @status)
+       @scheduled_time, @expected_time, @platform, @sector, @status, @observations)
   `);
   const info = stmt.run({
     number: t.number,
@@ -129,6 +140,7 @@ export function createTrain(t) {
     platform: t.platform || "-",
     sector: t.sector || "-",
     status: t.status || "Scheduled",
+    observations: t.observations || "",
   });
   return getTrain(info.lastInsertRowid);
 }
@@ -142,7 +154,7 @@ export function updateTrain(id, t) {
        number=@number, operator_id=@operator_id, train_type_id=@train_type_id,
        origin=@origin, destination=@destination, stops=@stops,
        scheduled_time=@scheduled_time, expected_time=@expected_time,
-       platform=@platform, sector=@sector, status=@status
+       platform=@platform, sector=@sector, status=@status, observations=@observations
      WHERE id=@id`
   ).run({
     id,
@@ -157,6 +169,7 @@ export function updateTrain(id, t) {
     platform: next.platform,
     sector: next.sector,
     status: next.status,
+    observations: next.observations || "",
   });
   return getTrain(id);
 }
@@ -208,7 +221,9 @@ export const trainTypes = {
 
 export const places = {
   list: () => db.prepare("SELECT * FROM places ORDER BY name").all(),
-  create: ({ name }) =>
-    db.prepare("INSERT INTO places (name) VALUES (?)").run(name),
+  create: ({ name, logo_url }) =>
+    db.prepare("INSERT INTO places (name, logo_url) VALUES (?, ?)").run(name, logo_url || null),
+  update: (id, { name, logo_url }) =>
+    db.prepare("UPDATE places SET name = ?, logo_url = ? WHERE id = ?").run(name, logo_url || null, id),
   remove: (id) => db.prepare("DELETE FROM places WHERE id = ?").run(id),
 };

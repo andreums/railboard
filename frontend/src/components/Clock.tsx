@@ -10,9 +10,9 @@ export default function Clock() {
   const mm = String(now.getMinutes()).padStart(2, "0");
   const ss = String(now.getSeconds()).padStart(2, "0");
   return (
-    <div className="text-right">
+    <div className="text-right text-current">
       <div className="font-mono text-5xl tracking-wider">
-        {hh}:{mm}<span className="text-board-dim">:{ss}</span>
+        {hh}:{mm}<span className="text-current">:{ss}</span>
       </div>
     </div>
   );
