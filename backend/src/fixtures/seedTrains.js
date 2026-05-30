@@ -1,0 +1,13 @@
+export const SEED_FIXTURES = [
+    { number: "03104", op: "Renfe", type: "AVE", destination: "Barcelona Sants", stops: ["Zaragoza Delicias", "Tarragona Camp"], platform: "5", sector: "B", min: 8, status: "Boarding" },
+    { number: "06112", op: "Avlo", type: "AVLO", destination: "Valencia Joaquín Sorolla", stops: ["Cuenca Fernando Zóbel"], platform: "9", sector: "C", min: 15, status: "Scheduled" },
+    { number: "02087", op: "Renfe", type: "ALVIA", destination: "Sevilla Santa Justa", stops: ["Córdoba Central"], platform: "11", sector: "A", min: 22, status: "Scheduled" },
+    { number: "00451", op: "Renfe", type: "IC", destination: "Murcia del Carmen", stops: ["Albacete Los Llanos"], platform: "3", sector: "D", min: 31, status: "Delayed", delay: 10 },
+    { number: "18021", op: "Renfe", type: "MD", destination: "Toledo", stops: [], platform: "1", sector: "A", min: 5, status: "Boarding" },
+    { number: "03210", op: "Iryo", type: "AVE", destination: "Málaga María Zambrano", stops: ["Córdoba Central"], platform: "7", sector: "B", min: 45, status: "Scheduled" },
+    { number: "06440", op: "Ouigo", type: "AVE", destination: "Barcelona Sants", stops: ["Zaragoza Delicias"], platform: "8", sector: "C", min: 52, status: "Scheduled" },
+    { number: "00112", op: "Renfe", type: "C", destination: "Alcalá de Henares", stops: [], platform: "2", sector: "A", min: 2, status: "Departed" },
+    { number: "02540", op: "Renfe", type: "AVE", destination: "Alicante Terminal", stops: ["Cuenca Fernando Zóbel", "Albacete Los Llanos"], platform: "6", sector: "B", min: 67, status: "Cancelled" },
+];
+
+export default SEED_FIXTURES;
