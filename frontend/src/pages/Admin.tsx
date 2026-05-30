@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { api, connectWS, fileUrl, type Config, type Place, type Train, type Route, type Operator, type TrainType, type Station } from "../lib/api";
+import { api, connectWS, fileUrl, type Config, type Place, type Train, type Route, type Operator, type TrainType, type Station, type DisplaySummary } from "../lib/api";
 import { fetchNetworks, fetchStations, reloadRailwayRoutes, type RailwayReloadStats } from "../services/routeApi";
 import GenerationPanel from "../components/admin/GenerationPanel";
 import ServicesPanel from "../components/admin/ServicesPanel";
 import RoutesPanel from "../components/admin/RoutesPanel";
+import WSLogPanel from "../components/admin/WSLogPanel";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import { speak, loadVoiceSettings, getVoices, defaultTemplate, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
 
-type TabType = "station" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice";
+type TabType = "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice";
 type NotificationType = "success" | "error" | "info";
 
 interface Notification {
@@ -26,10 +27,19 @@ const TEST_TEXTS: Record<string, string> = {
   gl: "Proba de voz do sistema de megafonía. Velocidade, ton e volume configurados correctamente.",
 };
 
+const normalizeStationName = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
+  const [displays, setDisplays] = useState<DisplaySummary[]>([]);
+  const [displaysSaving, setDisplaysSaving] = useState<Record<number, boolean>>({});
   const [routes, setRoutes] = useState<Route[]>([]);
   const [routesLoading, setRoutesLoading] = useState(false);
   const [routesError, setRoutesError] = useState<string | null>(null);
@@ -58,6 +68,7 @@ export default function Admin() {
   const [newPlace, setNewPlace] = useState("");
   const [autoGen, setAutoGen] = useState(false);
   const [autoInterval, setAutoInterval] = useState(5);
+  const [selectedTrainStationId, setSelectedTrainStationId] = useState<number | null>(null);
   const autoRef = useRef<number | null>(null);
 
   const showNotification = (type: NotificationType, title: string, message: string) => {
@@ -70,24 +81,34 @@ export default function Admin() {
     setRoutesLoading(true);
     setRoutesError(null);
     try {
-      const [c, stRows, pl, ro, tr, op, tt, networkList, stationList] = await Promise.all([
+      const [c, stRows, pl, ro, op, tt, networkList, stationList, displayRows] = await Promise.all([
         api.getConfig(),
         api.listStations(),
         api.listPlaces(),
         api.listRoutes(),
-        api.listTrains(),
         api.listOperators(),
         api.listTrainTypes(),
         fetchNetworks(),
         fetchStations(),
+        api.listDisplays(),
       ]);
+      const inferredStationId =
+        selectedTrainStationId ??
+        stRows.find((station) => normalizeStationName(station.name) === normalizeStationName(c.station_name || ""))?.id ??
+        stRows[0]?.id ??
+        null;
+      const tr = await api.listTrains(inferredStationId ?? undefined);
       setConfig(c);
       setStations(stRows);
       setPlaces(pl);
       setRoutes(ro);
+      setDisplays(displayRows);
       setTrains(tr);
       setOperators(op);
       setTrainTypes(tt);
+      if (selectedTrainStationId == null && inferredStationId != null) {
+        setSelectedTrainStationId(inferredStationId);
+      }
       setRouteDatasetStats((prev) => ({
         success: true,
         routes: ro.length,
@@ -122,10 +143,17 @@ export default function Admin() {
   }, [config]);
 
   useEffect(() => {
+    if (selectedTrainStationId == null) return;
+    api.listTrains(selectedTrainStationId)
+      .then(setTrains)
+      .catch(() => setTrains([]));
+  }, [selectedTrainStationId]);
+
+  useEffect(() => {
     if (autoGen) {
       autoRef.current = window.setInterval(async () => {
         try {
-          await api.generateRandomTrain();
+          await api.generateRandomTrain(selectedTrainStationId ?? undefined);
           await refresh();
         } catch (e) { }
       }, Math.max(1000, autoInterval * 1000));
@@ -141,7 +169,7 @@ export default function Admin() {
         autoRef.current = null;
       }
     };
-  }, [autoGen, autoInterval]);
+  }, [autoGen, autoInterval, selectedTrainStationId]);
 
   const handleSaveConfig = async () => {
     try {
@@ -188,7 +216,7 @@ export default function Admin() {
 
   const handleGenerateRandomTrain = async () => {
     try {
-      await api.generateRandomTrain();
+      await api.generateRandomTrain(selectedTrainStationId ?? undefined);
       await refresh();
       showNotification("success", "✓ Tren generado", "Nuevo tren agregado al panel");
     } catch (err: any) {
@@ -197,11 +225,15 @@ export default function Admin() {
   };
 
   const handleClearTrains = async () => {
-    if (!confirm("⚠️ ¿Eliminar TODOS los trenes? Esta acción no se puede deshacer.")) return;
+    const stationName = stations.find((s) => s.id === selectedTrainStationId)?.name;
+    const message = selectedTrainStationId
+      ? `⚠️ ¿Eliminar todos los trenes de ${stationName}? Esta acción no se puede deshacer.`
+      : "⚠️ ¿Eliminar TODOS los trenes? Esta acción no se puede deshacer.";
+    if (!confirm(message)) return;
     try {
-      await api.clearTrains();
+      await api.clearTrains(selectedTrainStationId ?? undefined);
       await refresh();
-      showNotification("success", "✓ Panel limpiado", "Todos los trenes han sido eliminados");
+      showNotification("success", "✓ Panel limpiado", selectedTrainStationId ? `Trenes eliminados en ${stationName}` : "Todos los trenes han sido eliminados");
     } catch (err: any) {
       showNotification("error", "✗ Error", err.message || "No se pudieron eliminar");
     }
@@ -209,14 +241,58 @@ export default function Admin() {
 
   const handleGenerateBoard = async () => {
     try {
-      await api.clearTrains();
+      await api.clearTrains(selectedTrainStationId ?? undefined);
       for (let i = 0; i < 8; i++) {
-        await api.generateRandomTrain();
+        await api.generateRandomTrain(selectedTrainStationId ?? undefined);
       }
       await refresh();
       showNotification("success", "✓ Panel generado", "8 trenes con horarios escalonados");
     } catch (err: any) {
       showNotification("error", "✗ Error", err.message || "No se pudo generar el panel");
+    }
+  };
+
+  const handleGenerateOnePerDisplay = async () => {
+    if (!stations.length) {
+      showNotification("error", "✗ Sin estaciones", "No hay estaciones disponibles");
+      return;
+    }
+    try {
+      for (const station of stations) {
+        const stationTrains = await api.listTrains(station.id);
+        if (stationTrains.length === 0) {
+          await api.generateRandomTrain(station.id);
+        }
+      }
+      await refresh();
+      showNotification("success", "✓ Displays cubiertos", "Cada display tiene al menos 1 tren");
+    } catch (err: any) {
+      showNotification("error", "✗ Error", err.message || "No se pudo completar la generación por display");
+    }
+  };
+
+  const updateDisplayConfig = (stationId: number, patch: Partial<Config>) => {
+    setDisplays((prev) =>
+      prev.map((display) =>
+        display.station.id === stationId
+          ? { ...display, config: { ...display.config, ...patch } }
+          : display
+      )
+    );
+  };
+
+  const saveDisplayConfig = async (stationId: number) => {
+    const display = displays.find((item) => item.station.id === stationId);
+    if (!display) return;
+    try {
+      setDisplaysSaving((prev) => ({ ...prev, [stationId]: true }));
+      await api.saveStationDisplayConfig(stationId, display.config);
+      await refresh();
+      showNotification("success", "✓ Display guardado", display.station.short || display.station.name);
+    } catch (err: any) {
+      showNotification("error", "✗ Error", err.message || "No se pudo guardar la configuración del display");
+    } finally {
+      setDisplaysSaving((prev) => ({ ...prev, [stationId]: false }));
     }
   };
 
@@ -323,6 +399,7 @@ export default function Admin() {
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: "station", label: "Estación", icon: "🏢" },
+    { id: "displays", label: "Displays", icon: "🖥️" },
     { id: "trains", label: "Trenes", icon: "🚂" },
     { id: "services", label: "Servicios", icon: "📋" },
     { id: "routes", label: "Rutas", icon: "🛤️" },
@@ -542,6 +619,240 @@ export default function Admin() {
             </div>
           )}
 
+          {/* Displays Tab */}
+          {activeTab === "displays" && (
+            <div className="animate-fadeIn space-y-6">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                      <span>🖥️</span> Displays ({displays.length})
+                    </h2>
+                    <p className="text-slate-400 text-sm mt-1">
+                      Configuración independiente y trenes asociados para cada estación.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleGenerateOnePerDisplay}
+                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition"
+                  >
+                    1 Tren por Display
+                  </button>
+                </div>
+
+                {displays.length === 0 ? (
+                  <div className="text-center py-10">
+                    <p className="text-slate-400">No hay displays para mostrar.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                    {displays
+                      .slice()
+                      .sort((a, b) => a.station.sort_order - b.station.sort_order || a.station.name.localeCompare(b.station.name, "es"))
+                      .map((display) => {
+                        const s = display.station;
+                        const cfg = display.config;
+                        const trainsForDisplay = display.trains || [];
+                        return (
+                          <div key={s.id} className="bg-black/20 border border-white/10 rounded-xl p-5 space-y-4">
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <h3 className="text-lg font-bold text-white">{s.short || s.name}</h3>
+                                <p className="text-sm text-slate-400">{s.name} · ID {s.id}</p>
+                                <p className="text-xs text-slate-500 mt-1">{trainsForDisplay.length} trenes</p>
+                              </div>
+                              <div className="flex flex-col gap-2 items-end">
+                                <a
+                                  href={`/display/${s.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-amber-500 text-black text-xs font-semibold rounded hover:bg-amber-400 transition"
+                                >
+                                  Abrir Display
+                                </a>
+                                <a
+                                  href={`/control/${s.id}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 bg-slate-700 text-white text-xs font-semibold rounded hover:bg-slate-600 transition"
+                                >
+                                  Abrir Control
+                                </a>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre visible</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.station_name || ""}
+                                  onChange={(e) => updateDisplayConfig(s.id, { station_name: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Modo</label>
+                                <select
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.mode || "departures"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { mode: e.target.value as Config["mode"] })}
+                                >
+                                  <option value="departures">Salidas</option>
+                                  <option value="arrivals">Llegadas</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idioma</label>
+                                <select
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={(cfg.language as Language) ?? "es"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { language: e.target.value as Language })}
+                                >
+                                  {Object.entries(LANGUAGES).map(([code, name]) => (
+                                    <option key={code} value={code}>{name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Reloj</label>
+                                <select
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.clockMode || "real"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { clockMode: e.target.value as Config["clockMode"] })}
+                                >
+                                  <option value="real">Sistema</option>
+                                  <option value="fake">Ficticio</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Hora ficticia</label>
+                                <input
+                                  type="time"
+                                  step="1"
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.clockFakeTime || "12:00:00"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { clockFakeTime: e.target.value })}
+                                  disabled={(cfg.clockMode || "real") !== "fake"}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Logo / URL</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.logo_url || ""}
+                                  onChange={(e) => updateDisplayConfig(s.id, { logo_url: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fondo</label>
+                                <input
+                                  type="color"
+                                  className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                                  value={cfg.bgColor || "#050a14"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { bgColor: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Cabecera</label>
+                                <input
+                                  type="color"
+                                  className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                                  value={cfg.headerBgColor || "#BFEFD5"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { headerBgColor: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Texto cabecera</label>
+                                <input
+                                  type="color"
+                                  className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                                  value={cfg.headerTextColor || "#102341"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { headerTextColor: e.target.value })}
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Pie de pantalla</label>
+                              <input
+                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                value={cfg.footerText || ""}
+                                onChange={(e) => updateDisplayConfig(s.id, { footerText: e.target.value })}
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                onClick={() => saveDisplayConfig(s.id)}
+                                disabled={!!displaysSaving[s.id]}
+                                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                              >
+                                {displaysSaving[s.id] ? "Guardando..." : "Guardar display"}
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  await api.generateRandomTrain(s.id);
+                                  await refresh();
+                                }}
+                                className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
+                              >
+                                Generar tren
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  if (!confirm(`¿Vaciar trenes de ${s.short || s.name}?`)) return;
+                                  await api.clearTrains(s.id);
+                                  await refresh();
+                                }}
+                                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold"
+                              >
+                                Vaciar trenes
+                              </button>
+                            </div>
+
+                            <div className="bg-black/30 rounded-lg border border-white/10 overflow-hidden">
+                              <div className="px-4 py-3 border-b border-white/10 text-sm font-semibold text-slate-300">
+                                Trenes del display
+                              </div>
+                              {trainsForDisplay.length === 0 ? (
+                                <div className="px-4 py-6 text-slate-400 text-sm">
+                                  No hay trenes asignados.
+                                </div>
+                              ) : (
+                                <div className="divide-y divide-white/5">
+                                  {trainsForDisplay.slice(0, 5).map((train) => (
+                                    <div key={train.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                                      <div className="min-w-0">
+                                        <div className="text-white font-semibold truncate">{train.number} · {train.destination}</div>
+                                        <div className="text-xs text-slate-400">{train.scheduled_time} · {train.platform} · {train.status}</div>
+                                      </div>
+                                      <button
+                                        onClick={async () => {
+                                          if (!confirm(`¿Eliminar tren ${train.number}?`)) return;
+                                          await api.deleteTrain(train.id);
+                                          await refresh();
+                                        }}
+                                        className="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-xs font-semibold text-white"
+                                      >
+                                        Eliminar
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Trains Tab */}
           {activeTab === "trains" && (
             <div className="animate-fadeIn space-y-6">
@@ -553,6 +864,20 @@ export default function Admin() {
                 <div className="space-y-4">
                   <div className="bg-black/20 rounded-lg p-4 border border-white/5">
                     <h3 className="text-sm font-semibold text-amber-400 mb-3">⚡ Acciones Rápidas</h3>
+                    <div className="mb-4">
+                      <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide block mb-2">Estación / Display</label>
+                      <select
+                        value={selectedTrainStationId ?? ""}
+                        onChange={(e) => setSelectedTrainStationId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      >
+                        {stations.map((station) => (
+                          <option key={station.id} value={station.id}>
+                            {station.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <button
                         onClick={handleGenerateRandomTrain}
@@ -565,6 +890,12 @@ export default function Admin() {
                         className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2"
                       >
                         <span>📋</span> Panel Completo (8)
+                      </button>
+                      <button
+                        onClick={handleGenerateOnePerDisplay}
+                        className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition flex items-center justify-center gap-2 sm:col-span-2"
+                      >
+                        <span>🛰️</span> 1 Tren por Display
                       </button>
                       <button
                         onClick={handleClearTrains}
@@ -621,7 +952,12 @@ export default function Admin() {
                       </div>
                       <div className="bg-black/40 rounded-lg p-3">
                         <div className="text-slate-400 text-xs uppercase tracking-wide">Ver Panel</div>
-                        <a href="/" target="_blank" rel="noreferrer" className="text-amber-400 font-bold hover:text-amber-300 transition mt-1 block">
+                        <a
+                          href={selectedTrainStationId ? `/display/${selectedTrainStationId}` : "/"}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-amber-400 font-bold hover:text-amber-300 transition mt-1 block"
+                        >
                           📺 Ir a Display →
                         </a>
                       </div>
@@ -712,12 +1048,7 @@ export default function Admin() {
                 <p className="text-slate-400 mb-6">Selecciona una ruta para generar un tren con sus líneas, operador y estaciones.</p>
                 <RoutesPanel />
                 <div className="mt-6">
-                  {/* WS debug panel */}
-                  {/* Lazy-load to avoid SSR issues */}
-                  {typeof window !== 'undefined' && (
-                    // @ts-ignore - dynamic import isn't necessary here
-                    require('../components/admin/WSLogPanel').default({})
-                  )}
+                  <WSLogPanel />
                 </div>
               </div>
             </div>

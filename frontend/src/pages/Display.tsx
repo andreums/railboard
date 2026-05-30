@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { api, connectWS, fileUrl, type Config, type Train, type Place, type Station, type Service } from "../lib/api";
+import { api, connectWS, fileUrl, type Config, type Train, type Place, type Station } from "../lib/api";
 import { useParams } from "react-router-dom";
 import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
@@ -129,16 +129,16 @@ export default function Display() {
   const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
   const [config, setConfig] = useState<Config | null>(null);
   const [trains, setTrains] = useState<Train[]>([]);
-  const [services, setServices] = useState<Service[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [boardStationName, setBoardStationName] = useState<string>("—");
+  const [boardMode, setBoardMode] = useState<"departures" | "arrivals" | "mixed">("departures");
   const [loading, setLoading] = useState(true);
   const [, setTick] = useState(0);
 
   const refresh = async () => {
     try {
       const [c, st, p] = await Promise.all([api.getConfig(), api.listStations(), api.listPlaces()]);
-      setConfig(c);
       setStations(st);
       setPlaces(p);
 
@@ -154,17 +154,48 @@ export default function Display() {
         stationId = st[0].id;
       }
 
-      // Get board data (trains + services) for this station
-      const mode = c?.mode || "departures";
+      let stationConfig = c;
+      try {
+        stationConfig = await api.getStationDisplayConfig(stationId);
+      } catch {
+        stationConfig = c;
+      }
+      setConfig(stationConfig);
+
+      // Get board data already normalized by backend
+      const mode = stationConfig?.mode || c?.mode || "departures";
       try {
         const boardData = await api.getStationBoard(stationId, mode as "departures" | "arrivals");
-        setTrains(boardData.trains || []);
-        setServices(boardData.services || []);
+        const normalizedRows: Train[] = (boardData.rows || []).map((row: any, idx: number) => ({
+          id: Number(row.stopId || row.serviceId || idx + 1),
+          number: row.number,
+          operator_id: null,
+          operator_name: row.operatorName,
+          operator_logo: null,
+          train_type_id: null,
+          type_code: row.trainTypeCode,
+          type_name: row.trainTypeName,
+          type_color: null,
+          type_logo: null,
+          origin: row.origin || "Origen",
+          destination: row.destination || "Destino",
+          stops: [],
+          scheduled_time: row.time,
+          expected_time: row.expectedTime || row.time,
+          platform: row.platform || "?",
+          sector: row.sector || "",
+          status: row.status || "Scheduled",
+          observations: row.stopsText || "",
+        }));
+        setTrains(normalizedRows);
+        setBoardStationName(boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—");
+        setBoardMode((boardData?.mode || mode) as "departures" | "arrivals" | "mixed");
       } catch {
         // Fallback to legacy trains if board endpoint fails
         const tr = await api.listTrains();
         setTrains(tr);
-        setServices([]);
+        setBoardStationName(stationConfig?.station_name || c?.station_name || "—");
+        setBoardMode((mode as "departures" | "arrivals") || "departures");
       }
 
       setLoading(false);
@@ -188,37 +219,10 @@ export default function Display() {
     };
   }, [stationIdParam]);
 
-  const mode = config?.mode ?? "departures";
+  const mode = boardMode || (config?.mode as "departures" | "arrivals") || "departures";
   const lang = (config?.language as Language) ?? "es";
-
-  // Convert services to train-like format for display
-  const serviceRows = services
-    .filter(svc => svc.status !== "Cancelled" && svc.next_stop_name)
-    .map(svc => ({
-      id: svc.id * 100000,  // Offset service IDs to avoid collision
-      number: svc.number,
-      operator_id: svc.operator_id,
-      operator_name: svc.operator_name,
-      operator_logo: svc.operator_logo,
-      train_type_id: svc.train_type_id,
-      type_code: svc.train_type_code,
-      type_name: svc.train_type_name,
-      type_color: svc.train_type_color,
-      type_logo: svc.train_type_logo,
-      origin: svc.origin_name || "—",
-      destination: svc.destination_name || "—",
-      scheduled_time: svc.next_stop_name ? "—" : "—",
-      expected_time: svc.next_stop_name ? "—" : "—",
-      platform: "—",
-      sector: "—",
-      status: "Scheduled" as Train["status"],
-      stops: [],
-      observations: svc.next_stop_name ? `→ ${svc.next_stop_name}${svc.delay_minutes ? ` (+${svc.delay_minutes}m)` : ""}` : "",
-    } as Train));
-
   const rows = useMemo(() => [
     ...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status)),
-    ...serviceRows,
   ]
     .sort((a, b) => {
       const aTime = a.expected_time !== "—" ? a.expected_time : a.scheduled_time;
@@ -227,7 +231,7 @@ export default function Display() {
       return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
     })
     .slice(0, 12),
-    [trains, serviceRows]);
+    [trains]);
 
   const bgColor = (config?.bgColor as string) || "#050a14";
   const headerBg = (config?.headerBgColor as string) || "#BFEFD5";
@@ -243,14 +247,14 @@ export default function Display() {
   // text doesn't become absurdly huge.
   // Gravita uses ~96px as practical max row height on a 1080p screen.
   const tableH = "84dvh";
-  // min() caps the row at 11dvh max (≈ 119px on 1080p, comfortable for any screen)
-  const rowH = `min(calc(${tableH} / ${n}), 12dvh)`;
+  // Cap lower to prevent oversized rows that clip inner elements when few rows are visible.
+  const rowH = `min(calc(${tableH} / ${n}), 10dvh)`;
 
   // Column widths — mirror Gravita exactly
   const W_TIME = "11.17%";
-  const W_DEST = "49%";     // direction + journey (reduced to keep train numbers visible)
-  const W_PROD = "25.33%";  // logo + number (expanded so full train number fits)
-  const W_PLAT = "7.5%";
+  const W_DEST = "51%";
+  const W_PROD = "23%";
+  const W_PLAT = "8.5%";
   // margin between dest and prod: 0.5%
   const W_MARG = "0.5%";
   // access not shown (no access data)
@@ -314,7 +318,7 @@ export default function Display() {
               maxWidth: "40vw",
               flexShrink: 0,
             }}>
-              {config?.station_name ?? "—"}
+              {boardStationName}
             </span>
           </div>
         </div>
@@ -423,13 +427,12 @@ export default function Display() {
               <div style={{
                 width: W_DEST,
                 height: "60%",
-                fontSize: "46%",
+                fontSize: "40%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
                 boxSizing: "border-box",
                 paddingLeft: "0.4em",
-                transform: hasStops ? "none" : "translateY(33.333%)",
               }}>
                 <div style={{
                   fontFamily: "'Oswald', sans-serif",
@@ -454,14 +457,13 @@ export default function Display() {
               <div style={{
                 width: W_PROD,
                 height: "60%",
-                fontSize: "54%",
+                fontSize: "50%",
                 display: "flex",
                 flexWrap: "nowrap",
                 justifyContent: "center",
                 alignItems: "center",
                 overflow: "visible",
                 boxSizing: "border-box",
-                transform: hasObservations ? "none" : "translateY(33.333%)",
               }}>
                 {/* Logo slot */}
                 <div style={{
@@ -508,7 +510,7 @@ export default function Display() {
                 <div style={{
                   width: "48%",
                   height: "100%",
-                  fontSize: "100%",  // already 60% of rowH from parent
+                  fontSize: "90%",
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "center",
@@ -537,7 +539,7 @@ export default function Display() {
                 fontWeight: 700,
                 whiteSpace: "nowrap",
                 paddingRight: 0,
-                transform: hasObservations ? "translateX(0.75em)" : "translate(0.75em, 33.333%)",
+                paddingLeft: "0.2em",
               }}>
                 {platText}
               </div>
@@ -571,7 +573,7 @@ export default function Display() {
               <div style={{
                 width: W_DEST,
                 height: "40%",
-                fontSize: "23%",
+                fontSize: "19%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -598,7 +600,7 @@ export default function Display() {
               <div style={{
                 width: W_PROD,
                 height: "40%",
-                fontSize: "23%",
+                fontSize: "19%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
@@ -647,7 +649,7 @@ export default function Display() {
           {[0, 1].map((k) => (
             <span key={k}>
               {config?.footerText ||
-                `${t("welcome", lang)} ${config?.station_name} · ${t("ticket", lang)} · ${t("tracks", lang)} · ${t("wifi", lang)} · ${t("event", lang)}`}
+                `${t("welcome", lang)} ${boardStationName} · ${t("ticket", lang)} · ${t("tracks", lang)} · ${t("wifi", lang)} · ${t("event", lang)}`}
             </span>
           ))}
         </div>

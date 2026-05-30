@@ -9,6 +9,7 @@ import {
   listTrains, createTrain, updateTrain, deleteTrain, getTrain,
   addMinutes,
   operators, trainTypes, places, stations,
+  getStationDisplayConfig, setStationDisplayConfig, listStationDisplayConfigs,
   services, serviceStops, serviceEvents,
 } from "./db.js";
 import SEED_FIXTURES from "./fixtures/seedTrains.js";
@@ -163,6 +164,30 @@ r.put("/config", adminAuth, (req, res) => {
   res.json(getConfig());
 });
 
+// ----- display configs -----
+r.get("/displays", adminAuth, (_req, res) => {
+  res.json(
+    listStationDisplayConfigs().map(({ station, config }) => ({
+      station,
+      config,
+      trains: listTrains(station.id),
+    }))
+  );
+});
+
+r.get("/stations/:id/config", (req, res) => {
+  const config = getStationDisplayConfig(Number(req.params.id));
+  if (!config) return res.status(404).json({ error: "Station not found" });
+  res.json(config);
+});
+
+r.put("/stations/:id/config", adminAuth, (req, res) => {
+  const config = setStationDisplayConfig(Number(req.params.id), req.body || {});
+  if (!config) return res.status(404).json({ error: "Station not found" });
+  ping();
+  res.json(config);
+});
+
 // ----- trains -----
 r.get("/trains", (req, res) => {
   const stationId = req.query.station_id != null ? Number(req.query.station_id) : null;
@@ -173,7 +198,12 @@ r.delete("/trains", adminAuth, (req, res) => {
   if (req.headers["x-confirm"] !== "yes") {
     return res.status(400).json({ error: 'Requiere header X-Confirm: yes para borrar todos los trenes.' });
   }
-  db.exec("DELETE FROM trains");
+  const stationId = req.query.station_id != null ? Number(req.query.station_id) : null;
+  if (stationId != null && Number.isFinite(stationId)) {
+    db.prepare("DELETE FROM trains WHERE station_id = ?").run(stationId);
+  } else {
+    db.exec("DELETE FROM trains");
+  }
   ping();
   res.status(204).end();
 });
@@ -428,7 +458,7 @@ r.post("/seed-trains", adminAuth, (_req, res) => {
 });
 
 // ----- generate random train -----
-r.post("/generate-random-train", adminAuth, (_req, res) => {
+r.post("/generate-random-train", adminAuth, (req, res) => {
   ensureLearnedRailData();
   const railRoutes = getAllRoutes();
 
@@ -470,7 +500,11 @@ r.post("/generate-random-train", adminAuth, (_req, res) => {
   const clockBase = clockBaseFromConfig(config);
   const hhmmFromOffset = (offsetMin) => hhmmFromOffsetAt(clockBase, offsetMin);
   const mode = config.mode === "arrivals" ? "arrivals" : "departures";
-  const station = config.station_name || "Madrid Puerta de Atocha";
+  const requestedStationId = req.body?.station_id != null ? Number(req.body.station_id) : null;
+  const stationRow = requestedStationId != null && Number.isFinite(requestedStationId)
+    ? stations.get(requestedStationId)
+    : null;
+  const station = stationRow?.name || config.station_name || "Madrid Puerta de Atocha";
   const routesAtStation = railRoutes.filter((r) => stationIndex(r.stations, station) >= 0);
   const routePool = routesAtStation.length ? routesAtStation : railRoutes;
   const existing = listTrains().filter((t) => !["Departed", "Arrived"].includes(t.status));
@@ -549,6 +583,7 @@ r.post("/generate-random-train", adminAuth, (_req, res) => {
     sector: "",
     status,
     observations,
+    station_id: stationRow?.id ?? null,
   });
 
   ping();

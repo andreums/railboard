@@ -48,6 +48,12 @@ db.exec(`
     created_at       TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
+  CREATE TABLE IF NOT EXISTS station_display_configs (
+    station_id  INTEGER PRIMARY KEY REFERENCES stations(id) ON DELETE CASCADE,
+    config_json  TEXT NOT NULL DEFAULT '{}',
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
   CREATE TABLE IF NOT EXISTS trains (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     number          TEXT NOT NULL,
@@ -80,6 +86,17 @@ if (!hasObservations) {
 const hasPlaceLogo = db.prepare("PRAGMA table_info('places')").all().some((c) => c.name === "logo_url");
 if (!hasPlaceLogo) {
   db.exec("ALTER TABLE places ADD COLUMN logo_url TEXT");
+}
+
+const hasDisplayConfigs = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'station_display_configs'").get();
+if (!hasDisplayConfigs) {
+  db.exec(`
+    CREATE TABLE station_display_configs (
+      station_id  INTEGER PRIMARY KEY REFERENCES stations(id) ON DELETE CASCADE,
+      config_json  TEXT NOT NULL DEFAULT '{}',
+      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
 }
 
 const hasStationId = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "station_id");
@@ -298,6 +315,7 @@ export const places = {
 
 export const stations = {
   list: () => db.prepare("SELECT * FROM stations ORDER BY sort_order ASC, name ASC").all(),
+  get: (id) => db.prepare("SELECT * FROM stations WHERE id = ?").get(id),
   create: ({ name, short, color, logo_url }) =>
     db.prepare("INSERT INTO stations (name, short, color, logo_url) VALUES (?, ?, ?, ?)")
       .run(name, short || "", color || "#1A3254", logo_url || null),
@@ -318,6 +336,57 @@ export const stations = {
   },
   remove: (id) => db.prepare("DELETE FROM stations WHERE id = ?").run(id),
 };
+
+const parseConfigJson = (value) => {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+const stationDisplayConfigDefaults = (station) => ({
+  station_name: station?.short || station?.name || "",
+  logo_url: station?.logo_url || null,
+});
+
+export function getStationDisplayConfig(stationId) {
+  const station = stations.get(stationId);
+  if (!station) return null;
+  const row = db.prepare("SELECT config_json FROM station_display_configs WHERE station_id = ?").get(stationId);
+  const overrides = parseConfigJson(row?.config_json);
+  return {
+    ...getConfig(),
+    ...stationDisplayConfigDefaults(station),
+    ...overrides,
+  };
+}
+
+export function setStationDisplayConfig(stationId, patch) {
+  const station = stations.get(stationId);
+  if (!station) return null;
+  const current = getStationDisplayConfig(stationId) || {};
+  const next = { ...current, ...(patch || {}) };
+  const statement = db.prepare(`
+    INSERT INTO station_display_configs (station_id, config_json, updated_at)
+    VALUES (?, ?, datetime('now'))
+    ON CONFLICT(station_id) DO UPDATE SET
+      config_json = excluded.config_json,
+      updated_at = excluded.updated_at
+  `);
+  statement.run(stationId, JSON.stringify(next));
+  return getStationDisplayConfig(stationId);
+}
+
+export function listStationDisplayConfigs() {
+  const allStations = stations.list();
+  return allStations.map((station) => ({
+    station,
+    config: getStationDisplayConfig(station.id),
+  }));
+}
 
 // ---- MULTISTATION SUPPORT: Services and Service Stops ----
 

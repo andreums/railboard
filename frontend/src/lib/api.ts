@@ -29,6 +29,7 @@ export type Train = {
   platform: string;
   sector: string;
   observations?: string;
+  station_id?: number | null;
   created_at?: string;
   sort_order?: number;
   status:
@@ -52,6 +53,7 @@ export type Route = {
 };
 export type Place = { id: number; name: string; logo_url?: string | null };
 export type Station = { id: number; name: string; short: string; logo_url?: string | null; pre_announce_ogg?: string | null; color: string; sort_order: number };
+export type DisplaySummary = { station: Station; config: Config; trains: Train[] };
 
 export type Service = {
   id: number;
@@ -160,7 +162,8 @@ export const api = {
   setConfig: (c: Partial<Config>) =>
     json("/config", { method: "PUT", body: JSON.stringify(c) }),
 
-  listTrains: (): Promise<Train[]> => json("/trains"),
+  listTrains: (stationId?: number): Promise<Train[]> =>
+    json(stationId != null ? `/trains?station_id=${stationId}` : "/trains"),
   reorderTrains: (ids: number[]) =>
     json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
   createTrain: (t: Partial<Train>) =>
@@ -174,9 +177,10 @@ export const api = {
   setPlatform: (id: number, platform: string, sector: string) =>
     json(`/trains/${id}/platform`, { method: "PATCH", body: JSON.stringify({ platform, sector }) }),
   deleteTrain: (id: number) => json(`/trains/${id}`, { method: "DELETE" }),
-  clearTrains: () => json("/trains", { method: "DELETE", headers: { "X-Confirm": "yes" } }),
-  generateRandomTrain: (): Promise<Train> =>
-    json("/generate-random-train", { method: "POST", body: JSON.stringify({}) }),
+  clearTrains: (stationId?: number) =>
+    json(stationId != null ? `/trains?station_id=${stationId}` : "/trains", { method: "DELETE", headers: { "X-Confirm": "yes" } }),
+  generateRandomTrain: (stationId?: number): Promise<Train> =>
+    json("/generate-random-train", { method: "POST", body: JSON.stringify(stationId != null ? { station_id: stationId } : {}) }),
   generateTrainFromRoute: (code: string, options?: { operator_id?: number; observations?: string }): Promise<Train> =>
     json(`/trains/from-route/${encodeURIComponent(code)}`, { method: "POST", body: JSON.stringify(options || {}) }),
 
@@ -225,6 +229,14 @@ export const api = {
   deleteTrainTypePre: (id: number) => authFetch(`/train-types/${id}/pre-announce`, { method: "DELETE" }),
 
   listStations: (): Promise<Station[]> => json("/stations"),
+  listDisplays: (): Promise<DisplaySummary[]> => json("/displays"),
+  getStationDisplayConfig: (stationId: number): Promise<Config> =>
+    fetch(`${API_URL}/api/stations/${stationId}/config`).then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }),
+  saveStationDisplayConfig: (stationId: number, config: Partial<Config>): Promise<Config> =>
+    json(`/stations/${stationId}/config`, { method: "PUT", body: JSON.stringify(config) }),
 
   listPlaces: (): Promise<Place[]> => json("/places"),
   createPlace: (name: string, logo?: File | null) => {
@@ -301,11 +313,11 @@ export const api = {
 
   // Board display
   getStationBoard: (stationId: number, mode?: "departures" | "arrivals" | "all"): Promise<any> =>
-    fetch(`${API_URL}/admin/stations/${stationId}/board${mode ? `?mode=${mode}` : ""}`, {
-      headers: { "Authorization": `Basic ${btoa("admin:railboard")}` }
-    })
-      .then(r => r.json())
-      .then(response => response?.data || response),
+    fetch(`${API_URL}/api/stations/${stationId}/board${mode ? `?mode=${mode}` : ""}`)
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      }),
 };
 
 export function connectWS(onUpdate: () => void) {
