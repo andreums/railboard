@@ -225,18 +225,20 @@ export default function Display() {
           }}>
             {t(mode === "departures" ? "departures" : "arrivals", lang)}
           </span>
-          <div style={{ display: "flex", flexDirection: "column", marginLeft: "0.4rem", minWidth: 0 }}>
-            <span style={{ fontSize: "clamp(1.2rem, 3dvh, 3rem)", letterSpacing: 0, opacity: 1, lineHeight: 0.95 }}>
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline", marginLeft: "0.6rem", gap: "0.6rem", minWidth: 0 }}>
+            <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)", letterSpacing: 0, opacity: 1, lineHeight: 1 }}>
               {t("station-of", lang)}
             </span>
             <span style={{
               fontFamily: "'Oswald', sans-serif",
-              fontWeight: 600,
-              fontSize: "clamp(2rem, 5dvh, 5.2rem)",
-              lineHeight: 0.95,
+              fontWeight: 700,
+              fontSize: "clamp(3rem, 7dvh, 7rem)",
+              lineHeight: 1,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              maxWidth: "40vw",
+              flexShrink: 0,
             }}>
               {config?.station_name ?? "—"}
             </span>

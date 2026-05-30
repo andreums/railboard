@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   api, connectWS,
   type Config, type Place,
@@ -69,6 +69,28 @@ export default function Admin() {
     }
   };
 
+  // Auto-generation of random trains
+  const [autoGen, setAutoGen] = useState(false);
+  const [autoInterval, setAutoInterval] = useState(5);
+  const autoRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (autoGen) {
+      // start interval
+      autoRef.current = window.setInterval(async () => {
+        try {
+          await api.generateRandomTrain();
+          await refresh();
+        } catch (e) {
+          // ignore
+        }
+      }, Math.max(1000, autoInterval * 1000));
+    } else {
+      if (autoRef.current) { clearInterval(autoRef.current); autoRef.current = null; }
+    }
+    return () => { if (autoRef.current) { clearInterval(autoRef.current); autoRef.current = null; } };
+  }, [autoGen, autoInterval]);
+
   const handleSaveStyles = async () => {
     try {
       await api.setConfig(config!);
@@ -127,7 +149,7 @@ export default function Admin() {
               <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Logo</label>
               <div className="flex gap-2">
                 <input className="flex-1 bg-black/40 rounded px-3 py-2" placeholder="https://..." value={config.logo_url || ""} onChange={(e) => setConfig({ ...config, logo_url: e.target.value })} />
-                <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = (ev) => setConfig({ ...config, logo_url: ev.target?.result as string }); r.readAsDataURL(f); }}} />
+                <input type="file" accept="image/*" onChange={(e) => { const f = e.target.files?.[0]; if (f) { const r = new FileReader(); r.onload = (ev) => setConfig({ ...config, logo_url: ev.target?.result as string }); r.readAsDataURL(f); } }} />
               </div>
               {config.logo_url && <img src={config.logo_url} className="h-8 mt-2" alt="Logo" />}
             </div>
@@ -178,6 +200,16 @@ export default function Admin() {
             <button onClick={handleSaveConfig} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded w-full">Guardar</button>
             <button onClick={handleSeedTrains} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Cargar trenes ficticios</button>
             <button onClick={handleGenerateRandomBoard} className="bg-board-green text-board-bg font-bold px-4 py-2 rounded w-full mt-2">Generar panel random</button>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => { api.generateRandomTrain().then(refresh); }} className="bg-board-amber text-board-bg font-bold px-4 py-2 rounded">Generar 1 tren</button>
+              <button onClick={() => { setAutoGen(!autoGen); }} className={`font-bold px-4 py-2 rounded ${autoGen ? 'bg-board-red text-white' : 'bg-board-green text-board-bg'}`}>
+                {autoGen ? 'Detener auto' : 'Auto-generar'}
+              </button>
+            </div>
+            <div className="mt-2 flex items-center gap-2">
+              <label className="text-sm text-board-dim">Intervalo (s)</label>
+              <input type="number" min={1} value={autoInterval} onChange={(e) => setAutoInterval(Number(e.target.value))} className="w-20 bg-black/40 rounded px-2 py-1" />
+            </div>
             <button onClick={handleClearTrains} className="bg-board-red text-white font-bold px-4 py-2 rounded w-full mt-2">Borrar todos los trenes</button>
           </div>
         </section>

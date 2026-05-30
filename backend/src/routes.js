@@ -789,7 +789,18 @@ r.post("/generate-random-train", (_req, res) => {
   const existing = listTrains().filter((t) => !["Departed", "Arrived"].includes(t.status));
   const routeCounts = new Map();
   for (const train of existing) routeCounts.set(train.type_code, (routeCounts.get(train.type_code) || 0) + 1);
-  const route = [...routePool].sort((a, b) => (routeCounts.get(a.code) || 0) - (routeCounts.get(b.code) || 0))[0] || randomItem(routePool);
+  // Choose a route balancing existing counts: weighted-random so less-represented routes are likelier
+  const pool = routePool.map((r) => ({ route: r, count: routeCounts.get(r.code) || 0 }));
+  // weight = 1 / (1 + count) -> smaller count => larger weight
+  const weights = pool.map((p) => 1 / (1 + p.count));
+  const totalWeight = weights.reduce((s, w) => s + w, 0);
+  let pick = Math.random() * totalWeight;
+  let chosenIndex = 0;
+  for (let i = 0; i < weights.length; i++) {
+    pick -= weights[i];
+    if (pick <= 0) { chosenIndex = i; break; }
+  }
+  const route = pool[chosenIndex % pool.length].route;
   const routeStationIndex = stationIndex(route.stations, station);
   const currentIndex = routeStationIndex >= 0 ? routeStationIndex : 0;
   const direction = currentIndex === 0 ? 1 : currentIndex === route.stations.length - 1 ? -1 : randomItem([-1, 1]);
