@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  api, connectWS, fileUrl,
+  api, connectWS,
   type Config, type Operator, type Place, type Train, type TrainType,
 } from "../lib/api";
 import {
@@ -41,7 +41,13 @@ export default function Trains() {
     setConfig(c); setTrains(t); setOperators(op); setTrainTypes(tt); setPlaces(pl);
   };
 
-  useEffect(() => { refresh(); return connectWS(refresh); }, []);
+  useEffect(() => {
+    refresh();
+    const ws = connectWS(refresh);
+    return () => {
+      if (ws && typeof ws.close === "function") ws.close();
+    };
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -87,15 +93,13 @@ export default function Trains() {
     <div className="min-h-screen bg-board-bg text-board-ink p-8 font-body">
       <header className="flex justify-between items-center mb-8">
         <h1 className="font-display text-4xl tracking-wide">RailBoard · Trenes</h1>
-        <div className="flex gap-4 items-center">
-          <span className="text-board-dim text-sm">Editar:</span>
-          <a href="/train-settings" className="text-board-amber underline text-sm">Operadores</a>
-          <a href="/train-settings" className="text-board-amber underline text-sm">Tipos de tren</a>
+        <div className="flex gap-4 items-center text-sm">
+          <span className="text-board-dim">Editar:</span>
+          <a href="/train-settings" className="text-board-amber underline">Operadores</a>
+          <a href="/train-settings" className="text-board-amber underline">Tipos de tren</a>
           <span className="text-board-dim">|</span>
           <a href="/admin" className="text-board-amber underline">Configuración</a>
-          <a href="/" target="_blank" className="text-board-amber underline">
-            Pantalla pública →
-          </a>
+          <a href="/" target="_blank" className="text-board-amber underline">Pantalla pública →</a>
         </div>
       </header>
 
@@ -132,7 +136,7 @@ export default function Trains() {
                   <div className="text-board-dim text-sm py-4">Arrastra para reordenar</div>
                 ) : (
                   trains.map((train) => (
-                    <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} STATUSES={STATUSES} onEdit={setEditing} dragHandle />
+                    <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} STATUSES={STATUSES} onEdit={setEditing} />
                   ))
                 )}
               </div>
@@ -296,7 +300,6 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
   refresh: () => void;
   STATUSES: Train["status"][];
   onEdit: (t: Train) => void;
-  dragHandle?: boolean;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(train.id) });
 
@@ -422,7 +425,7 @@ function TrainForm({
         </select>
       </Field>
       <Field label="Estado">
-        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.status} onChange={(e) => set("status", e.target.value)}>
+        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.status} onChange={(e) => set("status", e.target.value as Train["status"])}>
           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
       </Field>

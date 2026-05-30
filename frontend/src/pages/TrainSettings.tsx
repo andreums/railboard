@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import {
-  api, connectWS, fileUrl,
+  api, connectWS, fileUrl, API_URL,
   type Operator, type TrainType,
 } from "../lib/api";
+import { speak } from "../lib/tts";
 
 export default function TrainSettings() {
   const [operators, setOperators] = useState<Operator[]>([]);
@@ -11,6 +12,8 @@ export default function TrainSettings() {
   const [editingType, setEditingType] = useState<TrainType | null>(null);
   const [operatorLogo, setOperatorLogo] = useState<File | null>(null);
   const [typeLogo, setTypeLogo] = useState<File | null>(null);
+  const [operatorPre, setOperatorPre] = useState<File | null>(null);
+  const [typePre, setTypePre] = useState<File | null>(null);
 
   const refresh = async () => {
     const [op, tt] = await Promise.all([
@@ -19,7 +22,13 @@ export default function TrainSettings() {
     setOperators(op); setTrainTypes(tt);
   };
 
-  useEffect(() => { refresh(); return connectWS(refresh); }, []);
+  useEffect(() => {
+    refresh();
+    const ws = connectWS(refresh);
+    return () => {
+      if (ws && typeof ws.close === "function") ws.close();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-board-bg text-board-ink p-8 font-body">
@@ -55,10 +64,27 @@ export default function TrainSettings() {
                     {editingOperator.logo_url && <img src={fileUrl(editingOperator.logo_url)!} className="h-8 mb-2" alt="Logo" />}
                     <input type="file" accept="image/*" onChange={(e) => setOperatorLogo(e.target.files?.[0] ?? null)} />
                   </div>
+                  <div>
+                    <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Aviso sonoro (pre-anuncio)</label>
+                    {editingOperator.pre_announce_ogg && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <audio src={fileUrl(editingOperator.pre_announce_ogg)!} controls className="h-8" />
+                        <button
+                          onClick={async () => { await api.deleteOperatorPre(editingOperator.id); refresh(); }}
+                          className="text-board-red text-sm"
+                          title="Eliminar audio"
+                        >✕</button>
+                      </div>
+                    )}
+                    <input type="file" accept="audio/ogg,audio/opus,audio/mpeg,.ogg,.opus,.mp3" onChange={(e) => setOperatorPre(e.target.files?.[0] ?? null)} />
+                  </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { api.updateOperator(editingOperator.id, editingOperator.name, operatorLogo).then(() => { setEditingOperator(null); setOperatorLogo(null); refresh(); }); }} className="flex-1 bg-board-amber text-board-bg font-bold px-4 py-2 rounded">Guardar</button>
-                    <button onClick={() => { api.deleteOperator(editingOperator.id).then(() => { setEditingOperator(null); setOperatorLogo(null); refresh(); }); }} className="flex-1 bg-board-red text-white font-bold px-4 py-2 rounded">Eliminar</button>
-                    <button onClick={() => { setEditingOperator(null); setOperatorLogo(null); }} className="flex-1 px-4 py-2 rounded bg-white/10">Cancelar</button>
+                    <button onClick={async () => {
+                      if (operatorPre) await api.uploadOperatorPre(editingOperator.id, operatorPre);
+                      api.updateOperator(editingOperator.id, editingOperator.name, operatorLogo).then(() => { setEditingOperator(null); setOperatorLogo(null); setOperatorPre(null); refresh(); });
+                    }} className="flex-1 bg-board-amber text-board-bg font-bold px-4 py-2 rounded">Guardar</button>
+                    <button onClick={() => { api.deleteOperator(editingOperator.id).then(() => { setEditingOperator(null); setOperatorLogo(null); setOperatorPre(null); refresh(); }); }} className="flex-1 bg-board-red text-white font-bold px-4 py-2 rounded">Eliminar</button>
+                    <button onClick={() => { setEditingOperator(null); setOperatorLogo(null); setOperatorPre(null); }} className="flex-1 px-4 py-2 rounded bg-white/10">Cancelar</button>
                   </div>
                 </div>
               </div>
@@ -92,10 +118,27 @@ export default function TrainSettings() {
                     {editingType.logo_url && <img src={fileUrl(editingType.logo_url)!} className="h-8 mb-2" alt="Logo" />}
                     <input type="file" accept="image/*" onChange={(e) => setTypeLogo(e.target.files?.[0] ?? null)} />
                   </div>
+                  <div>
+                    <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Aviso sonoro (pre-anuncio)</label>
+                    {editingType.pre_announce_ogg && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <audio src={fileUrl(editingType.pre_announce_ogg)!} controls className="h-8" />
+                        <button
+                          onClick={async () => { await api.deleteTrainTypePre(editingType.id); refresh(); }}
+                          className="text-board-red text-sm"
+                          title="Eliminar audio"
+                        >✕</button>
+                      </div>
+                    )}
+                    <input type="file" accept="audio/ogg,audio/opus,audio/mpeg,.ogg,.opus,.mp3" onChange={(e) => setTypePre(e.target.files?.[0] ?? null)} />
+                  </div>
                   <div className="flex gap-2">
-                    <button onClick={() => { api.updateTrainType(editingType.id, editingType.code, editingType.name, editingType.color, typeLogo).then(() => { setEditingType(null); setTypeLogo(null); refresh(); }); }} className="flex-1 bg-board-amber text-board-bg font-bold px-4 py-2 rounded">Guardar</button>
-                    <button onClick={() => { api.deleteTrainType(editingType.id).then(() => { setEditingType(null); setTypeLogo(null); refresh(); }); }} className="flex-1 bg-board-red text-white font-bold px-4 py-2 rounded">Eliminar</button>
-                    <button onClick={() => { setEditingType(null); setTypeLogo(null); }} className="flex-1 px-4 py-2 rounded bg-white/10">Cancelar</button>
+                    <button onClick={async () => {
+                      if (typePre) await api.uploadTrainTypePre(editingType.id, typePre);
+                      api.updateTrainType(editingType.id, editingType.code, editingType.name, editingType.color, typeLogo).then(() => { setEditingType(null); setTypeLogo(null); setTypePre(null); refresh(); });
+                    }} className="flex-1 bg-board-amber text-board-bg font-bold px-4 py-2 rounded">Guardar</button>
+                    <button onClick={() => { api.deleteTrainType(editingType.id).then(() => { setEditingType(null); setTypeLogo(null); setTypePre(null); refresh(); }); }} className="flex-1 bg-board-red text-white font-bold px-4 py-2 rounded">Eliminar</button>
+                    <button onClick={() => { setEditingType(null); setTypeLogo(null); setTypePre(null); }} className="flex-1 px-4 py-2 rounded bg-white/10">Cancelar</button>
                   </div>
                 </div>
               </div>

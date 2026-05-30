@@ -8,11 +8,12 @@ import {
   getConfig, setConfig,
   listTrains, createTrain, updateTrain, deleteTrain, getTrain,
   addMinutes,
-  operators, trainTypes, places,
+  operators, trainTypes, places, stations,
+  services, serviceStops, serviceEvents,
 } from "./db.js";
-import RODALIA_ROUTES from "./fixtures/routes.js";
 import SEED_FIXTURES from "./fixtures/seedTrains.js";
 import { broadcast } from "./ws.js";
+import { getAllRoutes, reloadRoutesDataset } from "./services/routeService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,14 +25,16 @@ const adminAuth = basicAuth({
   realm: "Railboard Admin",
 });
 
+const storage = multer.diskStorage({
+  destination: path.resolve(__dirname, "../uploads"),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
+  },
+});
+
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: path.resolve(__dirname, "../uploads"),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname);
-      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-    },
-  }),
+  storage,
   limits: { fileSize: 2 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedMimes = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
@@ -47,12 +50,30 @@ const upload = multer({
   },
 });
 
+const uploadAudio = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowedMimes = ["audio/ogg", "audio/opus", "audio/mpeg"];
+    const allowedExts = [".ogg", ".opus", ".mp3"];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      const err = new Error("Tipo de archivo no permitido. Solo OGG / Opus / MP3.");
+      err.code = "FILE_TYPE_NOT_ALLOWED";
+      cb(err, false);
+    }
+  },
+});
+
 const r = Router();
 const ping = () => broadcast({ type: "update", at: Date.now() });
 
 // RODALIA_ROUTES moved to ./fixtures/routes.js
 
 function ensureLearnedRailData() {
+  const railRoutes = getAllRoutes();
   const baseOperators = ["Renfe", "Iryo", "Ouigo", "SNCF"];
   const knownOperators = new Set(operators.list().map((o) => o.name));
   for (const opName of baseOperators) {
@@ -63,14 +84,14 @@ function ensureLearnedRailData() {
   }
 
   const knownTypes = trainTypes.list().map((t) => t.code);
-  for (const route of RODALIA_ROUTES) {
+  for (const route of railRoutes) {
     if (!knownTypes.includes(route.code)) {
       trainTypes.create({ code: route.code, name: route.name, color: route.color });
     }
   }
 
   const knownPlaces = new Set(places.list().map((p) => p.name));
-  for (const route of RODALIA_ROUTES) {
+  for (const route of railRoutes) {
     for (const station of route.stations) {
       if (!knownPlaces.has(station)) {
         places.create({ name: station });
@@ -143,7 +164,10 @@ r.put("/config", adminAuth, (req, res) => {
 });
 
 // ----- trains -----
-r.get("/trains", (_req, res) => res.json(listTrains()));
+r.get("/trains", (req, res) => {
+  const stationId = req.query.station_id != null ? Number(req.query.station_id) : null;
+  res.json(listTrains(stationId));
+});
 
 r.delete("/trains", adminAuth, (req, res) => {
   if (req.headers["x-confirm"] !== "yes") {
@@ -228,6 +252,22 @@ r.delete("/operators/:id", adminAuth, (req, res) => {
   ping();
   res.status(204).end();
 });
+r.post("/operators/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+  const id = Number(req.params.id);
+  const url = req.file ? `/uploads/${req.file.filename}` : null;
+  operators.update(id, { pre_announce_ogg: url });
+  ping();
+  res.json(operators.list());
+});
+r.delete("/operators/:id/pre-announce", adminAuth, (req, res) => {
+  operators.update(Number(req.params.id), { pre_announce_ogg: null });
+  ping();
+  res.status(204).end();
+});
+
+// ----- routes (Rodalia, etc) -----
+r.get("/routes", (_req, res) => res.json(getAllRoutes()));
+r.post("/routes/reload", adminAuth, (_req, res) => res.json(reloadRoutesDataset()));
 
 // ----- train types -----
 r.get("/train-types", (_req, res) => res.json(trainTypes.list()));
@@ -273,6 +313,18 @@ r.delete("/train-types/:id", adminAuth, (req, res) => {
   ping();
   res.status(204).end();
 });
+r.post("/train-types/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+  const id = Number(req.params.id);
+  const url = req.file ? `/uploads/${req.file.filename}` : null;
+  trainTypes.update(id, { pre_announce_ogg: url });
+  ping();
+  res.json(trainTypes.list());
+});
+r.delete("/train-types/:id/pre-announce", adminAuth, (req, res) => {
+  trainTypes.update(Number(req.params.id), { pre_announce_ogg: null });
+  ping();
+  res.status(204).end();
+});
 
 // ----- places -----
 r.get("/places", (_req, res) => res.json(places.list()));
@@ -291,6 +343,37 @@ r.put("/places/:id", adminAuth, upload.single("logo"), (req, res) => {
 });
 r.delete("/places/:id", adminAuth, (req, res) => {
   places.remove(Number(req.params.id));
+  ping();
+  res.status(204).end();
+});
+
+// ----- stations -----
+r.get("/stations", (_req, res) => res.json(stations.list()));
+r.post("/stations", adminAuth, (req, res) => {
+  const s = stations.create(req.body);
+  ping();
+  res.status(201).json(stations.list());
+});
+r.put("/stations/:id", adminAuth, (req, res) => {
+  const s = stations.update(Number(req.params.id), req.body);
+  if (!s) return res.status(404).end();
+  ping();
+  res.json(stations.list());
+});
+r.delete("/stations/:id", adminAuth, (req, res) => {
+  stations.remove(Number(req.params.id));
+  ping();
+  res.status(204).end();
+});
+r.post("/stations/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+  const id = Number(req.params.id);
+  const url = req.file ? `/uploads/${req.file.filename}` : null;
+  stations.update(id, { pre_announce_ogg: url });
+  ping();
+  res.json(stations.list());
+});
+r.delete("/stations/:id/pre-announce", adminAuth, (req, res) => {
+  stations.update(Number(req.params.id), { pre_announce_ogg: null });
   ping();
   res.status(204).end();
 });
@@ -347,10 +430,14 @@ r.post("/seed-trains", adminAuth, (_req, res) => {
 // ----- generate random train -----
 r.post("/generate-random-train", adminAuth, (_req, res) => {
   ensureLearnedRailData();
+  const railRoutes = getAllRoutes();
 
   const opList = operators.list();
   const typeList = trainTypes.list();
   const placeList = places.list();
+  if (railRoutes.length === 0) {
+    return res.status(400).json({ error: "No routes available from backend data" });
+  }
 
   if (opList.length === 0 || typeList.length === 0 || placeList.length === 0) {
     return res.status(400).json({ error: "Need at least one operator, train type, and place" });
@@ -384,8 +471,8 @@ r.post("/generate-random-train", adminAuth, (_req, res) => {
   const hhmmFromOffset = (offsetMin) => hhmmFromOffsetAt(clockBase, offsetMin);
   const mode = config.mode === "arrivals" ? "arrivals" : "departures";
   const station = config.station_name || "Madrid Puerta de Atocha";
-  const routesAtStation = RODALIA_ROUTES.filter((r) => stationIndex(r.stations, station) >= 0);
-  const routePool = routesAtStation.length ? routesAtStation : RODALIA_ROUTES;
+  const routesAtStation = railRoutes.filter((r) => stationIndex(r.stations, station) >= 0);
+  const routePool = routesAtStation.length ? routesAtStation : railRoutes;
   const existing = listTrains().filter((t) => !["Departed", "Arrived"].includes(t.status));
   const routeCounts = new Map();
   for (const train of existing) routeCounts.set(train.type_code, (routeCounts.get(train.type_code) || 0) + 1);
@@ -466,6 +553,388 @@ r.post("/generate-random-train", adminAuth, (_req, res) => {
 
   ping();
   res.status(201).json(train);
+});
+
+// ----- generate train from specific route -----
+r.post("/trains/from-route/:code", adminAuth, (req, res) => {
+  ensureLearnedRailData();
+  const railRoutes = getAllRoutes();
+  const { code } = req.params;
+
+  const route = railRoutes.find(r => r.code === code);
+  if (!route) {
+    return res.status(404).json({ error: `Route ${code} not found` });
+  }
+
+  const opList = req.body?.operator_id ?
+    operators.list().filter(o => o.id === req.body.operator_id) :
+    [operators.list().find(o => o.name === (route.operator || "Renfe")) ||
+      operators.list().find(o => o.name === "Renfe") ||
+      operators.list()[0]];
+
+  const typeList = trainTypes.list();
+  if (opList.length === 0 || typeList.length === 0) {
+    return res.status(400).json({ error: "Missing operators or train types" });
+  }
+
+  const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+  const config = getConfig();
+  const mode = config.mode === "arrivals" ? "arrivals" : "departures";
+  const station = config.station_name || "Madrid Puerta de Atocha";
+  const routeStationIndex = route.stations.indexOf(station);
+  const currentIndex = routeStationIndex >= 0 ? routeStationIndex : 0;
+  const direction = currentIndex === 0 ? 1 : currentIndex === route.stations.length - 1 ? -1 : randomItem([-1, 1]);
+  const terminalIndex = direction === 1 ? route.stations.length - 1 : 0;
+  const [fromIndex, toIndex] = mode === "arrivals" ? [terminalIndex, currentIndex] : [currentIndex, terminalIndex];
+
+  const orderedIntermediateStops = (stations, from, to) => {
+    const [start, end] = from <= to ? [from, to] : [to, from];
+    return stations.slice(start + 1, end);
+  };
+
+  const routeStops = orderedIntermediateStops(route.stations, fromIndex, toIndex);
+  const op = opList[0];
+  const type = typeList.find(t => t.code === route.code) || randomItem(typeList);
+
+  const existing = listTrains();
+  const usedNumbers = new Set(existing.map(t => t.number));
+  const availableNumbers = route.numbers.filter(number => !usedNumbers.has(number));
+
+  const hhmmNow = () => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  };
+
+  const maxStopLimit = Math.min(9, routeStops.length);
+  const stopLimit = maxStopLimit > 0 ? randomInt(Math.min(3, maxStopLimit), maxStopLimit) : 0;
+  const stops = routeStops.slice(0, stopLimit);
+
+  const train = createTrain({
+    number: availableNumbers.length ? randomItem(availableNumbers) : randomItem(route.numbers),
+    operator_id: op.id,
+    train_type_id: type.id,
+    origin: route.stations[fromIndex],
+    destination: route.stations[toIndex],
+    stops,
+    scheduled_time: hhmmNow(),
+    expected_time: hhmmNow(),
+    platform: randomItem(route.platforms),
+    sector: "",
+    status: "Scheduled",
+    observations: req.body?.observations || "",
+  });
+
+  ping();
+  res.status(201).json(train);
+});
+
+// ============ MULTISTATION SERVICES ENDPOINTS ============
+
+// GET /admin/services - List all services with filters
+r.get("/services", adminAuth, (req, res) => {
+  const { status, operator_id } = req.query;
+  const filters = {};
+  if (status) filters.status = status;
+  if (operator_id) filters.operator_id = Number(operator_id);
+
+  const data = services.list(filters);
+  res.json({ status: "ok", data });
+});
+
+// POST /admin/services - Create new service
+r.post("/services", adminAuth, (req, res) => {
+  const { number, operator_id, train_type_id, origin_place_id, destination_place_id, notes } = req.body;
+
+  if (!number) return res.status(400).json({ status: "error", error: "number is required" });
+
+  try {
+    const service = services.create({
+      number,
+      operator_id: operator_id ? Number(operator_id) : null,
+      train_type_id: train_type_id ? Number(train_type_id) : null,
+      origin_place_id: origin_place_id ? Number(origin_place_id) : null,
+      destination_place_id: destination_place_id ? Number(destination_place_id) : null,
+      notes,
+    });
+
+    serviceEvents.log(service.id, null, 'service_created', { number });
+    broadcast({ type: "service_created", service_id: service.id, timestamp: Date.now() });
+
+    res.status(201).json({ status: "ok", data: service });
+  } catch (error) {
+    res.status(400).json({ status: "error", error: error.message });
+  }
+});
+
+// GET /admin/services/:id - Get service detail with all stops
+r.get("/services/:id", adminAuth, (req, res) => {
+  const { id } = req.params;
+  const service = services.get(Number(id));
+
+  if (!service) return res.status(404).json({ status: "error", error: "Service not found" });
+
+  const stops = serviceStops.listByService(service.id);
+  const events = serviceEvents.listByService(service.id, 50);
+
+  res.json({ status: "ok", data: { service, stops, events } });
+});
+
+// PATCH /admin/services/:id - Update service
+r.patch("/services/:id", adminAuth, (req, res) => {
+  const { id } = req.params;
+  const { status, notes } = req.body;
+
+  const updated = services.update(Number(id), { status, notes });
+  if (!updated) return res.status(404).json({ status: "error", error: "Service not found" });
+
+  broadcast({ type: "service_updated", service_id: updated.id, timestamp: Date.now() });
+  res.json({ status: "ok", data: updated });
+});
+
+// DELETE /admin/services/:id - Delete service
+r.delete("/services/:id", adminAuth, (req, res) => {
+  const { id } = req.params;
+  services.remove(Number(id));
+  broadcast({ type: "service_deleted", service_id: Number(id), timestamp: Date.now() });
+  res.status(204).send();
+});
+
+// POST /admin/services/:id/cancel - Cancel service
+r.post("/services/:id/cancel", adminAuth, (req, res) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  const cancelled = services.cancel(Number(id), reason || "Cancelled by operator");
+  if (!cancelled) return res.status(404).json({ status: "error", error: "Service not found" });
+
+  broadcast({ type: "service_cancelled", service_id: cancelled.id, reason, timestamp: Date.now() });
+  res.json({ status: "ok", data: cancelled });
+});
+
+// ============ SERVICE STOPS ENDPOINTS ============
+
+// GET /admin/services/:serviceId/stops - List stops for a service
+r.get("/services/:serviceId/stops", adminAuth, (req, res) => {
+  const { serviceId } = req.params;
+  const stops = serviceStops.listByService(Number(serviceId));
+  res.json({ status: "ok", data: stops });
+});
+
+// POST /admin/services/:serviceId/stops - Create a stop
+r.post("/services/:serviceId/stops", adminAuth, (req, res) => {
+  const { serviceId } = req.params;
+  const { station_id, stop_number, stop_type, arrival_scheduled, departure_scheduled, platform, sector, notes } = req.body;
+
+  if (!station_id || !stop_number || !stop_type) {
+    return res.status(400).json({ status: "error", error: "station_id, stop_number, stop_type are required" });
+  }
+
+  try {
+    const stop = serviceStops.create({
+      service_id: Number(serviceId),
+      station_id: Number(station_id),
+      stop_number: Number(stop_number),
+      stop_type,
+      arrival_scheduled,
+      departure_scheduled,
+      platform,
+      sector,
+      notes,
+    });
+
+    serviceEvents.log(Number(serviceId), stop.id, 'stop_created', { stop_number });
+    broadcast({ type: "service_stop_created", service_id: Number(serviceId), stop_id: stop.id, timestamp: Date.now() });
+
+    res.status(201).json({ status: "ok", data: stop });
+  } catch (error) {
+    res.status(400).json({ status: "error", error: error.message });
+  }
+});
+
+// PATCH /admin/services/:serviceId/stops/:stopId - Update a stop
+r.patch("/services/:serviceId/stops/:stopId", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  const { platform, sector, notes, delay_locked } = req.body;
+
+  const updated = serviceStops.update(Number(stopId), { platform, sector, notes, delay_locked });
+  if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
+
+  broadcast({ type: "service_stop_updated", stop_id: updated.id, timestamp: Date.now() });
+  res.json({ status: "ok", data: updated });
+});
+
+// DELETE /admin/services/:serviceId/stops/:stopId - Delete a stop
+r.delete("/services/:serviceId/stops/:stopId", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  serviceStops.remove(Number(stopId));
+  broadcast({ type: "service_stop_deleted", stop_id: Number(stopId), timestamp: Date.now() });
+  res.status(204).send();
+});
+
+// POST /admin/services/:serviceId/stops/reorder - Reorder stops
+r.post("/services/:serviceId/stops/reorder", adminAuth, (req, res) => {
+  const { serviceId } = req.params;
+  const { order } = req.body;  // array of stop IDs in new order
+
+  if (!Array.isArray(order)) {
+    return res.status(400).json({ status: "error", error: "order must be an array" });
+  }
+
+  const reordered = serviceStops.reorder(Number(serviceId), order);
+  broadcast({ type: "service_stops_reordered", service_id: Number(serviceId), timestamp: Date.now() });
+  res.json({ status: "ok", data: reordered });
+});
+
+// ============ SERVICE STOP OPERATIONS ============
+
+// POST /admin/stops/:stopId/arrival - Mark arrival
+r.post("/stops/:stopId/arrival", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  const { actual_time, platform } = req.body;
+
+  if (!actual_time) {
+    return res.status(400).json({ status: "error", error: "actual_time is required" });
+  }
+
+  const updated = serviceStops.markArrival(Number(stopId), actual_time, platform);
+  if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
+
+  broadcast({
+    type: "service_stop_state_changed",
+    stop_id: updated.id,
+    service_id: updated.service_id,
+    new_state: "Arrived",
+    delay_minutes: updated.delay_minutes,
+    timestamp: Date.now()
+  });
+
+  res.json({ status: "ok", data: updated });
+});
+
+// POST /admin/stops/:stopId/departure - Mark departure
+r.post("/stops/:stopId/departure", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  const { actual_time } = req.body;
+
+  if (!actual_time) {
+    return res.status(400).json({ status: "error", error: "actual_time is required" });
+  }
+
+  const updated = serviceStops.markDeparture(Number(stopId), actual_time);
+  if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
+
+  broadcast({
+    type: "service_stop_state_changed",
+    stop_id: updated.id,
+    service_id: updated.service_id,
+    new_state: "Departed",
+    timestamp: Date.now()
+  });
+
+  res.json({ status: "ok", data: updated });
+});
+
+// POST /admin/stops/:stopId/pass - Mark as passed (no stop)
+r.post("/stops/:stopId/pass", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  const { actual_time } = req.body;
+
+  if (!actual_time) {
+    return res.status(400).json({ status: "error", error: "actual_time is required" });
+  }
+
+  const updated = serviceStops.markPass(Number(stopId), actual_time);
+  if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
+
+  broadcast({
+    type: "service_stop_state_changed",
+    stop_id: updated.id,
+    service_id: updated.service_id,
+    new_state: "Passed",
+    timestamp: Date.now()
+  });
+
+  res.json({ status: "ok", data: updated });
+});
+
+// POST /admin/stops/:stopId/delay - Add delay
+r.post("/stops/:stopId/delay", adminAuth, (req, res) => {
+  const { stopId } = req.params;
+  const { minutes, reason } = req.body;
+
+  if (!minutes || isNaN(minutes)) {
+    return res.status(400).json({ status: "error", error: "minutes is required and must be a number" });
+  }
+
+  const updated = serviceStops.addDelay(Number(stopId), Number(minutes), reason || "Manual adjustment");
+  if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
+
+  broadcast({
+    type: "service_stop_delayed",
+    stop_id: updated.id,
+    service_id: updated.service_id,
+    delay_minutes: updated.delay_minutes,
+    reason: reason || "Manual adjustment",
+    timestamp: Date.now()
+  });
+
+  res.json({ status: "ok", data: updated });
+});
+
+// ============ CRITICAL: BOARD DISPLAY ENDPOINT ============
+
+// GET /stations/:stationId/board?mode=departures|arrivals|all
+// Returns all service information needed for departure/arrival boards
+r.get("/stations/:stationId/board", (req, res) => {
+  const { stationId } = req.params;
+  const { mode = "departures" } = req.query;
+  const station = stations.list().find(s => s.id === Number(stationId));
+
+  if (!station) {
+    return res.status(404).json({ status: "error", error: "Station not found" });
+  }
+
+  // Legacy: Get trains from old table
+  const trains = listTrains(Number(stationId));
+
+  // New: Get services with stops at this station
+  const allServices = services.list();
+  const servicesWithStops = allServices
+    .map(svc => {
+      const stops = serviceStops.listByService(svc.id);
+      return { service: svc, stops };
+    })
+    .filter(({ stops }) => stops.some(s => s.station_id === Number(stationId)))
+    .map(({ service, stops }) => {
+      const stopAtStation = stops.find(s => s.station_id === Number(stationId));
+      return {
+        ...service,
+        stop_here: stopAtStation,
+        all_stops: stops,
+      };
+    });
+
+  // Filter by mode if provided
+  const filtered = mode !== "all" ? {
+    mode,
+    trains: trains.filter(t => t.status !== "Cancelled"),
+    services: servicesWithStops.filter(s => s.status !== "Cancelled"),
+  } : {
+    mode: "all",
+    trains,
+    services: servicesWithStops,
+  };
+
+  res.json({
+    status: "ok",
+    data: {
+      station,
+      timestamp: Date.now(),
+      ...filtered,
+    }
+  });
 });
 
 export default r;

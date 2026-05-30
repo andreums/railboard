@@ -1,0 +1,1981 @@
+{
+    "schemaVersion": "1.0.0",
+    "project": "Railboard",
+    "description": "Dataset consolidado de rutas ferroviarias para simulación de paneles de estación.",
+    "notes": [
+        "Los números de tren, frecuencias y vías son aproximados/simulados para Railboard.",
+        "Algunas líneas pueden estar resumidas o adaptadas para uso de simulación.",
+        "La C-4 de València se conserva como línea custom por decisión del proyecto.",
+        "Se añaden los núcleos de Cercanías Málaga y Cercanías Cádiz, incluido Trambahía T1, para simulación Railboard."
+    ],
+    "routes": [
+        {
+            "code": "C-1",
+            "name": "Cercanías València C-1",
+            "network": "Cercanías València",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "14101",
+                "14103",
+                "14105",
+                "14107",
+                "14109",
+                "14111"
+            ],
+            "stations": [
+                "València Estació del Nord",
+                "Alfafar-Benetússer",
+                "Massanassa",
+                "Catarroja",
+                "Silla",
+                "El Romaní",
+                "Sollana",
+                "Sueca",
+                "Cullera",
+                "Tavernes de la Valldigna",
+                "Xeraco",
+                "Gandia"
+            ]
+        },
+        {
+            "code": "C-2",
+            "name": "Cercanías València C-2",
+            "network": "Cercanías València",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 15,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "24001",
+                "24003",
+                "24005",
+                "24007",
+                "24009",
+                "24011"
+            ],
+            "stations": [
+                "València Estació del Nord",
+                "Alfafar-Benetússer",
+                "Massanassa",
+                "Catarroja",
+                "Silla",
+                "Benifaió-Almussafes",
+                "Algemesí",
+                "Alzira",
+                "Carcaixent",
+                "La Pobla Llarga",
+                "L'Ènova-Manuel",
+                "Xàtiva",
+                "L'Alcúdia de Crespins",
+                "Montesa",
+                "Vallada",
+                "Moixent"
+            ]
+        },
+        {
+            "code": "C-3",
+            "name": "Cercanías València C-3",
+            "network": "Cercanías València",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 45,
+            "platforms": [
+                "4",
+                "5",
+                "6"
+            ],
+            "numbers": [
+                "34001",
+                "34003",
+                "34005",
+                "34007"
+            ],
+            "stations": [
+                "València Sant Isidre",
+                "Aldaia",
+                "Loriguilla-Reva",
+                "Circuit Ricardo Tormo",
+                "Cheste",
+                "Chiva",
+                "Buñol",
+                "Venta Mina-Siete Aguas",
+                "Siete Aguas",
+                "El Rebollar",
+                "Requena",
+                "San Antonio de Requena",
+                "Utiel"
+            ]
+        },
+        {
+            "code": "C-4",
+            "name": "Cercanías València C-4",
+            "network": "Railboard Custom",
+            "operator": "Renfe / Metrovalencia ficticio",
+            "color": "#E5232C",
+            "headwayMin": 40,
+            "platforms": [
+                "3",
+                "4",
+                "5"
+            ],
+            "numbers": [
+                "34401",
+                "34403",
+                "34405",
+                "34407"
+            ],
+            "notes": "Línea conservada para simulación. No corresponde al esquema oficial actual de Cercanías València de Renfe.",
+            "stations": [
+                "València Estació del Nord",
+                "Xirivella-Alqueries",
+                "Quart de Poblet",
+                "Manises",
+                "Manises Aeroport",
+                "La Presa",
+                "Masia de Traver",
+                "Riba-roja de Túria"
+            ]
+        },
+        {
+            "code": "C-5",
+            "name": "Cercanías València C-5",
+            "network": "Cercanías València",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 55,
+            "platforms": [
+                "6",
+                "7",
+                "8"
+            ],
+            "numbers": [
+                "34501",
+                "34503",
+                "34505",
+                "34507"
+            ],
+            "stations": [
+                "València Estació del Nord",
+                "València-Font de Sant Lluís",
+                "València-Cabanyal",
+                "Roca-Cúper",
+                "Albuixech",
+                "Massalfassar",
+                "El Puig",
+                "Puçol",
+                "Sagunt",
+                "Gilet",
+                "Estivella-Albalat dels Tarongers",
+                "Algimia-Ciudad",
+                "Soneja",
+                "Segorbe-Ciudad",
+                "Segorbe-Arrabal",
+                "Navajas",
+                "Jérica-Viver",
+                "Caudiel"
+            ]
+        },
+        {
+            "code": "C-6",
+            "name": "Cercanías València C-6",
+            "network": "Cercanías València",
+            "operator": "Renfe",
+            "color": "#004B9B",
+            "headwayMin": 30,
+            "platforms": [
+                "5",
+                "6",
+                "7"
+            ],
+            "numbers": [
+                "38002",
+                "38004",
+                "38006",
+                "38008"
+            ],
+            "stations": [
+                "València Estació del Nord",
+                "València-Font de Sant Lluís",
+                "València-Cabanyal",
+                "Roca-Cúper",
+                "Albuixech",
+                "Massalfassar",
+                "El Puig",
+                "Puçol",
+                "Sagunt",
+                "Les Valls",
+                "Almenara",
+                "La Llosa",
+                "Xilxes",
+                "Moncofa",
+                "Nules-La Vilavella",
+                "Borriana-Alqueries",
+                "Vila-real",
+                "Almassora",
+                "Castelló de la Plana"
+            ]
+        },
+        {
+            "code": "ER02",
+            "name": "Media Distancia ER02",
+            "network": "Cercanías / Media Distancia València",
+            "operator": "Renfe",
+            "color": "#B0003A",
+            "headwayMin": 70,
+            "platforms": [
+                "7",
+                "8",
+                "9"
+            ],
+            "numbers": [
+                "18021",
+                "18031"
+            ],
+            "stations": [
+                "Castelló de la Plana",
+                "Benicàssim",
+                "Orpesa",
+                "Torreblanca",
+                "Alcalà de Xivert",
+                "Benicarló-Peñíscola",
+                "Vinaròs"
+            ]
+        },
+        {
+            "code": "R1",
+            "name": "R1 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#4BA6E0",
+            "headwayMin": 18,
+            "platforms": [
+                "1",
+                "2",
+                "3",
+                "4"
+            ],
+            "numbers": [
+                "25101",
+                "25103",
+                "25105",
+                "25107"
+            ],
+            "stations": [
+                "Molins de Rei",
+                "Sant Feliu de Llobregat",
+                "Sant Joan Despí",
+                "Cornellà",
+                "L'Hospitalet de Llobregat",
+                "Barcelona Sants",
+                "Plaça de Catalunya",
+                "Arc de Triomf",
+                "El Clot-Aragó",
+                "Sant Adrià de Besòs",
+                "Badalona",
+                "Montgat",
+                "Montgat Nord",
+                "El Masnou",
+                "Ocata",
+                "Premià de Mar",
+                "Vilassar de Mar",
+                "Cabrera de Mar-Vilassar de Mar",
+                "Mataró",
+                "Sant Andreu de Llavaneres",
+                "Caldes d'Estrac",
+                "Arenys de Mar",
+                "Canet de Mar",
+                "Sant Pol de Mar",
+                "Calella",
+                "Pineda de Mar",
+                "Santa Susanna",
+                "Malgrat de Mar",
+                "Blanes",
+                "Tordera",
+                "Maçanet-Massanes"
+            ]
+        },
+        {
+            "code": "R2",
+            "name": "R2 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#007A3D",
+            "headwayMin": 20,
+            "platforms": [
+                "5",
+                "6",
+                "7",
+                "8"
+            ],
+            "numbers": [
+                "25201",
+                "25203",
+                "25205"
+            ],
+            "stations": [
+                "Castelldefels",
+                "Gavà",
+                "Viladecans",
+                "El Prat de Llobregat",
+                "Bellvitge | Gornal",
+                "Barcelona Sants",
+                "Barcelona Passeig de Gràcia",
+                "Barcelona El Clot-Aragó",
+                "Barcelona Sant Andreu",
+                "Montcada i Reixac",
+                "La Llagosta",
+                "Mollet-Sant Fost",
+                "Montmeló",
+                "Granollers Centre"
+            ]
+        },
+        {
+            "code": "R2N",
+            "name": "R2 Nord",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#8BC53F",
+            "headwayMin": 30,
+            "platforms": [
+                "9",
+                "10"
+            ],
+            "numbers": [
+                "25301",
+                "25303",
+                "25305"
+            ],
+            "stations": [
+                "Aeroport",
+                "El Prat de Llobregat",
+                "Bellvitge | Gornal",
+                "Barcelona Sants",
+                "Barcelona Passeig de Gràcia",
+                "Barcelona El Clot-Aragó",
+                "Barcelona Sant Andreu",
+                "Montcada i Reixac",
+                "La Llagosta",
+                "Mollet-Sant Fost",
+                "Montmeló",
+                "Granollers Centre",
+                "Les Franqueses-Granollers Nord",
+                "Cardedeu",
+                "Llinars del Vallès",
+                "Palautordera",
+                "Sant Celoni",
+                "Gualba",
+                "Riells i Viabrea-Breda",
+                "Hostalric",
+                "Maçanet-Massanes"
+            ]
+        },
+        {
+            "code": "R2S",
+            "name": "R2 Sud",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#39A935",
+            "headwayMin": 30,
+            "platforms": [
+                "5",
+                "6",
+                "7",
+                "8"
+            ],
+            "numbers": [
+                "25601",
+                "25603",
+                "25605"
+            ],
+            "stations": [
+                "Barcelona Estació de França",
+                "Barcelona Passeig de Gràcia",
+                "Barcelona Sants",
+                "Bellvitge | Gornal",
+                "El Prat de Llobregat",
+                "Viladecans",
+                "Gavà",
+                "Castelldefels",
+                "Platja de Castelldefels",
+                "Garraf",
+                "Sitges",
+                "Vilanova i la Geltrú",
+                "Cubelles",
+                "Cunit",
+                "Segur de Calafell",
+                "Calafell",
+                "Sant Vicenç de Calders"
+            ]
+        },
+        {
+            "code": "R3",
+            "name": "R3 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#E2332A",
+            "headwayMin": 35,
+            "platforms": [
+                "6",
+                "7",
+                "8"
+            ],
+            "numbers": [
+                "25401",
+                "25403",
+                "25405"
+            ],
+            "stations": [
+                "L'Hospitalet de Llobregat",
+                "Barcelona Sants",
+                "Plaça de Catalunya",
+                "Arc de Triomf",
+                "La Sagrera-Meridiana",
+                "Montcada Bifurcació",
+                "Santa Perpètua de Mogoda",
+                "Mollet-Santa Rosa",
+                "Parets del Vallès",
+                "Granollers-Canovelles",
+                "Les Franqueses del Vallès",
+                "La Garriga",
+                "Figaró",
+                "Sant Martí de Centelles",
+                "Centelles",
+                "Balenyà-Els Hostalets",
+                "Vic",
+                "Manlleu",
+                "Torelló",
+                "Ripoll",
+                "Ribes de Freser",
+                "Puigcerdà"
+            ]
+        },
+        {
+            "code": "R4",
+            "name": "R4 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#F4A236",
+            "headwayMin": 20,
+            "platforms": [
+                "3",
+                "4",
+                "5",
+                "6"
+            ],
+            "numbers": [
+                "25501",
+                "25503",
+                "25505"
+            ],
+            "stations": [
+                "Sant Vicenç de Calders",
+                "El Vendrell",
+                "L'Arboç",
+                "Els Monjos",
+                "Vilafranca del Penedès",
+                "La Granada",
+                "Lavern-Subirats",
+                "Sant Sadurní d'Anoia",
+                "Gelida",
+                "Martorell",
+                "Castellbisbal",
+                "Molins de Rei",
+                "Sant Feliu de Llobregat",
+                "Sant Joan Despí",
+                "Cornellà",
+                "L'Hospitalet de Llobregat",
+                "Barcelona Sants",
+                "Plaça de Catalunya",
+                "Arc de Triomf",
+                "Sant Andreu Arenal",
+                "Torre Baró",
+                "Cerdanyola del Vallès",
+                "Barberà del Vallès",
+                "Sabadell Sud",
+                "Sabadell Centre",
+                "Sabadell Nord",
+                "Terrassa Estació del Nord",
+                "Vacarisses",
+                "Castellbell i el Vilar-Monistrol de Montserrat",
+                "Manresa"
+            ]
+        },
+        {
+            "code": "R7",
+            "name": "R7 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#8A4FA8",
+            "headwayMin": 45,
+            "platforms": [
+                "2",
+                "3",
+                "4"
+            ],
+            "numbers": [
+                "25701",
+                "25703"
+            ],
+            "stations": [
+                "Barcelona Sant Andreu Arenal",
+                "Torre Baró",
+                "Montcada Bifurcació",
+                "Cerdanyola del Vallès",
+                "Cerdanyola Universitat"
+            ]
+        },
+        {
+            "code": "R8",
+            "name": "R8 Rodalies Barcelona",
+            "network": "Rodalies de Catalunya",
+            "operator": "Renfe",
+            "color": "#8A1F62",
+            "headwayMin": 45,
+            "platforms": [
+                "2",
+                "3",
+                "4"
+            ],
+            "numbers": [
+                "25801",
+                "25803"
+            ],
+            "stations": [
+                "Martorell",
+                "Castellbisbal",
+                "Rubí",
+                "Sant Cugat del Vallès",
+                "Cerdanyola Universitat",
+                "Mollet-Sant Fost",
+                "Montmeló",
+                "Granollers Centre"
+            ]
+        },
+        {
+            "code": "R16",
+            "name": "R16 Regional",
+            "network": "Rodalies de Catalunya - Regionals",
+            "operator": "Renfe",
+            "color": "#B0003A",
+            "headwayMin": 55,
+            "platforms": [
+                "7",
+                "8",
+                "9",
+                "10"
+            ],
+            "numbers": [
+                "18121",
+                "18123"
+            ],
+            "stations": [
+                "Barcelona Estació de França",
+                "Barcelona Passeig de Gràcia",
+                "Barcelona Sants",
+                "Vilanova i la Geltrú",
+                "Sant Vicenç de Calders",
+                "Tarragona",
+                "Cambrils",
+                "L'Hospitalet de l'Infant",
+                "L'Ametlla de Mar",
+                "L'Ampolla-El Perelló-Deltebre",
+                "L'Aldea-Amposta-Tortosa",
+                "Camp-redó",
+                "Tortosa",
+                "Ulldecona-Alcanar-La Sénia"
+            ]
+        },
+        {
+            "code": "MA-C1",
+            "name": "Cercanías Madrid C-1",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#73C7E6",
+            "headwayMin": 15,
+            "platforms": [
+                "1",
+                "2",
+                "3",
+                "4"
+            ],
+            "numbers": [
+                "21001",
+                "21003",
+                "21005"
+            ],
+            "stations": [
+                "Príncipe Pío",
+                "Pirámides",
+                "Delicias",
+                "Méndez Álvaro",
+                "Atocha",
+                "Recoletos",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Fuente de la Mora",
+                "Valdebebas",
+                "Aeropuerto T4"
+            ]
+        },
+        {
+            "code": "MA-C2",
+            "name": "Cercanías Madrid C-2",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 15,
+            "platforms": [
+                "1",
+                "2",
+                "3",
+                "4"
+            ],
+            "numbers": [
+                "22001",
+                "22003",
+                "22005"
+            ],
+            "stations": [
+                "Guadalajara",
+                "Azuqueca",
+                "Meco",
+                "Alcalá de Henares Universidad",
+                "Alcalá de Henares",
+                "La Garena",
+                "Soto del Henares",
+                "Torrejón de Ardoz",
+                "San Fernando",
+                "Coslada",
+                "Vicálvaro",
+                "Santa Eugenia",
+                "Vallecas",
+                "El Pozo",
+                "Asamblea de Madrid-Entrevías",
+                "Atocha",
+                "Recoletos",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor"
+            ]
+        },
+        {
+            "code": "MA-C3",
+            "name": "Cercanías Madrid C-3",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "23001",
+                "23003",
+                "23005"
+            ],
+            "stations": [
+                "Aranjuez",
+                "Ciempozuelos",
+                "Valdemoro",
+                "Pinto",
+                "Getafe Industrial",
+                "El Casar",
+                "San Cristóbal Industrial",
+                "San Cristóbal de los Ángeles",
+                "Villaverde Bajo",
+                "Atocha",
+                "Sol",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor"
+            ]
+        },
+        {
+            "code": "MA-C4A",
+            "name": "Cercanías Madrid C-4A",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#004B9B",
+            "headwayMin": 15,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "24001",
+                "24003"
+            ],
+            "stations": [
+                "Parla",
+                "Getafe Sector 3",
+                "Getafe Centro",
+                "Las Margaritas Universidad",
+                "Villaverde Alto",
+                "Villaverde Bajo",
+                "Atocha",
+                "Sol",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Fuencarral",
+                "Cantoblanco Universidad",
+                "Universidad Pontificia de Comillas",
+                "Valdelasfuentes",
+                "Alcobendas-San Sebastián de los Reyes"
+            ]
+        },
+        {
+            "code": "MA-C4B",
+            "name": "Cercanías Madrid C-4B",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#004B9B",
+            "headwayMin": 15,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "24101",
+                "24103"
+            ],
+            "stations": [
+                "Parla",
+                "Getafe Sector 3",
+                "Getafe Centro",
+                "Las Margaritas Universidad",
+                "Villaverde Alto",
+                "Villaverde Bajo",
+                "Atocha",
+                "Sol",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Fuencarral",
+                "Cantoblanco Universidad",
+                "El Goloso",
+                "Tres Cantos",
+                "Colmenar Viejo"
+            ]
+        },
+        {
+            "code": "MA-C5",
+            "name": "Cercanías Madrid C-5",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 10,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "25001",
+                "25003"
+            ],
+            "stations": [
+                "Móstoles-El Soto",
+                "Móstoles",
+                "Las Retamas",
+                "Alcorcón",
+                "San José de Valderas",
+                "Cuatro Vientos",
+                "Las Águilas",
+                "Fanjul",
+                "Aluche",
+                "Laguna",
+                "Embajadores",
+                "Atocha",
+                "Méndez Álvaro",
+                "Doce de Octubre",
+                "Orcasitas",
+                "Puente Alcocer",
+                "Villaverde Alto",
+                "Zarzaquemada",
+                "Leganés",
+                "Parque Polvoranca",
+                "La Serna",
+                "Fuenlabrada",
+                "Humanes"
+            ]
+        },
+        {
+            "code": "MA-C7",
+            "name": "Cercanías Madrid C-7",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#E5232C",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "27001",
+                "27003"
+            ],
+            "stations": [
+                "Alcalá de Henares",
+                "La Garena",
+                "Soto del Henares",
+                "Torrejón de Ardoz",
+                "San Fernando",
+                "Coslada",
+                "Vicálvaro",
+                "Santa Eugenia",
+                "Vallecas",
+                "El Pozo",
+                "Asamblea de Madrid-Entrevías",
+                "Atocha",
+                "Recoletos",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Pitis",
+                "Pinar de las Rozas",
+                "Las Rozas",
+                "Majadahonda",
+                "El Barrial-Centro Comercial Pozuelo",
+                "Pozuelo",
+                "Aravaca",
+                "Príncipe Pío"
+            ]
+        },
+        {
+            "code": "MA-C8",
+            "name": "Cercanías Madrid C-8",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#8A4FA8",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "28001",
+                "28003"
+            ],
+            "stations": [
+                "Guadalajara",
+                "Azuqueca",
+                "Meco",
+                "Alcalá de Henares Universidad",
+                "Alcalá de Henares",
+                "La Garena",
+                "Soto del Henares",
+                "Torrejón de Ardoz",
+                "San Fernando",
+                "Coslada",
+                "Vicálvaro",
+                "Santa Eugenia",
+                "Vallecas",
+                "El Pozo",
+                "Asamblea de Madrid-Entrevías",
+                "Atocha",
+                "Recoletos",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Pitis",
+                "Pinar de las Rozas",
+                "Las Rozas",
+                "Torrelodones",
+                "Galapagar-La Navata",
+                "Villalba",
+                "Los Negrales",
+                "Alpedrete",
+                "Collado Mediano",
+                "Los Molinos",
+                "Cercedilla"
+            ]
+        },
+        {
+            "code": "MA-C10",
+            "name": "Cercanías Madrid C-10",
+            "network": "Cercanías Madrid",
+            "operator": "Renfe",
+            "color": "#B25A1F",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "20001",
+                "20003"
+            ],
+            "stations": [
+                "Villalba",
+                "Galapagar-La Navata",
+                "Torrelodones",
+                "Las Matas",
+                "Pinar de las Rozas",
+                "Las Rozas",
+                "Majadahonda",
+                "El Barrial-Centro Comercial Pozuelo",
+                "Pozuelo",
+                "Aravaca",
+                "Príncipe Pío",
+                "Pirámides",
+                "Delicias",
+                "Méndez Álvaro",
+                "Atocha",
+                "Recoletos",
+                "Nuevos Ministerios",
+                "Chamartín-Clara Campoamor",
+                "Fuente de la Mora",
+                "Valdebebas",
+                "Aeropuerto T4"
+            ]
+        },
+        {
+            "code": "AM-C1",
+            "name": "Cercanías Murcia/Alicante C-1",
+            "network": "Cercanías Murcia/Alicante",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "41001",
+                "41003"
+            ],
+            "stations": [
+                "Murcia del Carmen",
+                "Beniel",
+                "Orihuela",
+                "Callosa de Segura",
+                "Albatera-Catral",
+                "Crevillent",
+                "Elche-Parque",
+                "Elche-Carrús",
+                "Torrellano",
+                "Sant Gabriel",
+                "Alacant Terminal"
+            ]
+        },
+        {
+            "code": "AM-C2",
+            "name": "Cercanías Murcia/Alicante C-2",
+            "network": "Cercanías Murcia/Alicante",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "42001",
+                "42003"
+            ],
+            "stations": [
+                "Murcia del Carmen",
+                "Alcantarilla-Los Romanos",
+                "Librilla",
+                "Alhama de Murcia",
+                "Totana",
+                "La Hoya",
+                "Lorca-Sutullena",
+                "Lorca-San Diego",
+                "Puerto Lumbreras",
+                "Almendricos",
+                "Pulpí",
+                "Jaravía",
+                "Águilas-El Labradorcico",
+                "Águilas"
+            ]
+        },
+        {
+            "code": "AM-C3",
+            "name": "Cercanías Murcia/Alicante C-3",
+            "network": "Cercanías Murcia/Alicante",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "43001",
+                "43003"
+            ],
+            "stations": [
+                "Alacant Terminal",
+                "Universidad de Alicante",
+                "Sant Vicent Centre"
+            ]
+        },
+        {
+            "code": "SE-C1",
+            "name": "Cercanías Sevilla C-1",
+            "network": "Cercanías Sevilla",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2",
+                "3"
+            ],
+            "numbers": [
+                "51001",
+                "51003"
+            ],
+            "stations": [
+                "Lora del Río",
+                "Guadajoz",
+                "Cantillana",
+                "Brenes",
+                "El Cáñamo",
+                "La Rinconada",
+                "San Jerónimo",
+                "Sevilla Santa Justa",
+                "San Bernardo",
+                "Virgen del Rocío",
+                "Padre Pío-Palmete",
+                "La Negrilla",
+                "Palacio de Congresos",
+                "Sevilla Este",
+                "Dos Hermanas",
+                "Cantaelgallo",
+                "Utrera",
+                "Las Cabezas de San Juan",
+                "Lebrija"
+            ]
+        },
+        {
+            "code": "SE-C2",
+            "name": "Cercanías Sevilla C-2",
+            "network": "Cercanías Sevilla",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "52001",
+                "52003"
+            ],
+            "stations": [
+                "Sevilla Santa Justa",
+                "San Jerónimo",
+                "Estadio Olímpico",
+                "Cartuja"
+            ]
+        },
+        {
+            "code": "SE-C3",
+            "name": "Cercanías Sevilla C-3",
+            "network": "Cercanías Sevilla",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "53001",
+                "53003"
+            ],
+            "stations": [
+                "Sevilla Santa Justa",
+                "San Jerónimo",
+                "Camas",
+                "Valencina-Santiponce",
+                "Salteras",
+                "Villanueva del Ariscal-Olivares",
+                "Sanlúcar la Mayor",
+                "Benacazón",
+                "Carrión de los Céspedes",
+                "Escacena",
+                "Paterna del Campo",
+                "La Palma del Condado",
+                "Villalba del Alcor",
+                "Niebla",
+                "San Juan del Puerto",
+                "Huelva"
+            ]
+        },
+        {
+            "code": "SE-C4",
+            "name": "Cercanías Sevilla C-4",
+            "network": "Cercanías Sevilla",
+            "operator": "Renfe",
+            "color": "#E5232C",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "54001",
+                "54003"
+            ],
+            "stations": [
+                "Sevilla Santa Justa",
+                "San Bernardo",
+                "Virgen del Rocío",
+                "Padre Pío-Palmete",
+                "Palacio de Congresos",
+                "Sevilla Este"
+            ]
+        },
+        {
+            "code": "SE-C5",
+            "name": "Cercanías Sevilla C-5",
+            "network": "Cercanías Sevilla",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "55001",
+                "55003"
+            ],
+            "stations": [
+                "Jardines de Hércules",
+                "Bellavista",
+                "Dos Hermanas",
+                "Cantaelgallo",
+                "Utrera"
+            ]
+        },
+        {
+            "code": "ML-C1",
+            "name": "Cercanías Málaga C-1",
+            "network": "Cercanías Málaga",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "26001",
+                "26003",
+                "26005",
+                "26007",
+                "26009",
+                "26011"
+            ],
+            "stations": [
+                "Málaga Centro-Alameda",
+                "Málaga María Zambrano",
+                "Victoria Kent",
+                "Guadalhorce",
+                "Aeropuerto",
+                "Plaza Mayor",
+                "Los Álamos",
+                "La Colina",
+                "Torremolinos",
+                "Montemar Alto",
+                "El Pinillo",
+                "Benalmádena-Arroyo de la Miel",
+                "Torremuelle",
+                "Carvajal",
+                "Torreblanca",
+                "Los Boliches",
+                "Fuengirola"
+            ]
+        },
+        {
+            "code": "ML-C2",
+            "name": "Cercanías Málaga C-2",
+            "network": "Cercanías Málaga",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "26201",
+                "26203",
+                "26205",
+                "26207",
+                "26209",
+                "26211"
+            ],
+            "stations": [
+                "Málaga Centro-Alameda",
+                "Málaga María Zambrano",
+                "Victoria Kent",
+                "Los Prados",
+                "Campanillas",
+                "Cártama",
+                "Aljaima",
+                "Pizarra",
+                "Álora"
+            ]
+        },
+        {
+            "code": "CA-C1",
+            "name": "Cercanías Cádiz C-1",
+            "network": "Cercanías Cádiz",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "13001",
+                "13003",
+                "13005",
+                "13007",
+                "13009",
+                "13011"
+            ],
+            "stations": [
+                "Cádiz",
+                "San Severiano",
+                "Segunda Aguada",
+                "Estadio",
+                "Cortadura",
+                "Bahía Sur",
+                "San Fernando-Centro",
+                "San Fernando-Bahía Sur",
+                "Puerto Real",
+                "Las Aletas",
+                "El Puerto de Santa María",
+                "Valdelagrana",
+                "Jerez de la Frontera",
+                "Aeropuerto de Jerez"
+            ]
+        },
+        {
+            "code": "CA-C1A",
+            "name": "Cercanías Cádiz C-1a",
+            "network": "Cercanías Cádiz",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 60,
+            "platforms": [
+                "1"
+            ],
+            "numbers": [
+                "13101",
+                "13103",
+                "13105",
+                "13107"
+            ],
+            "stations": [
+                "Las Aletas",
+                "Universidad"
+            ]
+        },
+        {
+            "code": "CA-T1",
+            "name": "Trambahía T1",
+            "network": "Cercanías Cádiz / Trambahía",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "13501",
+                "13503",
+                "13505",
+                "13507",
+                "13509"
+            ],
+            "stations": [
+                "Cádiz",
+                "San Severiano",
+                "Segunda Aguada",
+                "Estadio",
+                "Cortadura",
+                "Río Arillo",
+                "Tres Caminos",
+                "Reyes Católicos",
+                "San Fernando-Centro",
+                "Pinar de los Franceses",
+                "Pelagatos"
+            ]
+        },
+        {
+            "code": "SS-C1",
+            "name": "Cercanías San Sebastián C-1",
+            "network": "Cercanías San Sebastián",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "61001",
+                "61003"
+            ],
+            "stations": [
+                "Brinkola",
+                "Legazpi",
+                "Zumarraga",
+                "Ormaiztegi",
+                "Beasain",
+                "Ordizia",
+                "Itsasondo",
+                "Legorreta",
+                "Ikaztegieta",
+                "Alegia",
+                "Tolosa",
+                "Tolosa Centro",
+                "Anoeta",
+                "Villabona-Zizurkil",
+                "Andoain Centro",
+                "Andoain",
+                "Urnieta",
+                "Hernani Centro",
+                "Hernani",
+                "Loiola",
+                "Donostia/San Sebastián",
+                "Gros",
+                "Ategorrieta",
+                "Intxaurrondo",
+                "Herrera",
+                "Pasaia",
+                "Lezo-Errenteria",
+                "Oiartzun",
+                "Gaintxurizketa",
+                "Irun",
+                "Hendaye"
+            ]
+        },
+        {
+            "code": "ZG-C1",
+            "name": "Cercanías Zaragoza C-1",
+            "network": "Cercanías Zaragoza",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "71001",
+                "71003"
+            ],
+            "stations": [
+                "Casetas",
+                "Utebo",
+                "Zaragoza-Delicias",
+                "Zaragoza-Portillo",
+                "Zaragoza-Goya",
+                "Zaragoza-Miraflores"
+            ]
+        },
+        {
+            "code": "SA-C1",
+            "name": "Cercanías Cantabria C-1",
+            "network": "Cercanías Cantabria",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "81001",
+                "81003"
+            ],
+            "stations": [
+                "Santander",
+                "Valdecilla",
+                "Nueva Montaña",
+                "Muriedas-Bahía",
+                "Maliaño",
+                "Boo",
+                "Guarnizo",
+                "Parbayón",
+                "Renedo",
+                "Vioño",
+                "Zurita",
+                "Sierrapando",
+                "Torrelavega",
+                "Tanos",
+                "Las Caldas de Besaya",
+                "Viérnoles",
+                "Cartes",
+                "Los Corrales de Buelna",
+                "Somahoz",
+                "Las Fraguas",
+                "Los Llares",
+                "Bárcena",
+                "Pesquera",
+                "Santiurde",
+                "Lantueno-Santiurde",
+                "Mataporquera",
+                "Reinosa"
+            ]
+        },
+        {
+            "code": "SA-C2",
+            "name": "Cercanías Cantabria C-2",
+            "network": "Cercanías Cantabria",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "82001",
+                "82003"
+            ],
+            "stations": [
+                "Santander",
+                "Valdecilla",
+                "La Marga",
+                "Nueva Montaña",
+                "Adarzo",
+                "Bezana",
+                "Mompía",
+                "Boo de Piélagos",
+                "Mortera",
+                "Boo",
+                "Liencres",
+                "Arce",
+                "Mogro",
+                "Gornazo",
+                "Mar",
+                "Requejada",
+                "Barreda",
+                "Torrelavega",
+                "Altamira",
+                "Puente San Miguel",
+                "Santa Isabel de Quijas",
+                "Caranceja",
+                "Casar de Periedo",
+                "Cabezón de la Sal"
+            ]
+        },
+        {
+            "code": "SA-C3",
+            "name": "Cercanías Cantabria C-3",
+            "network": "Cercanías Cantabria",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "83001",
+                "83003"
+            ],
+            "stations": [
+                "Santander",
+                "Valdecilla",
+                "La Marga",
+                "Nueva Montaña",
+                "Valle Real",
+                "La Cantábrica",
+                "Maliaño",
+                "Astillero",
+                "San Salvador",
+                "Herce",
+                "Orejo",
+                "Solares",
+                "Ceceñas",
+                "La Cavada",
+                "Liérganes"
+            ]
+        },
+        {
+            "code": "AS-C1",
+            "name": "Cercanías Asturias C-1",
+            "network": "Cercanías Asturias",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "91001",
+                "91003"
+            ],
+            "stations": [
+                "Gijón-Sanz Crespo",
+                "Tremañes",
+                "Monteana",
+                "Serín",
+                "Lugo de Llanera",
+                "Llanera",
+                "Villabona de Asturias",
+                "Lugones",
+                "La Corredoria",
+                "Oviedo",
+                "Llamaquique",
+                "Las Segadas",
+                "El Caleyo",
+                "Olloniego",
+                "Ablaña",
+                "Mieres-Puente",
+                "Ujo",
+                "Pola de Lena",
+                "Campomanes",
+                "Puente de los Fierros"
+            ]
+        },
+        {
+            "code": "AS-C2",
+            "name": "Cercanías Asturias C-2",
+            "network": "Cercanías Asturias",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "92001",
+                "92003"
+            ],
+            "stations": [
+                "Oviedo",
+                "Llamaquique",
+                "La Corredoria",
+                "Lugones",
+                "Viella",
+                "El Berrón",
+                "Noreña",
+                "Carbayín",
+                "Tuilla",
+                "La Felguera",
+                "Sama",
+                "Ciaño",
+                "El Entrego"
+            ]
+        },
+        {
+            "code": "AS-C3",
+            "name": "Cercanías Asturias C-3",
+            "network": "Cercanías Asturias",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "93001",
+                "93003"
+            ],
+            "stations": [
+                "Llamaquique",
+                "Oviedo",
+                "La Corredoria",
+                "Lugones",
+                "Llanera",
+                "Villabona de Asturias",
+                "Serín",
+                "Veriña",
+                "Nubledo",
+                "Villalegre",
+                "La Rocica",
+                "Avilés",
+                "Avilés-Apeadero",
+                "Raíces",
+                "Salinas",
+                "Piedras Blancas",
+                "Soto del Barco",
+                "San Juan de Nieva"
+            ]
+        },
+        {
+            "code": "AS-C4",
+            "name": "Cercanías Asturias C-4",
+            "network": "Cercanías Asturias",
+            "operator": "Renfe",
+            "color": "#E5232C",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "94001",
+                "94003"
+            ],
+            "stations": [
+                "Gijón-Sanz Crespo",
+                "Tremañes",
+                "Veriña",
+                "Calzada de Asturias",
+                "Candás",
+                "Perlora",
+                "Xivares",
+                "Avilés",
+                "Avilés-Apeadero",
+                "Raíces",
+                "Salinas",
+                "Piedras Blancas",
+                "Soto del Barco",
+                "Pravia",
+                "San Esteban",
+                "Muros de Nalón",
+                "Cudillero"
+            ]
+        },
+        {
+            "code": "AS-C5",
+            "name": "Cercanías Asturias C-5",
+            "network": "Cercanías Asturias",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "95001",
+                "95003"
+            ],
+            "stations": [
+                "Gijón-Sanz Crespo",
+                "Tremañes",
+                "Sotiello",
+                "Pinzales",
+                "Noreña",
+                "El Berrón",
+                "Carbayín",
+                "Tuilla",
+                "La Felguera",
+                "Sama",
+                "Ciaño",
+                "El Entrego",
+                "Sotrondio",
+                "Blimea",
+                "Barredos",
+                "Laviana"
+            ]
+        },
+        {
+            "code": "BI-C1",
+            "name": "Cercanías Bilbao C-1",
+            "network": "Cercanías Bilbao",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 20,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "31001",
+                "31003"
+            ],
+            "stations": [
+                "Abando Indalecio Prieto",
+                "Zabalburu",
+                "Ametzola",
+                "Autonomía",
+                "San Mamés",
+                "Olabeaga",
+                "Zorrotza",
+                "Lutxana-Barakaldo",
+                "Desertu-Barakaldo",
+                "Sestao",
+                "La Iberia",
+                "Portugalete",
+                "Peñota",
+                "Santurtzi"
+            ]
+        },
+        {
+            "code": "BI-C2",
+            "name": "Cercanías Bilbao C-2",
+            "network": "Cercanías Bilbao",
+            "operator": "Renfe",
+            "color": "#00853F",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "32001",
+                "32003"
+            ],
+            "stations": [
+                "Abando Indalecio Prieto",
+                "Zabalburu",
+                "Ametzola",
+                "Autonomía",
+                "San Mamés",
+                "Olabeaga",
+                "Zorrotza",
+                "Lutxana-Barakaldo",
+                "Desertu-Barakaldo",
+                "Galindo",
+                "Trápaga",
+                "Urioste",
+                "Sagrada Familia",
+                "Ortuella",
+                "Gallarta",
+                "Putxeta",
+                "Muskiz"
+            ]
+        },
+        {
+            "code": "BI-C3",
+            "name": "Cercanías Bilbao C-3",
+            "network": "Cercanías Bilbao",
+            "operator": "Renfe",
+            "color": "#F2C230",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "33001",
+                "33003"
+            ],
+            "stations": [
+                "Abando Indalecio Prieto",
+                "Miribilla",
+                "La Peña de Bilbao",
+                "Ollargan",
+                "Bidebieta-Basauri",
+                "Abaroa-San Miguel",
+                "Arrigorriaga",
+                "Ugao-Miraballes",
+                "Arrankudiaga",
+                "Arakaldo",
+                "Areta",
+                "Laudio/Llodio",
+                "Santa Cruz de Llodio",
+                "Luiaondo",
+                "Salbio",
+                "Amurrio Iparralde",
+                "Amurrio",
+                "Iñarratxu",
+                "Orduña"
+            ]
+        },
+        {
+            "code": "BI-C4",
+            "name": "Cercanías Bilbao C-4",
+            "network": "Cercanías Bilbao",
+            "operator": "Renfe",
+            "color": "#E5232C",
+            "headwayMin": 30,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "34001",
+                "34003"
+            ],
+            "stations": [
+                "Bilbao-La Concordia",
+                "Zorrotza",
+                "Zorrozgoiti",
+                "Irauregi",
+                "Aranguren",
+                "Güeñes",
+                "Sodupe",
+                "La Quadra",
+                "Zaramillo",
+                "Artxube",
+                "Lambarri",
+                "Balmaseda"
+            ]
+        },
+        {
+            "code": "BI-C5",
+            "name": "Cercanías Bilbao C-5",
+            "network": "Cercanías Bilbao",
+            "operator": "Renfe",
+            "color": "#B51EB8",
+            "headwayMin": 60,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "35001",
+                "35003"
+            ],
+            "stations": [
+                "Aranguren",
+                "Aranguren-Apeadero",
+                "Colegio",
+                "Zalla",
+                "Ibarra",
+                "La Herrera",
+                "La Calzada",
+                "Karrantza"
+            ]
+        },
+        {
+            "code": "GA-C1",
+            "name": "Cercanías Ferrol C-1",
+            "network": "Cercanías Galicia / Ferrol",
+            "operator": "Renfe",
+            "color": "#3E8DCA",
+            "headwayMin": 120,
+            "platforms": [
+                "1",
+                "2"
+            ],
+            "numbers": [
+                "11001",
+                "11003"
+            ],
+            "stations": [
+                "Ferrol",
+                "San Xoán",
+                "Virxe do Mar",
+                "Santa Cecilia",
+                "Alto do Castiñeiro",
+                "Piñeiros",
+                "O Ponto",
+                "Xuvia",
+                "Ferreiras",
+                "Sedes",
+                "Pedroso de Narón",
+                "San Sadurniño",
+                "Lamas",
+                "Moeche",
+                "Labacengos",
+                "Entrambarrías",
+                "Cerdido",
+                "A Cuqueira",
+                "Mera de Arriba",
+                "Santa María de Mera",
+                "Santo Adrián",
+                "Espasante",
+                "Ponte Mera",
+                "Ortigueira"
+            ]
+        },
+        {
+            "code": "EMD",
+            "name": "Euromed",
+            "network": "Larga Distancia Mediterráneo",
+            "operator": "Renfe",
+            "color": "#A50073",
+            "headwayMin": 50,
+            "platforms": [
+                "8",
+                "9",
+                "10",
+                "11"
+            ],
+            "numbers": [
+                "01071",
+                "01081",
+                "01101"
+            ],
+            "stations": [
+                "Figueres Vilafant",
+                "Girona",
+                "Barcelona Sants",
+                "Camp de Tarragona",
+                "Castelló de la Plana",
+                "València Joaquín Sorolla",
+                "Alacant Terminal"
+            ]
+        },
+        {
+            "code": "AVANT",
+            "name": "Avant",
+            "network": "Media Distancia Alta Velocidad",
+            "operator": "Renfe",
+            "color": "#6B7280",
+            "headwayMin": 70,
+            "platforms": [
+                "7",
+                "8",
+                "9",
+                "10"
+            ],
+            "numbers": [
+                "08121",
+                "08123",
+                "08125"
+            ],
+            "stations": [
+                "Madrid Chamartín-Clara Campoamor",
+                "Segovia Guiomar",
+                "Valladolid-Campo Grande",
+                "Palencia",
+                "León"
+            ]
+        },
+        {
+            "code": "MD",
+            "name": "Media Distancia",
+            "network": "Media Distancia Renfe",
+            "operator": "Renfe",
+            "color": "#B25A1F",
+            "headwayMin": 50,
+            "platforms": [
+                "4",
+                "5",
+                "6",
+                "7",
+                "8"
+            ],
+            "numbers": [
+                "18021",
+                "18031",
+                "18041"
+            ],
+            "stations": [
+                "Barcelona Sants",
+                "Vilanova i la Geltrú",
+                "Sant Vicenç de Calders",
+                "Tarragona",
+                "Reus",
+                "Lleida Pirineus",
+                "Zaragoza Delicias"
+            ]
+        }
+    ]
+}

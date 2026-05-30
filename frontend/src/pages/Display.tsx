@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { api, connectWS, fileUrl, type Config, type Train, type Place } from "../lib/api";
+import { api, connectWS, fileUrl, type Config, type Train, type Place, type Station, type Service } from "../lib/api";
 import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
@@ -127,33 +127,100 @@ function ScrollText({
 export default function Display() {
   const [config, setConfig] = useState<Config | null>(null);
   const [trains, setTrains] = useState<Train[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
   const [loading, setLoading] = useState(true);
   const [, setTick] = useState(0);
 
   const refresh = async () => {
-    const [c, tr, p] = await Promise.all([api.getConfig(), api.listTrains(), api.listPlaces()]);
-    setConfig(c); setTrains(tr); setPlaces(p);
-    setLoading(false);
+    try {
+      const [c, st, p] = await Promise.all([api.getConfig(), api.listStations(), api.listPlaces()]);
+      setConfig(c);
+      setStations(st);
+      setPlaces(p);
+
+      // Find station ID by name or use first station
+      let stationId = 1;
+      if (c?.station_name && st?.length) {
+        const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
+        if (found) stationId = found.id;
+      }
+
+      // Get board data (trains + services) for this station
+      const mode = c?.mode || "departures";
+      try {
+        const boardData = await api.getStationBoard(stationId, mode as "departures" | "arrivals");
+        setTrains(boardData.trains || []);
+        setServices(boardData.services || []);
+      } catch {
+        // Fallback to legacy trains if board endpoint fails
+        const tr = await api.listTrains();
+        setTrains(tr);
+        setServices([]);
+      }
+
+      setLoading(false);
+    } catch (error) {
+      console.error("Refresh error:", error);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     refresh();
-    const unsub = connectWS(refresh);
+    const ws = connectWS(refresh);
+    const unsubscribe = ws?.on?.("service_updated", refresh);
     const poll = setInterval(refresh, 5000);
     const tick = setInterval(() => setTick((x) => x + 1), 30_000);
-    return () => { unsub(); clearInterval(poll); clearInterval(tick); };
+    return () => {
+      if (typeof unsubscribe === "function") unsubscribe();
+      if (ws && typeof ws.close === "function") ws.close();
+      clearInterval(poll);
+      clearInterval(tick);
+    };
   }, []);
 
   const mode = config?.mode ?? "departures";
   const lang = (config?.language as Language) ?? "es";
 
-  const rows = useMemo(() =>
-    trains
-      .filter((tr) => !["Departed", "Arrived"].includes(tr.status))
-      .sort((a, b) => orderMinutesUntil(a.expected_time) - orderMinutesUntil(b.expected_time))
-      .slice(0, 12),
-    [trains]);
+  // Convert services to train-like format for display
+  const serviceRows = services
+    .filter(svc => svc.status !== "Cancelled" && svc.next_stop_name)
+    .map(svc => ({
+      id: svc.id * 100000,  // Offset service IDs to avoid collision
+      number: svc.number,
+      operator_id: svc.operator_id,
+      operator_name: svc.operator_name,
+      operator_logo: svc.operator_logo,
+      train_type_id: svc.train_type_id,
+      type_code: svc.train_type_code,
+      type_name: svc.train_type_name,
+      type_color: svc.train_type_color,
+      type_logo: svc.train_type_logo,
+      origin: svc.origin_name || "—",
+      destination: svc.destination_name || "—",
+      scheduled_time: svc.next_stop_name ? "—" : "—",
+      expected_time: svc.next_stop_name ? "—" : "—",
+      platform: "—",
+      sector: "—",
+      status: "Scheduled" as Train["status"],
+      stops: [],
+      observations: svc.next_stop_name ? `→ ${svc.next_stop_name}${svc.delay_minutes ? ` (+${svc.delay_minutes}m)` : ""}` : "",
+    } as Train));
+
+  const rows = useMemo(() => [
+    ...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status)),
+    ...serviceRows,
+  ]
+    .sort((a, b) => {
+      const aTime = a.expected_time !== "—" ? a.expected_time : a.scheduled_time;
+      const bTime = b.expected_time !== "—" ? b.expected_time : b.scheduled_time;
+      if (aTime === "—" || bTime === "—") return 0;
+      return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
+    })
+    .slice(0, 12),
+    [trains, serviceRows]);
 
   const bgColor = (config?.bgColor as string) || "#050a14";
   const headerBg = (config?.headerBgColor as string) || "#BFEFD5";

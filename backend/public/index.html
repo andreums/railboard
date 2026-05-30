@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RailBoard Backend</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        "board-bg": "#050a14",
+                        "board-ink": "#f5f3ec",
+                        "board-row": "#1a3254",
+                        "board-alt": "#102341",
+                        "board-amber": "#f2c230",
+                        "board-dim": "#7a8a9a",
+                        "board-green": "#00853f",
+                        "board-red": "#e5232c",
+                    },
+                    fontFamily: {
+                        body: '"Inter", "system-ui", sans-serif',
+                        display: '"Space Mono", monospace',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            @apply bg-board-bg text-board-ink font-body;
+        }
+
+        .nav-link {
+            @apply px-4 py-2 rounded hover:bg-board-row transition-colors;
+        }
+
+        .stat-card {
+            @apply bg-board-row rounded-lg p-6 border border-white/10;
+        }
+
+        .btn-primary {
+            @apply bg-board-amber text-board-bg font-semibold px-4 py-2 rounded hover:opacity-90 transition;
+        }
+
+        .btn-secondary {
+            @apply bg-board-row text-board-amber font-semibold px-4 py-2 rounded border border-board-amber hover:bg-board-alt transition;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen">
+    <!-- Header + Nav -->
+    <header class="sticky top-0 z-40 border-b border-white/10 bg-board-bg/95 backdrop-blur">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-8">
+                <h1 class="font-display text-3xl tracking-widest">RailBoard</h1>
+                <nav class="hidden md:flex gap-1">
+                    <a href="#overview" class="nav-link">Resumen</a>
+                    <a href="#stats" class="nav-link">Estadísticas</a>
+                    <a href="#api" class="nav-link">API</a>
+                    <a href="#config" class="nav-link">Config</a>
+                </nav>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="text-sm text-board-dim">
+                    <div id="status-indicator" class="flex items-center gap-2">
+                        <span class="w-2 h-2 bg-board-green rounded-full animate-pulse"></span>
+                        <span>Backend activo</span>
+                    </div>
+                </div>
+                <a href="/admin" class="btn-primary">Admin</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-12">
+        <!-- Hero / Overview -->
+        <section id="overview" class="mb-16">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h2 class="font-display text-5xl tracking-wide mb-4">Backend</h2>
+                    <p class="text-board-dim text-lg mb-6">
+                        Sistema de gestión de trenes en tiempo real. Node.js + Express + SQLite con WebSocket para
+                        actualizaciones instantáneas.
+                    </p>
+                    <div class="flex gap-3">
+                        <a href="#api" class="btn-primary">Explorar API</a>
+                        <a href="/admin" class="btn-secondary">Panel Admin</a>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <h3 class="font-display text-2xl mb-4">Estado del Sistema</h3>
+                    <div class="space-y-3 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-board-dim">Versión Node</span>
+                            <span id="node-version" class="text-board-amber">v22.14.0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-board-dim">Uptime</span>
+                            <span id="uptime" class="text-board-amber">—</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-board-dim">Memoria</span>
+                            <span id="memory" class="text-board-amber">—</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-board-dim">WebSocket</span>
+                            <span id="ws-status" class="text-board-green">Conectado</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Stats Section -->
+        <section id="stats" class="mb-16">
+            <h2 class="font-display text-3xl tracking-wide mb-8">Estadísticas en Vivo</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="stat-card text-center">
+                    <div class="text-4xl font-bold text-board-amber mb-2" id="train-count">—</div>
+                    <div class="text-sm text-board-dim">Trenes Registrados</div>
+                </div>
+                <div class="stat-card text-center">
+                    <div class="text-4xl font-bold text-board-amber mb-2" id="operator-count">—</div>
+                    <div class="text-sm text-board-dim">Operadores</div>
+                </div>
+                <div class="stat-card text-center">
+                    <div class="text-4xl font-bold text-board-amber mb-2" id="type-count">—</div>
+                    <div class="text-sm text-board-dim">Tipos de Tren</div>
+                </div>
+                <div class="stat-card text-center">
+                    <div class="text-4xl font-bold text-board-amber mb-2" id="places-count">—</div>
+                    <div class="text-sm text-board-dim">Destinos</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- API Endpoints -->
+        <section id="api" class="mb-16">
+            <h2 class="font-display text-3xl tracking-wide mb-8">Endpoints API</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <!-- Trains -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">🚆 Trenes</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">GET /admin/trains</code>
+                            <button onclick="testEndpoint('/admin/trains')"
+                                class="text-board-amber hover:underline">Probar</button>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">POST /admin/trains</code>
+                            <span class="text-board-green text-xs">crear</span>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">DELETE /admin/trains</code>
+                            <span class="text-board-red text-xs">limpiar</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <code class="text-board-dim">POST /admin/generate-random-train</code>
+                            <span class="text-board-amber text-xs">generar</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Config -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">⚙️ Configuración</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">GET /admin/config</code>
+                            <button onclick="testEndpoint('/admin/config')"
+                                class="text-board-amber hover:underline">Probar</button>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">PUT /admin/config</code>
+                            <span class="text-board-green text-xs">editar</span>
+                        </div>
+                        <div id="station-info" class="text-board-dim mt-3">Estación: —</div>
+                    </div>
+                </div>
+
+                <!-- Operators -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">🏢 Operadores</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">GET /admin/operators</code>
+                            <button onclick="testEndpoint('/admin/operators')"
+                                class="text-board-amber hover:underline">Probar</button>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">POST /admin/operators</code>
+                            <span class="text-board-green text-xs">crear</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Train Types -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">🚄 Tipos de Tren</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">GET /admin/train-types</code>
+                            <button onclick="testEndpoint('/admin/train-types')"
+                                class="text-board-amber hover:underline">Probar</button>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">POST /admin/train-types</code>
+                            <span class="text-board-green text-xs">crear</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Places -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">📍 Destinos</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">GET /admin/places</code>
+                            <button onclick="testEndpoint('/admin/places')"
+                                class="text-board-amber hover:underline">Probar</button>
+                        </div>
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">POST /admin/places</code>
+                            <span class="text-board-green text-xs">crear</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- WebSocket -->
+                <div class="stat-card">
+                    <h3 class="font-display text-xl mb-4 text-board-amber">🔌 WebSocket</h3>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between items-center pb-2 border-b border-white/10">
+                            <code class="text-board-dim">ws://localhost:4000/ws</code>
+                            <span class="text-board-green text-xs">activo</span>
+                        </div>
+                        <div class="text-board-dim mt-3">Actualizaciones en tiempo real de eventos</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Config Details -->
+        <section id="config" class="mb-16">
+            <h2 class="font-display text-3xl tracking-wide mb-8">Configuración Actual</h2>
+            <div class="stat-card">
+                <div id="config-details" class="space-y-3 text-sm font-mono">
+                    <div class="flex justify-between pb-2 border-b border-white/10">
+                        <span class="text-board-dim">station_name</span>
+                        <span id="cfg-station" class="text-board-amber">—</span>
+                    </div>
+                    <div class="flex justify-between pb-2 border-b border-white/10">
+                        <span class="text-board-dim">mode</span>
+                        <span id="cfg-mode" class="text-board-amber">—</span>
+                    </div>
+                    <div class="flex justify-between pb-2 border-b border-white/10">
+                        <span class="text-board-dim">language</span>
+                        <span id="cfg-language" class="text-board-amber">—</span>
+                    </div>
+                    <div class="flex justify-between pb-2 border-b border-white/10">
+                        <span class="text-board-dim">clockMode</span>
+                        <span id="cfg-clock" class="text-board-amber">—</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-board-dim">bgColor</span>
+                        <div class="flex items-center gap-2">
+                            <span id="cfg-bgColor" class="text-board-amber">—</span>
+                            <div id="color-swatch" class="w-6 h-6 rounded border border-white/20"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="border-t border-white/10 pt-8 pb-8 text-center text-board-dim text-sm">
+            <p>RailBoard Backend • Node.js + Express + SQLite • WebSocket en tiempo real</p>
+            <p class="mt-2">Estación: <strong id="footer-station" class="text-board-amber">—</strong></p>
+        </footer>
+    </main>
+
+    <script>
+        const API_URL = "http://localhost:4000";
+        const AUTH = btoa("admin:railboard");
+
+        function authHeaders() {
+            return {
+                "Content-Type": "application/json",
+                "Authorization": `Basic ${AUTH}`
+            };
+        }
+
+        async function loadStats() {
+            try {
+                const [trains, config, ops, types, places] = await Promise.all([
+                    fetch(`${API_URL}/admin/trains`, { headers: authHeaders() }).then(r => r.json()),
+                    fetch(`${API_URL}/admin/config`, { headers: authHeaders() }).then(r => r.json()),
+                    fetch(`${API_URL}/admin/operators`, { headers: authHeaders() }).then(r => r.json()),
+                    fetch(`${API_URL}/admin/train-types`, { headers: authHeaders() }).then(r => r.json()),
+                    fetch(`${API_URL}/admin/places`, { headers: authHeaders() }).then(r => r.json()),
+                ]);
+
+                // Update counts
+                document.getElementById("train-count").textContent = trains.length || 0;
+                document.getElementById("operator-count").textContent = ops.length || 0;
+                document.getElementById("type-count").textContent = types.length || 0;
+                document.getElementById("places-count").textContent = places.length || 0;
+
+                // Update config
+                if (config) {
+                    document.getElementById("station-info").textContent = `Estación: ${config.station_name || "—"}`;
+                    document.getElementById("cfg-station").textContent = config.station_name || "—";
+                    document.getElementById("cfg-mode").textContent = config.mode || "—";
+                    document.getElementById("cfg-language").textContent = config.language || "es";
+                    document.getElementById("cfg-clock").textContent = config.clockMode || "real";
+                    document.getElementById("cfg-bgColor").textContent = config.bgColor || "#050a14";
+                    document.getElementById("color-swatch").style.backgroundColor = config.bgColor || "#050a14";
+                    document.getElementById("footer-station").textContent = config.station_name || "—";
+                }
+            } catch (err) {
+                console.error("Error loading stats:", err);
+                document.getElementById("status-indicator").innerHTML = '<span class="w-2 h-2 bg-board-red rounded-full"></span><span>Error de conexión</span>';
+            }
+        }
+
+        async function testEndpoint(path) {
+            try {
+                const res = await fetch(`${API_URL}${path}`, { headers: authHeaders() });
+                const data = await res.json();
+                alert(`✓ ${path}\n\n${JSON.stringify(data, null, 2).substring(0, 500)}`);
+            } catch (err) {
+                alert(`✗ ${path}\n\n${err.message}`);
+            }
+        }
+
+        // Load stats on page load
+        loadStats();
+
+        // Refresh stats every 5 seconds
+        setInterval(loadStats, 5000);
+
+        // Update uptime
+        const startTime = Date.now();
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(elapsed / 3600);
+            const minutes = Math.floor((elapsed % 3600) / 60);
+            const seconds = elapsed % 60;
+            document.getElementById("uptime").textContent = `${hours}h ${minutes}m ${seconds}s`;
+        }, 1000);
+
+        // WebSocket connection indicator
+        const ws = new WebSocket("ws://localhost:4000/ws");
+        ws.onopen = () => {
+            document.getElementById("ws-status").textContent = "Conectado";
+            document.getElementById("ws-status").className = "text-board-green";
+        };
+        ws.onclose = () => {
+            document.getElementById("ws-status").textContent = "Desconectado";
+            document.getElementById("ws-status").className = "text-board-red";
+        };
+    </script>
+</body>
+
+</html>
