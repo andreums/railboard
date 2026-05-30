@@ -1,3 +1,89 @@
+# Railboard
+
+Aplicación web para paneles informativos de estaciones de tren, con display público en tiempo real y panel de administración.
+
+**Stack**
+- **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS
+- **Backend:** Node.js + Express + SQLite (better-sqlite3) + WebSocket
+- **Comunicación:** REST API + WebSocket para actualizaciones en tiempo real
+
+**Estructura**
+- **frontend/**: Aplicación React SPA (código en `frontend/src/`).
+- **backend/**: Servidor Express + SQLite (código en `backend/src/`).
+- **docs/**: Documentación del proyecto — ver [docs/index.md](docs/index.md#L1-L42) y [docs/api.md](docs/api.md).
+
+**Páginas principales**
+- **/**: `Display` — Panel público de llegadas/salidas.
+- **/admin**: `Admin` — Configuración de estación y lugares.
+- **/trains**: `Trains` — Gestión de trenes (drag & drop).
+- **/train-settings**: `TrainSettings` — Operadores y tipos de tren.
+
+**Instalación y ejecución (desarrollo)**
+
+Prerequisitos: `node` (>=16) y `npm`.
+
+- Backend
+
+```bash
+cd backend
+npm install
+# (opcional) cargar datos de ejemplo
+npm run seed
+# modo desarrollo con recarga
+npm run dev
+```
+
+- Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abrir la SPA en el navegador en la URL que indique Vite (por defecto `http://localhost:5173`). El backend expone la API REST y el WebSocket (ver `backend/src/ws.js`).
+
+**Build / Producción**
+
+- Frontend
+
+```bash
+cd frontend
+npm run build
+npm run preview    # para probar la build localmente
+```
+
+- Backend
+
+```bash
+cd backend
+npm install --production
+npm start
+```
+
+**API y WebSocket**
+- Ver la documentación de la API en [docs/api.md](docs/api.md).
+- Implementación del servidor WebSocket: [backend/src/ws.js](backend/src/ws.js).
+
+**Archivos clave**
+- Punto de entrada backend: [backend/src/index.js](backend/src/index.js)
+- Esquema y acceso a datos: [backend/src/db.js](backend/src/db.js)
+- Rutas y lógica: [backend/src/routes.js](backend/src/routes.js)
+- Seed de ejemplo: [backend/src/seed.js](backend/src/seed.js)
+- SPA: [frontend/src/main.tsx](frontend/src/main.tsx)
+
+**Contribuir**
+- Crea un fork/branch, haz commits claros y abre un pull request.
+- Añade tests o pasos de verificación si introduces cambios funcionales.
+
+**Repositorio remoto**
+- Remote origin configurado: https://github.com/andreums/railboard.git
+
+**Licencia**
+- No indicada en el repositorio. Añade un fichero `LICENSE` si quieres especificarla.
+
+---
+Para más detalles y decisiones arquitectónicas, consulta la carpeta `docs/`.
 # RailBoard — Model Railway Departure Board
 
 A local-first web app that simulates a modern Spanish-style railway station
