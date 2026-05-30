@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { api, connectWS, fileUrl, type Config, type Place, type Train, type Route, type Operator, type TrainType } from "../lib/api";
+import { api, connectWS, fileUrl, type Config, type Place, type Train, type Route, type Operator, type TrainType, type Station } from "../lib/api";
 import { fetchNetworks, fetchStations, reloadRailwayRoutes, type RailwayReloadStats } from "../services/routeApi";
 import GenerationPanel from "../components/admin/GenerationPanel";
 import ServicesPanel from "../components/admin/ServicesPanel";
@@ -29,6 +29,7 @@ const TEST_TEXTS: Record<string, string> = {
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [routesLoading, setRoutesLoading] = useState(false);
   const [routesError, setRoutesError] = useState<string | null>(null);
@@ -69,8 +70,9 @@ export default function Admin() {
     setRoutesLoading(true);
     setRoutesError(null);
     try {
-      const [c, pl, ro, tr, op, tt, networkList, stationList] = await Promise.all([
+      const [c, stRows, pl, ro, tr, op, tt, networkList, stationList] = await Promise.all([
         api.getConfig(),
+        api.listStations(),
         api.listPlaces(),
         api.listRoutes(),
         api.listTrains(),
@@ -80,6 +82,7 @@ export default function Admin() {
         fetchStations(),
       ]);
       setConfig(c);
+      setStations(stRows);
       setPlaces(pl);
       setRoutes(ro);
       setTrains(tr);
@@ -479,6 +482,46 @@ export default function Admin() {
                 </button>
               </div>
 
+              {/* Station quick links */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
+                <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                  <span>🧭</span> Estaciones y Accesos
+                </h3>
+                {stations.length === 0 ? (
+                  <p className="text-slate-400 text-sm">No hay estaciones configuradas.</p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {stations
+                      .slice()
+                      .sort((a, b) => (a.sort_order - b.sort_order) || a.name.localeCompare(b.name, "es"))
+                      .map((st) => (
+                        <div key={st.id} className="bg-black/20 border border-white/10 rounded-lg p-3">
+                          <div className="text-white font-semibold">{st.short || st.name}</div>
+                          <div className="text-xs text-slate-400 mb-2">{st.name} · ID {st.id}</div>
+                          <div className="flex gap-2">
+                            <a
+                              href={`/display/${st.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-amber-500 text-black text-xs font-semibold rounded hover:bg-amber-400 transition"
+                            >
+                              Abrir Display
+                            </a>
+                            <a
+                              href={`/control/${st.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-3 py-1.5 bg-slate-700 text-white text-xs font-semibold rounded hover:bg-slate-600 transition"
+                            >
+                              Abrir Control
+                            </a>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
               {/* Generation Panel */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
                 <GenerationPanel
@@ -668,6 +711,14 @@ export default function Admin() {
                 </h2>
                 <p className="text-slate-400 mb-6">Selecciona una ruta para generar un tren con sus líneas, operador y estaciones.</p>
                 <RoutesPanel />
+                <div className="mt-6">
+                  {/* WS debug panel */}
+                  {/* Lazy-load to avoid SSR issues */}
+                  {typeof window !== 'undefined' && (
+                    // @ts-ignore - dynamic import isn't necessary here
+                    require('../components/admin/WSLogPanel').default({})
+                  )}
+                </div>
               </div>
             </div>
           )}

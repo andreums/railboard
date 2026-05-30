@@ -296,8 +296,8 @@ export default function ServicesPanel() {
                     <div
                         key={service.id}
                         className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedService?.id === service.id
-                                ? "border-blue-500 bg-blue-900/20"
-                                : "border-white/15 bg-black/20 hover:border-white/30"
+                            ? "border-blue-500 bg-blue-900/20"
+                            : "border-white/15 bg-black/20 hover:border-white/30"
                             }`}
                         onClick={() => setSelectedService(service)}
                     >
@@ -317,10 +317,10 @@ export default function ServicesPanel() {
                             </div>
                             <span
                                 className={`px-3 py-1 rounded-full text-sm font-bold text-white ${service.status === "Cancelled"
-                                        ? "bg-red-500"
-                                        : service.status === "Completed"
-                                            ? "bg-green-500"
-                                            : "bg-blue-500"
+                                    ? "bg-red-500"
+                                    : service.status === "Completed"
+                                        ? "bg-green-500"
+                                        : "bg-blue-500"
                                     }`}
                             >
                                 {service.status === "Cancelled" ? "✗" : service.status === "Completed" ? "✓" : "◉"}

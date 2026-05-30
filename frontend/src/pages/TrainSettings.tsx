@@ -48,7 +48,7 @@ export default function TrainSettings() {
         <section className="bg-board-row rounded-lg p-5">
           <h2 className="font-display text-2xl mb-4">Operadores</h2>
           <Catalog
-            items={operators.map((o) => ({ id: o.id, label: o.name, extra: o.logo_url ? <img src={fileUrl(o.logo_url)!} className="h-6"/> : null }))}
+            items={operators.map((o) => ({ id: o.id, label: o.name, extra: o.logo_url ? <img src={fileUrl(o.logo_url)!} className="h-6" /> : null }))}
             onRemove={(id) => api.deleteOperator(id).then(refresh)}
             onEdit={(id) => setEditingOperator(operators.find(o => o.id === id) || null)}
             renderCreate={() => <OperatorCreate onCreated={refresh} />}

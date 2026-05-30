@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
 import { api, connectWS, fileUrl, type Config, type Train, type Place, type Station, type Service } from "../lib/api";
+import { useParams } from "react-router-dom";
 import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
@@ -125,6 +126,7 @@ function ScrollText({
 }
 
 export default function Display() {
+  const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
   const [config, setConfig] = useState<Config | null>(null);
   const [trains, setTrains] = useState<Train[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -140,11 +142,16 @@ export default function Display() {
       setStations(st);
       setPlaces(p);
 
-      // Find station ID by name or use first station
+      // Priority: URL /display/:stationId > config.station_name > first station
       let stationId = 1;
-      if (c?.station_name && st?.length) {
+      const parsedStationId = Number(stationIdParam);
+      if (Number.isFinite(parsedStationId) && parsedStationId > 0 && st.some((s) => s.id === parsedStationId)) {
+        stationId = parsedStationId;
+      } else if (c?.station_name && st?.length) {
         const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
         if (found) stationId = found.id;
+      } else if (st?.length) {
+        stationId = st[0].id;
       }
 
       // Get board data (trains + services) for this station
@@ -179,7 +186,7 @@ export default function Display() {
       clearInterval(poll);
       clearInterval(tick);
     };
-  }, []);
+  }, [stationIdParam]);
 
   const mode = config?.mode ?? "departures";
   const lang = (config?.language as Language) ?? "es";

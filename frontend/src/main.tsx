@@ -12,6 +12,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/" element={<Display />} />
+        <Route path="/display/:stationId" element={<Display />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/trains" element={<Trains />} />
         <Route path="/train-settings" element={<TrainSettings />} />
