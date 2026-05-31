@@ -4,6 +4,7 @@ import {
   getAllRoutes,
   getRouteByCode,
   getRoutesByNetwork,
+  getAvailableRegions,
   getStationsByRoute,
   getAllStations,
   searchStation,
@@ -80,8 +81,10 @@ function buildRowsFromServices(stationId, mode) {
         delayMinutes: stop.delay_minutes || 0,
         number: svc.number || `SVC-${svc.id}`,
         operatorName: svc.operator_name || "Operador",
+        operatorLogo: svc.operator_logo || null,
         trainTypeCode: svc.train_type_code || "SERV",
         trainTypeName: svc.train_type_name || "Servicio",
+        trainTypeLogo: svc.train_type_logo || null,
         origin: svc.origin_name || stopNames[0] || "Origen",
         destination: svc.destination_name || stopNames[stopNames.length - 1] || "Destino",
         platform: stop.platform || "?",
@@ -110,8 +113,10 @@ function buildRowsFromTrains(stationId, mode) {
       delayMinutes: 0,
       number: t.number || `TR-${t.id}`,
       operatorName: t.operator_name || "Operador",
+      operatorLogo: t.operator_logo || null,
       trainTypeCode: t.type_code || "TRN",
       trainTypeName: t.type_name || "Tren",
+      trainTypeLogo: t.type_logo || null,
       origin: t.origin || "Origen",
       destination: t.destination || "Destino",
       platform: t.platform || "?",
@@ -134,6 +139,7 @@ r.get("/routes/:code", (req, res) => {
 });
 
 r.get("/routes/network/:network", (req, res) => res.json(getRoutesByNetwork(req.params.network)));
+r.get("/regions", (_req, res) => res.json(getAvailableRegions()));
 
 r.get("/routes/:code/stations", (req, res) => res.json(getStationsByRoute(req.params.code)));
 
@@ -153,10 +159,13 @@ r.get("/stations/:stationId/board", (req, res) => {
   const mode = String(req.query.mode || "departures");
   const station = stations.list().find((s) => s.id === stationId);
   if (!station) return res.status(404).json({ error: "Station not found" });
+  const stationConfig = getStationDisplayConfig(stationId);
 
-  const serviceRows = buildRowsFromServices(stationId, mode);
-  const source = serviceRows.length > 0 ? "services" : "trains";
-  const rows = (serviceRows.length > 0 ? serviceRows : buildRowsFromTrains(stationId, mode))
+  // Try trains first (they have correct data), then fall back to services
+  const trainRows = buildRowsFromTrains(stationId, mode);
+  const serviceRows = trainRows.length === 0 ? buildRowsFromServices(stationId, mode) : [];
+  const source = trainRows.length > 0 ? "trains" : "services";
+  const rows = (trainRows.length > 0 ? trainRows : serviceRows)
     .sort((a, b) => {
       const tA = toSortMinutes(a.expectedTime || a.time);
       const tB = toSortMinutes(b.expectedTime || b.time);
@@ -168,7 +177,7 @@ r.get("/stations/:stationId/board", (req, res) => {
     station: {
       id: station.id,
       name: station.name,
-      displayName: (station.short || station.name || "").toUpperCase(),
+      displayName: (stationConfig?.station_name || station.short || station.name || "").toUpperCase(),
     },
     mode: mode === "all" ? "mixed" : mode,
     source,

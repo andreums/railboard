@@ -14,7 +14,7 @@ import {
 } from "./db.js";
 import SEED_FIXTURES from "./fixtures/seedTrains.js";
 import { broadcast } from "./ws.js";
-import { getAllRoutes, reloadRoutesDataset } from "./services/routeService.js";
+import { getAllRoutes, getAvailableRegions, reloadRoutesDataset } from "./services/routeService.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -150,6 +150,22 @@ const choiceFromConfig = (config, key, fallback = []) => {
   return allowEmpty ? ["", ...choices] : choices;
 };
 
+const getRouteRegion = (route) => {
+  const haystack = normalizeStation(`${route.network} ${route.name}`);
+  if (haystack.includes("valencia")) return "Comunitat Valenciana";
+  if (haystack.includes("catalunya") || haystack.includes("cataluna")) return "Catalunya";
+  if (haystack.includes("madrid")) return "Comunidad de Madrid";
+  if (haystack.includes("murcia") || haystack.includes("alicante")) return "Región de Murcia / Alicante";
+  if (haystack.includes("sevilla")) return "Andalucía (Sevilla)";
+  if (haystack.includes("san sebastian")) return "País Vasco (San Sebastián)";
+  if (haystack.includes("zaragoza")) return "Aragón";
+  if (haystack.includes("cantabria")) return "Cantabria";
+  if (haystack.includes("asturias")) return "Asturias";
+  if (haystack.includes("bilbao")) return "País Vasco (Bilbao)";
+  if (haystack.includes("galicia") || haystack.includes("ferrol")) return "Galicia";
+  return route.network;
+};
+
 function orderedIntermediateStops(stations, fromIndex, toIndex) {
   if (fromIndex === toIndex) return [];
   const step = fromIndex < toIndex ? 1 : -1;
@@ -185,6 +201,277 @@ const minutesUntilHHMM = (hhmm, baseDate = new Date()) => {
   if (diff < -12 * 60) diff += 24 * 60;
   if (diff > 12 * 60) diff -= 24 * 60;
   return diff;
+};
+
+const SUPPORTED_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+
+const OBSERVATION_BANK = {
+  es: {
+    generic: [
+      "Sin incidencias",
+      "Servicio habitual",
+      "Operación normal",
+      "Material revisado",
+      "Salida prevista según horario",
+      "Servicio reforzado por demanda",
+      "Tren con alta ocupación prevista",
+    ],
+    service: [
+      "Por trabajos de mantenimiento en la infraestructura",
+      "Debido a obras en el corredor",
+      "Servicio sujeto a regulación de tráfico",
+      "Afectado por circulación densa en el tramo central",
+      "Cambio puntual de material por necesidades operativas",
+      "Parada reforzada en estaciones intermedias",
+    ],
+    delay: [
+      "Retraso por incidencia en la infraestructura",
+      "Retraso por acumulación de tráfico ferroviario",
+      "Retraso por avería de material",
+      "Retraso por maniobras de regulación",
+      "Demora por intervención técnica",
+    ],
+    platform: [
+      "Se confirma vía asignada en panel",
+      "Posible cambio de vía por regulación de tráfico",
+      "Asignación de vía sujeta a última hora",
+    ],
+  },
+  ca: {
+    generic: [
+      "Sense incidències",
+      "Servei habitual",
+      "Operació normal",
+      "Material revisat",
+      "Sortida prevista segons horari",
+      "Servei reforçat per demanda",
+      "Tren amb alta ocupació prevista",
+    ],
+    service: [
+      "Per treballs de manteniment a la infraestructura",
+      "A causa d’obres al corredor",
+      "Servei sotmès a regulació de trànsit",
+      "Afectat per circulació densa al tram central",
+      "Canvi puntual de material per necessitats operatives",
+      "Parada reforçada en estacions intermèdies",
+    ],
+    delay: [
+      "Retard per incidència a la infraestructura",
+      "Retard per acumulació de trànsit ferroviari",
+      "Retard per avaria de material",
+      "Retard per maniobres de regulació",
+      "Demora per intervenció tècnica",
+    ],
+    platform: [
+      "Via assignada confirmada al panell",
+      "Possible canvi de via per regulació de trànsit",
+      "Assignació de via subjecta a última hora",
+    ],
+  },
+  en: {
+    generic: [
+      "No incidents reported",
+      "Normal service",
+      "Operating as scheduled",
+      "Rolling stock checked",
+      "Departure expected on time",
+      "Service reinforced due to demand",
+      "High occupancy expected",
+    ],
+    service: [
+      "Maintenance work on the infrastructure",
+      "Works along the corridor",
+      "Service subject to traffic regulation",
+      "Affected by heavy traffic on the central section",
+      "Temporary rolling stock change for operational needs",
+      "Extra intermediate stops in place",
+    ],
+    delay: [
+      "Delay due to an infrastructure incident",
+      "Delay due to rail traffic congestion",
+      "Delay due to rolling stock failure",
+      "Delay due to traffic management",
+      "Delay due to technical intervention",
+    ],
+    platform: [
+      "Platform assignment confirmed on the board",
+      "Possible platform change due to traffic regulation",
+      "Platform assignment may change at short notice",
+    ],
+  },
+  fr: {
+    generic: [
+      "Aucun incident signalé",
+      "Service normal",
+      "Exploitation conforme à l’horaire",
+      "Matériel vérifié",
+      "Départ prévu à l’heure",
+      "Service renforcé en fonction de la demande",
+      "Fort taux d’occupation attendu",
+    ],
+    service: [
+      "Travaux de maintenance sur l’infrastructure",
+      "Chantiers sur le corridor",
+      "Service soumis à régulation du trafic",
+      "Trafic dense sur la section centrale",
+      "Changement ponctuel de matériel pour besoins d’exploitation",
+      "Arrêts intermédiaires renforcés",
+    ],
+    delay: [
+      "Retard dû à un incident d’infrastructure",
+      "Retard dû à la congestion ferroviaire",
+      "Retard dû à une panne de matériel",
+      "Retard dû à une régulation du trafic",
+      "Retard dû à une intervention technique",
+    ],
+    platform: [
+      "Voie attribuée confirmée sur le panneau",
+      "Changement de voie possible selon la régulation",
+      "Attribution de voie susceptible de changer à la dernière minute",
+    ],
+  },
+  eu: {
+    generic: [
+      "Ez da gorabeherarik jakinarazi",
+      "Zerbitzu arrunta",
+      "Ordutegiaren arabera martxan",
+      "Materiala berrikusita",
+      "Irteera orduz espero da",
+      "Eskariagatik zerbitzu indartua",
+      "Gaitasun handia espero da",
+    ],
+    service: [
+      "Azpiegiturako mantentze lanengatik",
+      "Korridorean obrak daudelako",
+      "Zirkulazioaren erregulaziopean",
+      "Erdiko tarteko zirkulazio trinkoak eraginda",
+      "Eragiketa beharretarako material aldaketa puntuala",
+      "Tarteko geltokietan geldialdi indartuak",
+    ],
+    delay: [
+      "Atzerapena azpiegiturako gorabeheragatik",
+      "Atzerapena tren trafikoaren pilaketagatik",
+      "Atzerapena materialaren matxuragatik",
+      "Atzerapena trafikoaren erregulazioagatik",
+      "Atzerapena esku-hartze teknikoagatik",
+    ],
+    platform: [
+      "Esleitutako nasaren baieztapena panelean",
+      "Nasaren aldaketa posiblea trafikoaren arabera",
+      "Nasa azken unean alda daiteke",
+    ],
+  },
+  gl: {
+    generic: [
+      "Sen incidencias",
+      "Servizo habitual",
+      "Operación normal",
+      "Material revisado",
+      "Saída prevista segundo horario",
+      "Servizo reforzado por demanda",
+      "Alta ocupación prevista",
+    ],
+    service: [
+      "Por traballos de mantemento na infraestrutura",
+      "Debido a obras no corredor",
+      "Servizo suxeito a regulación de tráfico",
+      "Afectado por circulación densa no tramo central",
+      "Cambio puntual de material por necesidades operativas",
+      "Parada reforzada en estacións intermedias",
+    ],
+    delay: [
+      "Retraso por incidencia na infraestrutura",
+      "Retraso por acumulación de tráfico ferroviario",
+      "Retraso por avaría de material",
+      "Retraso por manobras de regulación",
+      "Demora por intervención técnica",
+    ],
+    platform: [
+      "Vía asignada confirmada no panel",
+      "Posible cambio de vía por regulación de tráfico",
+      "A asignación de vía pode mudar á última hora",
+    ],
+  },
+};
+
+const normalizeLanguage = (value) => {
+  const lang = String(value || "").toLowerCase().trim();
+  return SUPPORTED_LANGUAGES.has(lang) ? lang : "es";
+};
+
+const normalizeLanguageList = (value, fallbackLanguage = "es") => {
+  const rawList = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value.trim().startsWith("[")
+      ? (() => {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [value];
+        } catch {
+          return [value];
+        }
+      })()
+      : typeof value === "string" && value.includes(",")
+        ? value.split(",")
+        : value != null
+          ? [value]
+          : [];
+
+  const unique = [];
+  for (const item of rawList) {
+    const lang = normalizeLanguage(item);
+    if (!unique.includes(lang)) unique.push(lang);
+  }
+  if (!unique.length) unique.push(normalizeLanguage(fallbackLanguage));
+  return unique;
+};
+
+const pickDisplayLanguage = (config) => {
+  const languages = normalizeLanguageList(config?.languages, config?.language || "es");
+  return languages[Math.floor(Math.random() * languages.length)] || "es";
+};
+
+const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+const pickObservation = ({ language, status, modeValue }) => {
+  const lang = normalizeLanguage(language);
+  const bank = OBSERVATION_BANK[lang] || OBSERVATION_BANK.es;
+  const pool = [];
+
+  if (status === "Delayed") pool.push(...bank.delay);
+  pool.push(...bank.service);
+  pool.push(...bank.platform);
+  if (modeValue === "arrivals") {
+    pool.push(
+      lang === "ca" ? "Arribada prevista amb normalitat" :
+        lang === "en" ? "Arrival expected on time" :
+          lang === "fr" ? "Arrivée prévue à l’heure" :
+            lang === "eu" ? "Iritsiera garaiz espero da" :
+              lang === "gl" ? "Chegada prevista con normalidade" :
+                "Llegada prevista con normalidad"
+    );
+  } else {
+    pool.push(
+      lang === "ca" ? "Sortida prevista amb normalitat" :
+        lang === "en" ? "Departure expected on time" :
+          lang === "fr" ? "Départ prévu à l’heure" :
+            lang === "eu" ? "Irteera garaiz espero da" :
+              lang === "gl" ? "Saída prevista con normalidade" :
+                "Salida prevista con normalidad"
+    );
+  }
+  pool.push(...bank.generic);
+
+  const weighted = [
+    "",
+    "",
+    randomItem(pool),
+    randomItem(pool),
+    randomItem(pool),
+    randomItem(pool),
+  ].filter(Boolean);
+
+  return randomItem(weighted.length ? weighted : bank.generic);
 };
 
 // ----- config -----
@@ -328,6 +615,12 @@ r.delete("/operators/:id/pre-announce", adminAuth, (req, res) => {
 
 // ----- routes (Rodalia, etc) -----
 r.get("/routes", (_req, res) => res.json(getAllRoutes()));
+r.get("/regions", (_req, res) => res.json(getAvailableRegions()));
+r.get("/routes/export", adminAuth, (_req, res) => {
+  const routes = getAllRoutes();
+  res.setHeader("Content-Disposition", 'attachment; filename="railboard_routes.json"');
+  res.type("application/json").send(JSON.stringify(routes, null, 2));
+});
 r.post("/routes/reload", adminAuth, (_req, res) => res.json(reloadRoutesDataset()));
 
 // ----- train types -----
@@ -442,6 +735,17 @@ r.delete("/stations/:id/pre-announce", adminAuth, (req, res) => {
   res.status(204).end();
 });
 
+// ----- export trains -----
+r.get("/trains/export", adminAuth, (req, res) => {
+  const stationId = req.query.station_id != null ? Number(req.query.station_id) : null;
+  const trains = listTrains(Number.isFinite(stationId) ? stationId : undefined);
+  const filename = Number.isFinite(stationId)
+    ? `railboard_trains_station_${stationId}.json`
+    : "railboard_trains.json";
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.type("application/json").send(JSON.stringify(trains, null, 2));
+});
+
 // ----- seed (load demo trains) -----
 r.post("/seed-trains", adminAuth, (_req, res) => {
   db.exec("DELETE FROM trains");
@@ -541,7 +845,18 @@ r.post("/generate-random-train", adminAuth, (req, res) => {
   const station = stationRow?.name || config.station_name || "Madrid Puerta de Atocha";
   const stationConfig = stationRow ? getStationDisplayConfig(stationRow.id) : config;
   const routesAtStation = railRoutes.filter((r) => stationIndex(r.stations, station) >= 0);
-  const routePool = routesAtStation.length ? routesAtStation : railRoutes;
+  const requestedRegion = String(stationConfig?.routeRegion || "").trim();
+  const routePoolSource = routesAtStation.length ? routesAtStation : railRoutes;
+  const routePool = requestedRegion
+    ? routePoolSource.filter((route) => getRouteRegion(route) === requestedRegion)
+    : routePoolSource;
+  if (!routePool.length) {
+    return res.status(400).json({
+      error: requestedRegion
+        ? `No hay rutas disponibles para la región "${requestedRegion}" en este display.`
+        : "No routes available for this display",
+    });
+  }
   const existing = listTrains().filter((t) => !["Departed", "Arrived"].includes(t.status));
   const routeCounts = new Map();
   for (const train of existing) routeCounts.set(train.type_code, (routeCounts.get(train.type_code) || 0) + 1);
@@ -595,15 +910,11 @@ r.post("/generate-random-train", adminAuth, (req, res) => {
   const stops = routeStops.slice(0, stopLimit);
   const usedNumbers = new Set(existing.map((t) => t.number));
   const availableNumbers = route.numbers.filter((number) => !usedNumbers.has(number));
-  const observations = randomItem([
-    "",
-    "",
-    "",
-    "",
-    "Por obras en el corredor",
-    "Tren con parada en todas las estaciones",
-    "Servicio sujeto a regulación de tráfico",
-  ]);
+  const observations = pickObservation({
+    language: pickDisplayLanguage(stationConfig || config),
+    status,
+    modeValue: mode,
+  });
 
   const train = createTrain({
     number: availableNumbers.length ? randomItem(availableNumbers) : randomItem(route.numbers),
@@ -695,7 +1006,11 @@ r.post("/trains/from-route/:code", adminAuth, (req, res) => {
     platform: randomItem(choiceFromConfig(stationConfig, "platform", route.platforms)),
     sector: randomItem(choiceFromConfig(stationConfig, "sector", [""])),
     status: "Scheduled",
-    observations: req.body?.observations || "",
+    observations: req.body?.observations || pickObservation({
+      language: pickDisplayLanguage(stationConfig || config),
+      status: "Scheduled",
+      modeValue: mode,
+    }),
     station_id: stationRow?.id ?? null,
   });
 
@@ -968,6 +1283,7 @@ r.get("/stations/:stationId/board", (req, res) => {
   if (!station) {
     return res.status(404).json({ status: "error", error: "Station not found" });
   }
+  const stationConfig = getStationDisplayConfig(station.id);
 
   // Legacy: Get trains from old table
   const trains = listTrains(Number(stationId));
@@ -1000,13 +1316,70 @@ r.get("/stations/:stationId/board", (req, res) => {
     services: servicesWithStops,
   };
 
+  // Normalize trains to board row format
+  const normalizedTrains = filtered.trains.map((train, idx) => ({
+    stopId: train.id,
+    serviceId: train.id,
+    number: train.number,
+    operatorName: train.operator_name || "",
+    operatorLogo: train.operator_logo || null,
+    trainTypeCode: train.type_code || "",
+    trainTypeName: train.type_name || "",
+    trainTypeLogo: train.type_logo || null,
+    destination: train.destination || "—",
+    origin: train.origin || "—",
+    stopsText: train.stops && train.stops.length > 0 ? train.stops.join(" · ") : "",
+    time: train.scheduled_time || "—",
+    expectedTime: train.expected_time || train.scheduled_time || "—",
+    platform: train.platform || "?",
+    sector: train.sector || "",
+    status: train.status || "Scheduled",
+    notes: train.observations || "",
+  }));
+
+  // Normalize services to board row format
+  const normalizedServices = filtered.services.map((svc, idx) => {
+    const stopAtStation = svc.stop_here;
+    const stopsText = svc.all_stops
+      .sort((a, b) => (a.stop_order || 0) - (b.stop_order || 0))
+      .map(s => {
+        const st = stations.list().find(x => x.id === s.station_id);
+        return st?.name || "?";
+      })
+      .join(" · ");
+
+    return {
+      stopId: svc.id,
+      serviceId: svc.id,
+      number: svc.number || "?",
+      operatorName: svc.operator_id ? operators.list().find(o => o.id === svc.operator_id)?.name || "" : "",
+      operatorLogo: svc.operator_logo || null,
+      trainTypeCode: svc.train_type_id ? trainTypes.list().find(t => t.id === svc.train_type_id)?.code || "" : "",
+      trainTypeName: svc.train_type_id ? trainTypes.list().find(t => t.id === svc.train_type_id)?.name || "" : "",
+      trainTypeLogo: svc.train_type_logo || null,
+      destination: svc.destination_place_id ? places.list().find(p => p.id === svc.destination_place_id)?.name || "—" : "—",
+      origin: svc.origin_place_id ? places.list().find(p => p.id === svc.origin_place_id)?.name || "—" : "—",
+      stopsText: stopsText,
+      time: stopAtStation?.scheduled_time || "—",
+      expectedTime: stopAtStation?.expected_time || stopAtStation?.scheduled_time || "—",
+      platform: stopAtStation?.platform || "?",
+      sector: stopAtStation?.sector || "",
+      status: svc.status || "Scheduled",
+      notes: svc.notes || "",
+    };
+  });
+
+  // Combine and return in format expected by Display.tsx
   res.json({
     status: "ok",
-    data: {
-      station,
-      timestamp: Date.now(),
-      ...filtered,
-    }
+    station: {
+      id: station.id,
+      name: station.name,
+      displayName: stationConfig?.station_name || station.display_name || station.name,
+    },
+    mode: filtered.mode,
+    timestamp: Date.now(),
+    rows: [...normalizedTrains, ...normalizedServices],
   });
 });
 

@@ -57,6 +57,22 @@ function uniqueSorted(values) {
   return Array.from(byNorm.values()).sort((a, b) => a.localeCompare(b, "es"));
 }
 
+function getRouteRegion(route) {
+  const haystack = normalizeText(`${route.network} ${route.name}`);
+  if (haystack.includes("valencia")) return "Comunitat Valenciana";
+  if (haystack.includes("catalunya") || haystack.includes("cataluna")) return "Catalunya";
+  if (haystack.includes("madrid")) return "Comunidad de Madrid";
+  if (haystack.includes("murcia") || haystack.includes("alicante")) return "Región de Murcia / Alicante";
+  if (haystack.includes("sevilla")) return "Andalucía (Sevilla)";
+  if (haystack.includes("san sebastian")) return "País Vasco (San Sebastián)";
+  if (haystack.includes("zaragoza")) return "Aragón";
+  if (haystack.includes("cantabria")) return "Cantabria";
+  if (haystack.includes("asturias")) return "Asturias";
+  if (haystack.includes("bilbao")) return "País Vasco (Bilbao)";
+  if (haystack.includes("galicia") || haystack.includes("ferrol")) return "Galicia";
+  return route.network;
+}
+
 function mapRoute(route) {
   return {
     code: route.code,
@@ -108,6 +124,12 @@ export function getRoutesByNetwork(network) {
   return getAllRoutes().filter((route) => normalizeText(route.network) === target);
 }
 
+export function getRoutesByRegion(region) {
+  const target = normalizeText(region);
+  if (!target) return [];
+  return getAllRoutes().filter((route) => normalizeText(getRouteRegion(route)) === target);
+}
+
 export function getStationsByRoute(code) {
   const route = getRouteByCode(code);
   if (!route) return [];
@@ -130,6 +152,10 @@ export function getAvailableNetworks() {
 
 export function getAvailableOperators() {
   return currentSnapshot().operators;
+}
+
+export function getAvailableRegions() {
+  return uniqueSorted(getAllRoutes().map((route) => getRouteRegion(route)));
 }
 
 export function reloadRoutesDataset() {

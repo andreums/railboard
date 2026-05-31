@@ -41,6 +41,7 @@ export type VoiceSettings = {
 type Configish = {
   mode?: string;
   language?: string;
+  languages?: string[] | string;
   tts_rate?: string;
   tts_pitch?: string;
   tts_volume?: string;
@@ -91,6 +92,39 @@ const DEFAULT_PRESETS: AnnouncePreset[] = [
   { id: "photo", label: "Foto", text: "Atención. Dentro de 10 minutos realizaremos la foto de grupo. Les rogamos se acerquen al área central." },
 ];
 
+const SUPPORTED_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+
+function normalizeLanguageCode(value?: string | null) {
+  const lang = String(value || "").toLowerCase().trim();
+  return SUPPORTED_LANGUAGES.has(lang) ? lang : "es";
+}
+
+export function resolveDisplayLanguage(config: Configish | null, preferredLanguage?: string) {
+  const rawList = Array.isArray(config?.languages)
+    ? config?.languages
+    : typeof config?.languages === "string" && config.languages.trim().startsWith("[")
+      ? (() => {
+          try {
+            const parsed = JSON.parse(config.languages);
+            return Array.isArray(parsed) ? parsed : [config.languages];
+          } catch {
+            return [config.languages];
+          }
+        })()
+      : typeof config?.languages === "string" && config.languages.includes(",")
+        ? config.languages.split(",")
+        : config?.languages != null
+          ? [config.languages]
+          : [];
+
+  const normalized = rawList
+    .map((value) => normalizeLanguageCode(String(value)))
+    .filter((value, index, arr) => arr.indexOf(value) === index);
+
+  const primary = normalizeLanguageCode(preferredLanguage || config?.language || normalized[0] || "es");
+  return normalized.includes(primary) ? primary : (normalized[0] || primary);
+}
+
 export function defaultPresets(): AnnouncePreset[] {
   return DEFAULT_PRESETS;
 }
@@ -135,13 +169,13 @@ export function loadVoiceSettings(config: Configish | null): VoiceSettings {
 }
 
 export function getVoiceURIForLanguage(config: Configish | null, language?: string) {
-  const lang = language || config?.language || "es";
+  const lang = resolveDisplayLanguage(config, language);
   const voiceMap = safeParse<Record<string, string>>(config?.tts_voice_map, {});
   return voiceMap[lang] || config?.tts_voice || "";
 }
 
 export function getAnnouncementTemplate(config: Configish | null, mode: string, language?: string) {
-  const lang = language || config?.language || "es";
+  const lang = resolveDisplayLanguage(config, language);
   const templateMap = safeParse<Record<string, AnnouncementTemplates>>(config?.announce_templates_map, {});
   const byLang = templateMap[lang];
   if (byLang && typeof byLang === "object") {
@@ -169,7 +203,7 @@ export function speak(text: string, settings?: VoiceSettings, langCode?: string)
 
 export function speakWithConfig(text: string, config: Configish | null) {
   const vs = loadVoiceSettings(config);
-  speak(text, vs, config?.language);
+  speak(text, vs, resolveDisplayLanguage(config));
 }
 
 function resolvePreAnnounce(train: Trainish): string | null {
@@ -180,7 +214,7 @@ function resolvePreAnnounce(train: Trainish): string | null {
 }
 
 export function announceTrain(train: Trainish, config: Configish | null, template?: string) {
-  const lang = config?.language || "es";
+  const lang = resolveDisplayLanguage(config);
   const mode = config?.mode === "arrivals" ? "arrivals" : "departures";
   const resolvedTemplate = template || getAnnouncementTemplate(config, mode, lang);
   const text = renderTemplate(resolvedTemplate, train);

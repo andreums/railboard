@@ -1,4 +1,5 @@
 import { fetchRoutes } from "../services/routeApi";
+import type { Language } from "./i18n";
 
 export const API_URL = (import.meta as any).env.VITE_API_URL || "http://localhost:4000";
 
@@ -115,8 +116,10 @@ export type Config = {
   station_name: string;
   mode: "departures" | "arrivals";
   displayMode?: "single" | "multiple";
+  routeRegion?: string;
   logo_url?: string;
   language?: string;
+  languages?: Language[];
   footerText?: string;
   platformMin?: string;
   platformMax?: string;
@@ -171,6 +174,35 @@ const authFetch = (path: string, init?: RequestInit) =>
     ...init,
     headers: { ...authHeaders(), ...(init?.headers as Record<string, string> || {}) },
   });
+
+async function downloadBlob(path: string, filename: string, init?: RequestInit) {
+  const response = await authFetch(path, init);
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const body = await response.json();
+      message = body?.error || body?.message || message;
+    } catch {
+      try {
+        message = await response.text();
+      } catch {
+        // keep fallback message
+      }
+    }
+    throw new Error(message);
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
 
 export const api = {
   getConfig: (): Promise<Config> => json("/config"),
@@ -257,6 +289,12 @@ export const api = {
     }),
   saveStationDisplayConfig: (stationId: number, config: Partial<Config>): Promise<Config> =>
     json(`/stations/${stationId}/config`, { method: "PUT", body: JSON.stringify(config) }),
+  exportRailwayRoutes: () => downloadBlob("/routes/export", "railboard_routes.json"),
+  exportTrains: (stationId?: number) =>
+    downloadBlob(
+      `/trains/export${stationId != null ? `?station_id=${stationId}` : ""}`,
+      stationId != null ? `railboard_trains_station_${stationId}.json` : "railboard_trains.json",
+    ),
 
   listPlaces: (): Promise<Place[]> => json("/places"),
   createPlace: (name: string, logo?: File | null) => {

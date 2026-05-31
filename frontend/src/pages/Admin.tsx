@@ -6,7 +6,7 @@ import ServicesPanel from "../components/admin/ServicesPanel";
 import RoutesPanel from "../components/admin/RoutesPanel";
 import WSLogPanel from "../components/admin/WSLogPanel";
 import { LANGUAGES, type Language } from "../lib/i18n";
-import { speak, loadVoiceSettings, getVoices, defaultTemplate, getAnnouncementTemplate, getVoiceURIForLanguage, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
+import { speak, loadVoiceSettings, getVoices, defaultTemplate, getAnnouncementTemplate, getVoiceURIForLanguage, renderTemplate, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
 type TabType = "dashboard" | "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice" | "validation" | "import";
@@ -27,6 +27,155 @@ const TEST_TEXTS: Record<string, string> = {
   eu: "Megafonia sistemaren ahots proba. Abiadura, tonua eta bolumena behar bezala konfiguratuta.",
   gl: "Proba de voz do sistema de megafonía. Velocidade, ton e volume configurados correctamente.",
 };
+
+type AnnouncementScenarioKey =
+  | "departure"
+  | "arrival"
+  | "delay"
+  | "cancelled"
+  | "maintenance"
+  | "platform_change"
+  | "service_normal"
+  | "welcome"
+  | "closing"
+  | "information";
+
+const SAMPLE_DEPARTURE = {
+  number: "AVE 123",
+  type_name: "AVE",
+  type_code: "AVE",
+  origin: "Madrid Puerta de Atocha",
+  destination: "Barcelona Sants",
+  platform: "1",
+  sector: "A",
+  status: "Scheduled",
+  stops: ["Zaragoza-Delicias", "Lleida"],
+};
+
+const SAMPLE_ARRIVAL = {
+  number: "AVE 123",
+  type_name: "AVE",
+  type_code: "AVE",
+  origin: "Barcelona Sants",
+  destination: "Madrid Puerta de Atocha",
+  platform: "4",
+  sector: "B",
+  status: "Scheduled",
+  stops: ["Lleida", "Zaragoza-Delicias"],
+};
+
+const ANNOUNCEMENT_SCENARIOS: Array<{
+  key: AnnouncementScenarioKey;
+  label: Record<Language, string>;
+  build: (language: Language) => string;
+}> = [
+  {
+    key: "departure",
+    label: { es: "Salida", ca: "Eixida", en: "Departure", fr: "Départ", eu: "Irteera", gl: "Saída" },
+    build: (language) => renderTemplate(defaultTemplate("departures", language), SAMPLE_DEPARTURE),
+  },
+  {
+    key: "arrival",
+    label: { es: "Llegada", ca: "Arribada", en: "Arrival", fr: "Arrivée", eu: "Iritsiera", gl: "Chegada" },
+    build: (language) => renderTemplate(defaultTemplate("arrivals", language), SAMPLE_ARRIVAL),
+  },
+  {
+    key: "delay",
+    label: { es: "Retraso", ca: "Retard", en: "Delay", fr: "Retard", eu: "Atzerapena", gl: "Retraso" },
+    build: (language) => ({
+      es: "Atención. El tren AVE 123 con destino a Barcelona Sants presenta un retraso de 12 minutos por una incidencia en la infraestructura.",
+      ca: "Atenció. El tren AVE 123 amb destinació a Barcelona Sants presenta un retard de 12 minuts per una incidència a la infraestructura.",
+      en: "Attention. Train AVE 123 to Barcelona Sants is running 12 minutes late due to an infrastructure incident.",
+      fr: "Attention. Le train AVE 123 à destination de Barcelone-Sants accuse un retard de 12 minutes en raison d’un incident d’infrastructure.",
+      eu: "Adi. Barcelona Santsera doan AVE 123 trenak 12 minutuko atzerapena du azpiegiturako gorabehera baten ondorioz.",
+      gl: "Atención. O tren AVE 123 con destino a Barcelona Sants leva un retraso de 12 minutos por unha incidencia na infraestrutura.",
+    }[language]),
+  },
+  {
+    key: "cancelled",
+    label: { es: "Cancelación", ca: "Cancel·lació", en: "Cancellation", fr: "Annulation", eu: "Ezeztapena", gl: "Cancelación" },
+    build: (language) => ({
+      es: "Atención. El tren AVE 123 ha sido cancelado por motivos operativos. Rogamos disculpen las molestias.",
+      ca: "Atenció. El tren AVE 123 ha estat cancel·lat per motius operatius. Disculpeu les molèsties.",
+      en: "Attention. Train AVE 123 has been cancelled for operational reasons. We apologise for the inconvenience.",
+      fr: "Attention. Le train AVE 123 a été annulé pour des raisons opérationnelles. Nous vous prions de nous excuser pour la gêne occasionnée.",
+      eu: "Adi. AVE 123 trena arrazoi operatiboengatik ezeztatu da. Barkatu eragozpenak.",
+      gl: "Atención. O tren AVE 123 foi cancelado por motivos operativos. Rogamos desculpen as molestias.",
+    }[language]),
+  },
+  {
+    key: "maintenance",
+    label: { es: "Obras", ca: "Obres", en: "Maintenance", fr: "Travaux", eu: "Mantentzea", gl: "Obras" },
+    build: (language) => ({
+      es: "Atención. Rogamos disculpen las molestias. Se están realizando trabajos de mantenimiento en la infraestructura.",
+      ca: "Atenció. Disculpeu les molèsties. S’estan realitzant treballs de manteniment a la infraestructura.",
+      en: "Attention. We apologise for the inconvenience. Maintenance work is being carried out on the infrastructure.",
+      fr: "Attention. Nous vous prions de nous excuser pour la gêne occasionnée. Des travaux de maintenance sont en cours sur l’infrastructure.",
+      eu: "Adi. Barkatu eragozpenak. Azpiegituran mantentze lanak egiten ari dira.",
+      gl: "Atención. Rogamos desculpen as molestias. Estanse realizando traballos de mantemento na infraestrutura.",
+    }[language]),
+  },
+  {
+    key: "platform_change",
+    label: { es: "Cambio de vía", ca: "Canvi de via", en: "Platform change", fr: "Changement de voie", eu: "Nasa aldaketa", gl: "Cambio de vía" },
+    build: (language) => ({
+      es: "Atención. El tren AVE 123 efectuará su salida por la vía 4, sector B. Les rogamos consulten el panel.",
+      ca: "Atenció. El tren AVE 123 efectuarà la sortida per la via 4, sector B. Consulteu el panell.",
+      en: "Attention. Train AVE 123 will depart from platform 4, sector B. Please check the information board.",
+      fr: "Attention. Le train AVE 123 partira voie 4, secteur B. Veuillez consulter le panneau.",
+      eu: "Adi. AVE 123 trena 4. bidetik, B sektorean, irtengo da. Mesedez, kontsultatu panela.",
+      gl: "Atención. O tren AVE 123 sairá pola vía 4, sector B. Consulten o panel informativo.",
+    }[language]),
+  },
+  {
+    key: "service_normal",
+    label: { es: "Servicio normal", ca: "Servei normal", en: "Normal service", fr: "Service normal", eu: "Zerbitzu arrunta", gl: "Servizo normal" },
+    build: (language) => ({
+      es: "Atención. Servicio habitual. No se registran incidencias en la circulación.",
+      ca: "Atenció. Servei habitual. No es registren incidències en la circulació.",
+      en: "Attention. Normal service is operating. No incidents have been reported.",
+      fr: "Attention. Service normal en cours. Aucun incident n’a été signalé.",
+      eu: "Adi. Zerbitzu arrunta martxan dago. Ez da gorabeherarik jakinarazi.",
+      gl: "Atención. Servizo normal en funcionamento. Non se rexistraron incidencias na circulación.",
+    }[language]),
+  },
+  {
+    key: "welcome",
+    label: { es: "Bienvenida", ca: "Benvinguda", en: "Welcome", fr: "Bienvenue", eu: "Ongi etorri", gl: "Benvida" },
+    build: (language) => ({
+      es: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías.",
+      ca: "Benvinguts a l’estació. Mantingueu el vostre bitllet a mà i no creueu les vies.",
+      en: "Welcome to the station. Please keep your ticket handy and do not cross the tracks.",
+      fr: "Bienvenue en gare. Gardez votre billet à portée de main et ne traversez pas les voies.",
+      eu: "Ongi etorri geltokira. Gorde txartela eskura eta ez gurutzatu bideak.",
+      gl: "Benvidos á estación. Manteñan o billete á man e non crucen as vías.",
+    }[language]),
+  },
+  {
+    key: "closing",
+    label: { es: "Cierre", ca: "Tancament", en: "Closing", fr: "Fermeture", eu: "Itxiera", gl: "Peche" },
+    build: (language) => ({
+      es: "Atención. La estación va a cerrar en breve. Asegúrense de recoger todas sus pertenencias.",
+      ca: "Atenció. L’estació tancarà en breu. Assegureu-vos de recollir totes les vostres pertinences.",
+      en: "Attention. The station will close shortly. Please make sure you have all your belongings.",
+      fr: "Attention. La gare va fermer prochainement. Veuillez vérifier que vous avez bien toutes vos affaires.",
+      eu: "Adi. Geltokia laster itxiko da. Ziurtatu zure gauza guztiak jasotzen dituzula.",
+      gl: "Atención. A estación vai pechar en breve. Asegúrense de recoller todas as súas pertenzas.",
+    }[language]),
+  },
+  {
+    key: "information",
+    label: { es: "Información", ca: "Informació", en: "Information", fr: "Information", eu: "Informazioa", gl: "Información" },
+    build: (language) => ({
+      es: "Atención. Para información adicional, consulten los paneles de salida o al personal de estación.",
+      ca: "Atenció. Per a informació addicional, consulteu els panells de sortida o el personal de l’estació.",
+      en: "Attention. For further information, please check the departure boards or ask station staff.",
+      fr: "Attention. Pour toute information complémentaire, veuillez consulter les panneaux de départ ou le personnel en gare.",
+      eu: "Adi. Informazio gehiago nahi izanez gero, kontsultatu irteera panelak edo geltokiko langileak.",
+      gl: "Atención. Para información adicional, consulten os paneis de saída ou ao persoal da estación.",
+    }[language]),
+  },
+];
 
 const normalizeStationName = (value: string) =>
   String(value || "")
@@ -68,6 +217,13 @@ const normalizeRouteKey = (value: string) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+
+const normalizeDisplayLanguages = (config: Config | null): Language[] => {
+  const langs = config?.languages?.length
+    ? config.languages
+    : [(config?.language as Language) ?? "es"];
+  return Array.from(new Set(langs.map((language) => language as Language))).filter(Boolean);
+};
 
 function computeRouteValidation(routes: Route[], stations: Station[], displays: DisplaySummary[]): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
@@ -175,6 +331,10 @@ export default function Admin() {
   const [voicePreviewLanguage, setVoicePreviewLanguage] = useState<Language>("es");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ rate: 0.95, pitch: 1, volume: 1, voiceURI: "" });
+  const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
+  const [announcementModalLanguage, setAnnouncementModalLanguage] = useState<Language>("es");
+  const [announcementModalScenario, setAnnouncementModalScenario] = useState<AnnouncementScenarioKey>("service_normal");
+  const [announcementModalText, setAnnouncementModalText] = useState("");
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [newPlace, setNewPlace] = useState("");
   const [autoGen, setAutoGen] = useState(false);
@@ -436,10 +596,18 @@ export default function Admin() {
   };
 
   const updateDisplayConfig = (stationId: number, patch: Partial<Config>) => {
+    const nextPatch: Partial<Config> = { ...patch };
+    if (Array.isArray((nextPatch as any).languages) && (nextPatch as any).languages.length > 0) {
+      const languages = Array.from(new Set((nextPatch as any).languages as Language[]));
+      nextPatch.languages = languages;
+      nextPatch.language = languages[0];
+    } else if (nextPatch.language && !("languages" in nextPatch)) {
+      nextPatch.languages = [nextPatch.language as Language];
+    }
     setDisplays((prev) =>
       prev.map((display) =>
         display.station.id === stationId
-          ? { ...display, config: { ...display.config, ...patch } }
+          ? { ...display, config: { ...display.config, ...nextPatch } }
           : display
       )
     );
@@ -509,6 +677,32 @@ export default function Admin() {
     );
   };
 
+  const buildAnnouncementText = (language: Language, scenario: AnnouncementScenarioKey) =>
+    ANNOUNCEMENT_SCENARIOS.find((item) => item.key === scenario)?.build(language) || "";
+
+  const openAnnouncementModal = () => {
+    const language = voicePreviewLanguage;
+    const scenario: AnnouncementScenarioKey = "service_normal";
+    setAnnouncementModalLanguage(language);
+    setAnnouncementModalScenario(scenario);
+    setAnnouncementModalText(buildAnnouncementText(language, scenario));
+    setAnnouncementModalOpen(true);
+  };
+
+  const selectAnnouncementLanguage = (language: Language) => {
+    setAnnouncementModalLanguage(language);
+    setAnnouncementModalText(buildAnnouncementText(language, announcementModalScenario));
+  };
+
+  const selectAnnouncementScenario = (scenario: AnnouncementScenarioKey) => {
+    setAnnouncementModalScenario(scenario);
+    setAnnouncementModalText(buildAnnouncementText(announcementModalLanguage, scenario));
+  };
+
+  const speakAnnouncementModal = () => {
+    testSpeak(announcementModalText || buildAnnouncementText(announcementModalLanguage, announcementModalScenario), announcementModalLanguage);
+  };
+
   const saveVoiceConfiguration = async () => {
     if (!config) return;
     const selectedTemplates = templateMap[voicePreviewLanguage] || buildTemplateDefaults(voicePreviewLanguage);
@@ -545,6 +739,24 @@ export default function Admin() {
     }
   };
 
+  const handleExportRailRoutes = async () => {
+    try {
+      await api.exportRailwayRoutes();
+      showNotification("success", "✓ Exportado", "El dataset ferroviario se ha descargado");
+    } catch (error: any) {
+      showNotification("error", "✗ Error", error?.message || "No se pudo exportar el dataset");
+    }
+  };
+
+  const handleExportTrains = async () => {
+    try {
+      await api.exportTrains(selectedTrainStationId ?? undefined);
+      showNotification("success", "✓ Exportado", selectedTrainStationId ? "Trenes del display descargados" : "Trenes descargados");
+    } catch (error: any) {
+      showNotification("error", "✗ Error", error?.message || "No se pudieron exportar los trenes");
+    }
+  };
+
   const handleImportJsonFile = async (file: File | null) => {
     if (!file) return;
     setImportLoading(true);
@@ -578,7 +790,6 @@ export default function Admin() {
   };
 
   const lang = (config?.language as string) || "es";
-  const testText = TEST_TEXTS[lang] || TEST_TEXTS.es;
   const editingTrainStationId = Number(editFormData.station_id ?? editingTrain?.station_id ?? selectedTrainStationId ?? null) || null;
   const editingTrainDisplayConfig = displays.find((item) => item.station.id === editingTrainStationId)?.config || config;
   const editingPlatformOptions = buildPlatformOptions(editingTrainDisplayConfig, []);
@@ -616,6 +827,7 @@ export default function Admin() {
   };
 
   const routeRegions = Array.from(new Set(routes.map(getRouteRegion))).sort((a, b) => a.localeCompare(b, "es"));
+  const routeNetworks = Array.from(new Set(routes.map((route) => route.network))).sort((a, b) => a.localeCompare(b, "es"));
   const routeServices = Array.from(new Set(routes.map(getRouteService))).sort((a, b) => a.localeCompare(b, "es"));
   const routeOperators = Array.from(new Set(routes.map((route) => route.operator))).sort((a, b) => a.localeCompare(b, "es"));
   const filteredRoutes = routes.filter((route) => {
@@ -783,28 +995,76 @@ export default function Admin() {
                       >
                         Ver validación
                       </button>
+                      <button
+                        onClick={handleExportRailRoutes}
+                        className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
+                      >
+                        Exportar dataset
+                      </button>
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
-                  <h3 className="text-base font-semibold text-white">Rutas, redes y estaciones</h3>
-                  <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
-                    <div className="grid grid-cols-4 gap-px bg-white/5 text-xs uppercase tracking-[0.22em] text-slate-400">
-                      <div className="bg-slate-950/70 px-4 py-3">Ruta</div>
-                      <div className="bg-slate-950/70 px-4 py-3">Red</div>
-                      <div className="bg-slate-950/70 px-4 py-3">Operador</div>
-                      <div className="bg-slate-950/70 px-4 py-3 text-right">Estaciones</div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-white">Rutas, redes y estaciones</h3>
+                      <p className="mt-1 text-xs text-slate-400">
+                        Dataset completo cargado desde backend. Rutas visibles: {filteredRoutes.length} de {routes.length}.
+                      </p>
                     </div>
-                    <div className="max-h-80 overflow-auto">
-                      {filteredRoutes.slice(0, 10).map((route) => (
-                        <div key={route.code} className="grid grid-cols-4 gap-px border-t border-white/5 bg-white/5 text-sm">
-                          <div className="bg-slate-950/50 px-4 py-3 font-medium text-white">{route.code}</div>
-                          <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.network}</div>
-                          <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.operator}</div>
-                          <div className="bg-slate-950/50 px-4 py-3 text-right font-semibold text-white">{route.stations.length}</div>
+                    <div className="flex flex-wrap gap-2 text-xs text-slate-300">
+                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Redes: {routeNetworks.length}</span>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Operadores: {routeOperators.length}</span>
+                      <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">Estaciones: {stations.length}</span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+                    <div className="overflow-hidden rounded-xl border border-white/10">
+                      <div className="grid grid-cols-4 gap-px bg-white/5 text-xs uppercase tracking-[0.22em] text-slate-400">
+                        <div className="bg-slate-950/70 px-4 py-3">Ruta</div>
+                        <div className="bg-slate-950/70 px-4 py-3">Red</div>
+                        <div className="bg-slate-950/70 px-4 py-3">Operador</div>
+                        <div className="bg-slate-950/70 px-4 py-3 text-right">Estaciones</div>
+                      </div>
+                      <div className="max-h-[32rem] overflow-auto">
+                        {filteredRoutes.map((route) => (
+                          <div key={route.code} className="grid grid-cols-4 gap-px border-t border-white/5 bg-white/5 text-sm">
+                            <div className="bg-slate-950/50 px-4 py-3 font-medium text-white">{route.code}</div>
+                            <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.network}</div>
+                            <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.operator}</div>
+                            <div className="bg-slate-950/50 px-4 py-3 text-right font-semibold text-white">{route.stations.length}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <h4 className="text-sm font-semibold text-white">Redes ferroviarias</h4>
+                        <div className="mt-3 flex flex-wrap gap-2 max-h-44 overflow-auto pr-1">
+                          {routeNetworks.map((network) => (
+                            <span key={network} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
+                              {network}
+                            </span>
+                          ))}
                         </div>
-                      ))}
+                      </div>
+
+                      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <h4 className="text-sm font-semibold text-white">Estaciones del dataset</h4>
+                        <div className="mt-3 max-h-64 overflow-auto pr-1 space-y-2">
+                          {stations.map((station) => (
+                            <div key={station.id} className="rounded-lg border border-white/10 bg-slate-950/50 px-3 py-2 text-sm text-slate-200">
+                              <div className="font-medium text-white">{station.name}</div>
+                              <div className="text-xs text-slate-400">
+                                {station.short || "—"} · ID {station.id}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1097,6 +1357,12 @@ export default function Admin() {
                     >
                       1 Tren por Display
                     </button>
+                    <button
+                      onClick={handleExportRailRoutes}
+                      className="px-4 py-2 rounded-lg border border-white/10 text-slate-200 hover:bg-white/5 font-semibold transition"
+                    >
+                      Exportar dataset
+                    </button>
                   </div>
                 </div>
 
@@ -1156,12 +1422,13 @@ export default function Admin() {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre visible</label>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre de la estación</label>
                                 <input
                                   className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
                                   value={cfg.station_name || ""}
                                   onChange={(e) => updateDisplayConfig(s.id, { station_name: e.target.value })}
                                 />
+                                <p className="mt-1 text-[11px] text-slate-400">Se usará en el display público y en el cabecero del panel.</p>
                               </div>
                               <div>
                                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Modo</label>
@@ -1175,16 +1442,53 @@ export default function Admin() {
                                 </select>
                               </div>
                               <div>
-                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idioma</label>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Región / ciudad</label>
                                 <select
                                   className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                                  value={(cfg.language as Language) ?? "es"}
-                                  onChange={(e) => updateDisplayConfig(s.id, { language: e.target.value as Language })}
+                                  value={cfg.routeRegion || ""}
+                                  onChange={(e) => updateDisplayConfig(s.id, { routeRegion: e.target.value })}
                                 >
-                                  {Object.entries(LANGUAGES).map(([code, name]) => (
-                                    <option key={code} value={code}>{name}</option>
+                                  <option value="">Todas las regiones</option>
+                                  {routeRegions.map((region) => (
+                                    <option key={region} value={region}>{region}</option>
                                   ))}
                                 </select>
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idiomas</label>
+                                <div className="flex flex-wrap gap-2 mb-2">
+                                  {normalizeDisplayLanguages(cfg).map((language) => (
+                                    <span key={language} className="inline-flex items-center rounded-full border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-200">
+                                      {LANGUAGES[language]}
+                                    </span>
+                                  ))}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  {Object.entries(LANGUAGES).map(([code, name]) => {
+                                    const language = code as Language;
+                                    const active = normalizeDisplayLanguages(cfg).includes(language);
+                                    const nextLanguages = active
+                                      ? normalizeDisplayLanguages(cfg).filter((item) => item !== language)
+                                      : Array.from(new Set([...normalizeDisplayLanguages(cfg), language]));
+                                    return (
+                                      <label
+                                        key={code}
+                                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-xs cursor-pointer transition ${active ? "border-amber-400/60 bg-amber-400/10 text-white" : "border-white/10 bg-black/30 text-slate-300 hover:bg-white/5"}`}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={active}
+                                          onChange={(e) => updateDisplayConfig(s.id, {
+                                            languages: e.target.checked ? Array.from(new Set([...normalizeDisplayLanguages(cfg), language])) : (nextLanguages.length ? nextLanguages : [language]),
+                                            language: (e.target.checked ? Array.from(new Set([...normalizeDisplayLanguages(cfg), language])) : (nextLanguages.length ? nextLanguages : [language]))[0],
+                                          })}
+                                        />
+                                        <span>{name}</span>
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                                <p className="mt-2 text-[11px] text-slate-400">El primer idioma es el principal. El display puede anunciar en varios idiomas.</p>
                               </div>
                               <div>
                                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Reloj</label>
@@ -2205,7 +2509,7 @@ export default function Admin() {
                             <p className="text-xs text-slate-400">{language.toUpperCase()}</p>
                           </div>
                           <button
-                            onClick={() => testSpeak(`Prueba de voz en ${label}.`, language)}
+                            onClick={() => testSpeak(TEST_TEXTS[language] || TEST_TEXTS.es, language)}
                             className="px-3 py-1.5 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
                           >
                             🔊 Probar
@@ -2278,10 +2582,10 @@ export default function Admin() {
                   💾 Guardar voces y plantillas
                 </button>
                 <button
-                  onClick={() => testSpeak(`Prueba de voz en ${LANGUAGES[voicePreviewLanguage]}`, voicePreviewLanguage)}
+                  onClick={openAnnouncementModal}
                   className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition"
                 >
-                  🔊 Probar idioma activo
+                  🎤 Megafonía
                 </button>
               </div>
             </div>
@@ -2290,6 +2594,106 @@ export default function Admin() {
       </main>
     </div>
   </div>
+
+      {/* Announcement Modal */}
+      {announcementModalOpen && (
+        <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-white/10 bg-slate-950 shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-white/5">
+              <div>
+                <h3 className="text-xl font-bold">Megafonía</h3>
+                <p className="text-xs text-slate-400">Selecciona idioma y aviso. Puedes editar el texto antes de reproducirlo.</p>
+              </div>
+              <button
+                onClick={() => setAnnouncementModalOpen(false)}
+                className="w-9 h-9 rounded-full border border-white/10 text-slate-300 hover:bg-white/10"
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Idioma</label>
+                <div className="flex flex-wrap gap-2">
+                  {LANGUAGE_KEYS.map((language) => (
+                    <button
+                      key={language}
+                      onClick={() => selectAnnouncementLanguage(language)}
+                      className={`rounded-full px-4 py-2 text-sm font-semibold transition border ${announcementModalLanguage === language
+                        ? "border-amber-400/70 bg-amber-400 text-black"
+                        : "border-white/10 bg-black/30 text-slate-200 hover:bg-white/10"
+                        }`}
+                    >
+                      {LANGUAGES[language]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Tipo de aviso</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {ANNOUNCEMENT_SCENARIOS.map((scenario) => (
+                    <button
+                      key={scenario.key}
+                      onClick={() => selectAnnouncementScenario(scenario.key)}
+                      className={`rounded-xl border px-4 py-3 text-left transition ${announcementModalScenario === scenario.key
+                        ? "border-amber-400/60 bg-amber-400/10"
+                        : "border-white/10 bg-black/30 hover:bg-white/5"
+                        }`}
+                    >
+                      <div className="text-sm font-semibold text-white">{scenario.label[announcementModalLanguage]}</div>
+                      <div className="mt-1 text-xs leading-5 text-slate-400 max-h-10 overflow-hidden">{scenario.build(announcementModalLanguage)}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Texto editable</label>
+                <textarea
+                  rows={8}
+                  className="w-full rounded-xl border border-white/10 bg-black/40 px-4 py-3 font-mono text-sm leading-6 text-white focus:border-amber-400 focus:outline-none"
+                  value={announcementModalText}
+                  onChange={(e) => setAnnouncementModalText(e.target.value)}
+                  placeholder="El texto del anuncio aparecerá aquí..."
+                />
+                <p className="mt-2 text-xs text-slate-400">
+                  Puedes editar el texto antes de reproducirlo. La voz se selecciona según el idioma activo.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-t border-white/10 bg-white/5">
+              <div className="text-xs text-slate-400">
+                Voz activa: <span className="text-white font-semibold">{LANGUAGES[announcementModalLanguage]}</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setAnnouncementModalText(buildAnnouncementText(announcementModalLanguage, announcementModalScenario))}
+                  className="px-4 py-2 rounded-lg border border-white/10 text-slate-200 hover:bg-white/10 font-semibold"
+                >
+                  Restablecer texto
+                </button>
+                <button
+                  onClick={speakAnnouncementModal}
+                  className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
+                >
+                  🔊 Reproducir
+                </button>
+                <button
+                  onClick={() => setAnnouncementModalOpen(false)}
+                  className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification Toast */}
       {modal && (

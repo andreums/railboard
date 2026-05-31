@@ -1,5 +1,6 @@
 import React from "react";
 import type { Config } from "../../lib/api";
+import { LANGUAGES, type Language } from "../../lib/i18n";
 
 type Props = {
     config: Config;
@@ -8,6 +9,8 @@ type Props = {
 };
 
 export default function StationPanel({ config, setConfig, onSave }: Props) {
+    const languages: Language[] = (config.languages?.length ? config.languages : [(config.language as Language) || "es"]) as Language[];
+    const updateLanguages = (next: Language[]) => setConfig({ ...config, language: next[0] || "es", languages: next.length ? next : ["es"] });
     return (
         <section id="station" className="bg-board-row rounded-lg p-6">
             <h2 className="font-display text-2xl mb-5 pb-3 border-b border-white/10">Estación</h2>
@@ -43,13 +46,22 @@ export default function StationPanel({ config, setConfig, onSave }: Props) {
                             <option value="multiple">Múltiples displays</option>
                         </select>
                     </div>
-                    <div>
-                        <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Idioma</label>
-                        <select className="w-full bg-black/40 rounded px-3 py-2" value={(config.language as any) ?? "es"} onChange={(e) => setConfig({ ...config, language: e.target.value as any })}>
-                            <option value="es">Español</option>
-                            <option value="ca">Català</option>
-                            <option value="en">English</option>
-                        </select>
+                    <div className="col-span-2">
+                        <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Idiomas</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            {Object.entries(LANGUAGES).map(([code, name]) => {
+                                const language = code as Language;
+                                const active = languages.includes(language);
+                                const next = active ? languages.filter((item) => item !== language) : [...languages, language];
+                                return (
+                                    <label key={code} className={`flex items-center gap-2 rounded px-3 py-2 border cursor-pointer ${active ? "border-amber-400/60 bg-amber-400/10" : "border-white/10 bg-black/30"}`}>
+                                        <input type="checkbox" checked={active} onChange={(e) => updateLanguages(e.target.checked ? [...languages, language] : (next.length ? next : [language]))} />
+                                        <span>{name}</span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+                        <p className="text-[11px] text-board-dim mt-2">El primer idioma es el principal.</p>
                     </div>
                 </div>
                 <div>

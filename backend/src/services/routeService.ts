@@ -55,6 +55,22 @@ function uniqueSorted(values: string[]): string[] {
   return Array.from(byNorm.values()).sort((a, b) => a.localeCompare(b, "es"));
 }
 
+function getRouteRegion(route: RailRoute): string {
+  const haystack = normalizeText(`${route.network} ${route.name}`);
+  if (haystack.includes("valencia")) return "Comunitat Valenciana";
+  if (haystack.includes("catalunya") || haystack.includes("cataluna")) return "Catalunya";
+  if (haystack.includes("madrid")) return "Comunidad de Madrid";
+  if (haystack.includes("murcia") || haystack.includes("alicante")) return "Región de Murcia / Alicante";
+  if (haystack.includes("sevilla")) return "Andalucía (Sevilla)";
+  if (haystack.includes("san sebastian")) return "País Vasco (San Sebastián)";
+  if (haystack.includes("zaragoza")) return "Aragón";
+  if (haystack.includes("cantabria")) return "Cantabria";
+  if (haystack.includes("asturias")) return "Asturias";
+  if (haystack.includes("bilbao")) return "País Vasco (Bilbao)";
+  if (haystack.includes("galicia") || haystack.includes("ferrol")) return "Galicia";
+  return route.network;
+}
+
 function parseRoutesPayload(raw: unknown): RailRoute[] {
   const fromArray = Array.isArray(raw) ? raw : [];
   const fromObject = !Array.isArray(raw) && raw && typeof raw === "object" && Array.isArray((raw as any).routes)
@@ -88,6 +104,12 @@ export function getRoutesByNetwork(network: string): RailRoute[] {
   return getAllRoutes().filter((route) => normalizeText(route.network) === target);
 }
 
+export function getRoutesByRegion(region: string): RailRoute[] {
+  const target = normalizeText(region);
+  if (!target) return [];
+  return getAllRoutes().filter((route) => normalizeText(getRouteRegion(route)) === target);
+}
+
 export function getStationsByRoute(code: string): string[] {
   const route = getRouteByCode(code);
   if (!route) return [];
@@ -110,4 +132,8 @@ export function getAvailableNetworks(): string[] {
 
 export function getAvailableOperators(): string[] {
   return uniqueSorted(getAllRoutes().map((route) => route.operator));
+}
+
+export function getAvailableRegions(): string[] {
+  return uniqueSorted(getAllRoutes().map((route) => getRouteRegion(route)));
 }

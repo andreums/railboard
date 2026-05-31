@@ -150,8 +150,14 @@ seedConfig.run("tts_voice", "");
 seedConfig.run("tts_voice_map", "{}");
 
 const hasStation = db.prepare("SELECT id FROM stations LIMIT 1").get();
+const defaultStationName = getConfig().station_name || "Madrid Puerta de Atocha";
 if (!hasStation) {
-  db.prepare("INSERT INTO stations (name, short) VALUES (?, ?)").run("Estación Principal", "Principal");
+  db.prepare("INSERT INTO stations (name, short) VALUES (?, ?)").run(defaultStationName, defaultStationName);
+} else {
+  const firstStation = db.prepare("SELECT * FROM stations ORDER BY id ASC LIMIT 1").get();
+  if (firstStation && /principal/i.test(firstStation.name || "") && /principal/i.test(firstStation.short || "")) {
+    db.prepare("UPDATE stations SET name = ?, short = ? WHERE id = ?").run(defaultStationName, defaultStationName, firstStation.id);
+  }
 }
 
 export function getConfig() {
@@ -372,9 +378,55 @@ const parseConfigJson = (value) => {
   }
 };
 
+const SUPPORTED_DISPLAY_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+
+const normalizeDisplayLanguage = (value) => {
+  const lang = String(value || "").toLowerCase().trim();
+  return SUPPORTED_DISPLAY_LANGUAGES.has(lang) ? lang : "es";
+};
+
+const normalizeDisplayLanguages = (value, fallbackLanguage = "es") => {
+  const rawList = Array.isArray(value)
+    ? value
+    : typeof value === "string" && value.trim().startsWith("[")
+      ? (() => {
+          try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [value];
+          } catch {
+            return [value];
+          }
+        })()
+      : typeof value === "string" && value.includes(",")
+        ? value.split(",")
+        : value != null
+          ? [value]
+          : [];
+  const unique = [];
+  for (const item of rawList) {
+    const lang = normalizeDisplayLanguage(item);
+    if (!unique.includes(lang)) unique.push(lang);
+  }
+  if (!unique.length) unique.push(normalizeDisplayLanguage(fallbackLanguage));
+  return unique;
+};
+
+const normalizeStationDisplayConfig = (config) => {
+  const primaryLanguage = normalizeDisplayLanguage(
+    config?.language || (Array.isArray(config?.languages) ? config.languages[0] : null) || "es"
+  );
+  const languages = normalizeDisplayLanguages(config?.languages || config?.language, primaryLanguage);
+  return {
+    ...(config || {}),
+    language: primaryLanguage,
+    languages,
+  };
+};
+
 const stationDisplayConfigDefaults = (station) => ({
   station_name: station?.short || station?.name || "",
   logo_url: station?.logo_url || null,
+  routeRegion: "",
   ...DEFAULT_CONFIG,
   platformAllowEmpty: true,
   sectorAllowEmpty: true,
@@ -385,18 +437,18 @@ export function getStationDisplayConfig(stationId) {
   if (!station) return null;
   const row = db.prepare("SELECT config_json FROM station_display_configs WHERE station_id = ?").get(stationId);
   const overrides = parseConfigJson(row?.config_json);
-  return {
+  return normalizeStationDisplayConfig({
     ...getConfig(),
     ...stationDisplayConfigDefaults(station),
     ...overrides,
-  };
+  });
 }
 
 export function setStationDisplayConfig(stationId, patch) {
   const station = stations.get(stationId);
   if (!station) return null;
   const current = getStationDisplayConfig(stationId) || {};
-  const next = { ...current, ...(patch || {}) };
+  const next = normalizeStationDisplayConfig({ ...current, ...(patch || {}) });
   const statement = db.prepare(`
     INSERT INTO station_display_configs (station_id, config_json, updated_at)
     VALUES (?, ?, datetime('now'))

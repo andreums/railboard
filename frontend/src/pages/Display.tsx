@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
+import { resolveDisplayLanguage } from "../lib/tts";
 
 if (!document.getElementById("board-fonts")) {
   const link = document.createElement("link");
@@ -68,7 +69,13 @@ function TrainTypeBadge({
       viewBox="0 0 100.1 54.6"
       aria-label={label}
       role="img"
-      style={{ display: "block", width, height: "1.22em", overflow: "visible" }}
+      style={{
+        display: "block",
+        width,
+        height: "1.22em",
+        overflow: "visible",
+        transform: "translateY(0.25em)",
+      }}
     >
       <rect x="0" y="0" width="100.1" height="54.6" rx="14" fill={bg} />
       <text
@@ -178,12 +185,12 @@ export default function Display() {
           number: row.number,
           operator_id: null,
           operator_name: row.operatorName,
-          operator_logo: null,
+          operator_logo: row.operatorLogo || null,
           train_type_id: null,
           type_code: row.trainTypeCode,
           type_name: row.trainTypeName,
           type_color: null,
-          type_logo: null,
+          type_logo: row.trainTypeLogo || null,
           origin: row.origin || "Origen",
           destination: row.destination || "Destino",
           stops: parseStopsText(row.stopsText),
@@ -227,7 +234,7 @@ export default function Display() {
   }, [stationIdParam]);
 
   const mode = boardMode || (config?.mode as "departures" | "arrivals") || "departures";
-  const lang = (config?.language as Language) ?? "es";
+  const lang = resolveDisplayLanguage(config) as Language;
   const rows = useMemo(() => [
     ...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status)),
   ]
@@ -372,12 +379,15 @@ export default function Display() {
           const hasStops = train.stops?.length > 0;
           const hasObservations = Boolean(train.observations?.trim());
 
+          const platform = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : "";
           const sector = train.sector && train.sector !== "-" ? train.sector : "";
-          const platText = sector
-            ? /^\d+$/.test(train.platform) && /^\d+$/.test(sector)
-              ? `${train.platform}-${sector}`
-              : `${train.platform}${sector}`
-            : train.platform;
+          const platText = platform
+            ? sector
+              ? /^\d+$/.test(platform) && /^\d+$/.test(sector)
+                ? `${platform}-${sector}`
+                : `${platform}${sector}`
+              : platform
+            : "-";
 
           return (
             <div
@@ -422,6 +432,7 @@ export default function Display() {
                   textDecorationColor: isCancelled ? "#555" : "#999",
                   color: isCancelled ? "#4a5568" : "#ffffff",
                   animation: isLeaving ? "departure-time-blink 0.9s ease-in-out infinite" : "none",
+                  transform: "translateY(0.25em)",
                 }}>
                   {showCountdown
                     ? <>{Math.max(0, minutes)}<span style={{ fontSize: "40%", marginLeft: "0.2em" }}>{t("minute-short", lang)}</span></>
@@ -441,18 +452,20 @@ export default function Display() {
                 boxSizing: "border-box",
                 paddingLeft: "0.4em",
               }}>
-                <div style={{
-                  fontFamily: "'Oswald', sans-serif",
-                  fontWeight: 600,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  color: isCancelled ? "#4a5568" : "#ffffff",
-                  textDecoration: isCancelled ? "line-through" : "none",
-                  lineHeight: 1.12,
-                  width: "100%",
-                }}>
-                  {place}
+                <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                  <div style={{
+                    fontFamily: "'Oswald', sans-serif",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    color: isCancelled ? "#4a5568" : "#ffffff",
+                    textDecoration: isCancelled ? "line-through" : "none",
+                    lineHeight: 1.12,
+                    width: "100%",
+                  }}>
+                    {place}
+                  </div>
                 </div>
               </div>
 
@@ -476,10 +489,10 @@ export default function Display() {
                 <div style={{
                   width: "48%",
                   height: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
+                  display: "grid",
+                  placeItems: "center start",
                   overflow: "visible",
+                  lineHeight: 0,
                 }}>
                   {train.type_logo ? (
                     <img
@@ -492,6 +505,8 @@ export default function Display() {
                         objectFit: "contain",
                         borderRadius: "0.2em",
                         display: "block",
+                        margin: 0,
+                        justifySelf: "center",
                       }}
                     />
                   ) : train.type_code ? (
@@ -507,6 +522,8 @@ export default function Display() {
                         objectFit: "contain",
                         borderRadius: "0.2em",
                         display: "block",
+                        margin: 0,
+                        justifySelf: "center",
                       }}
                     />
                   ) : null}
@@ -526,7 +543,7 @@ export default function Display() {
                   fontWeight: 700,
                   textAlign: "center",
                 }}>
-                  <div style={{ whiteSpace: "nowrap", minWidth: "5ch" }}>{padNum}</div>
+                  <div style={{ whiteSpace: "nowrap", minWidth: "5ch", transform: "translateY(0.25em)" }}>{padNum}</div>
                 </div>
                 {/* Margin */}
                 <div style={{ width: "2%" }} />
@@ -548,7 +565,7 @@ export default function Display() {
                 paddingRight: 0,
                 paddingLeft: "0.2em",
               }}>
-                {platText}
+                <div style={{ transform: "translateY(0.25em)" }}>{platText}</div>
               </div>
 
               {/* ═══ LOWER ROW — 40% of row height, font 32% of rowH ═══ */}
@@ -605,7 +622,7 @@ export default function Display() {
 
               {/* OBSERVATIONS — only under type + train number column */}
               <div style={{
-                width: W_PROD,
+                width: `calc(${W_PROD} + ${W_PLAT})`,
                 height: "40%",
                 fontSize: "19%",
                 display: "flex",
@@ -614,17 +631,19 @@ export default function Display() {
                 boxSizing: "border-box",
               }}>
                 {hasObservations && (
-                  <ScrollText
-                    text={train.observations!}
-                    color="#5FE0AF"
-                    bold
-                    fontSize="100%"
-                  />
+                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                    <ScrollText
+                      text={train.observations!}
+                      color="#5FE0AF"
+                      bold
+                      fontSize="100%"
+                    />
+                  </div>
                 )}
               </div>
 
               {/* PLATFORM lower (empty, keeps column alignment) */}
-              <div style={{ width: W_PLAT, height: "40%" }} />
+              <div style={{ width: 0, height: "40%" }} />
 
             </div>
           );

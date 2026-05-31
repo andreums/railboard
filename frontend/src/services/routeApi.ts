@@ -27,6 +27,10 @@ export function fetchRoutesByNetwork(network: string): Promise<RailRoute[]> {
   return toJson<RailRoute[]>(`${API_URL}/api/routes/network/${encodeURIComponent(network)}`);
 }
 
+export function fetchRegions(): Promise<string[]> {
+  return toJson<string[]>(`${API_URL}/api/regions`);
+}
+
 export function fetchStations(): Promise<string[]> {
   return toJson<string[]>(`${API_URL}/api/stations`);
 }
