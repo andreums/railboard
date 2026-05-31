@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   api, connectWS,
-  type Config, type Operator, type Place, type Train, type TrainType,
+  type Config, type DisplaySummary, type Operator, type Place, type Station, type Train, type TrainType,
 } from "../lib/api";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
 const STATUSES: Train["status"][] = [
   "Scheduled", "Boarding", "Delayed", "Departed", "Arrived", "Cancelled",
@@ -20,7 +21,7 @@ const STATUSES: Train["status"][] = [
 const EMPTY: Partial<Train> = {
   number: "", origin: "Madrid Puerta de Atocha", destination: "",
   stops: [], scheduled_time: "12:00", expected_time: "12:00",
-  platform: "1", sector: "A", observations: "", status: "Scheduled",
+  platform: "", sector: "", observations: "", status: "Scheduled",
   operator_id: null, train_type_id: null,
 };
 
@@ -30,15 +31,18 @@ export default function Trains() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [trainTypes, setTrainTypes] = useState<TrainType[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [displaySummaries, setDisplaySummaries] = useState<DisplaySummary[]>([]);
   const [editing, setEditing] = useState<Partial<Train> | null>(null);
   const [reorderMode, setReorderMode] = useState(false);
 
   const refresh = async () => {
-    const [c, t, op, tt, pl] = await Promise.all([
+    const [c, t, op, tt, pl, st, displays] = await Promise.all([
       api.getConfig(), api.listTrains(), api.listOperators(),
       api.listTrainTypes(), api.listPlaces(),
+      api.listStations(), api.listDisplays(),
     ]);
-    setConfig(c); setTrains(t); setOperators(op); setTrainTypes(tt); setPlaces(pl);
+    setConfig(c); setTrains(t); setOperators(op); setTrainTypes(tt); setPlaces(pl); setStations(st); setDisplaySummaries(displays);
   };
 
   useEffect(() => {
@@ -81,9 +85,11 @@ export default function Trains() {
   const announce = (t: Train) => {
     const place = config?.mode === "arrivals" ? t.origin : t.destination;
     const action = config?.mode === "arrivals" ? "procedente de" : "con destino a";
+    const platform = t.platform && t.platform !== "-" ? t.platform : "sin vía asignada";
+    const sector = t.sector && t.sector !== "-" ? t.sector : "sin sector";
     speak(
       `Atención. Tren ${t.type_name || ""} ${t.number}, ${action} ${place}, ` +
-      `efectuará su ${config?.mode === "arrivals" ? "llegada" : "salida"} por la vía ${t.platform}, sector ${t.sector}.`
+      `efectuará su ${config?.mode === "arrivals" ? "llegada" : "salida"} por la vía ${platform}, sector ${sector}.`
     );
   };
 
@@ -115,7 +121,7 @@ export default function Trains() {
               {reorderMode ? "✕ Hecho" : "↕ Reordenar"}
             </button>
             <button
-              onClick={() => setEditing(EMPTY)}
+              onClick={() => setEditing({ ...EMPTY, station_id: stations[0]?.id ?? null })}
               className="bg-board-amber text-board-bg px-3 py-1 rounded font-bold"
             >
               + Nuevo
@@ -168,6 +174,8 @@ export default function Trains() {
               operators={operators}
               trainTypes={trainTypes}
               places={places}
+              stations={stations}
+              stationDisplays={displaySummaries}
               config={config}
               announce={announce}
               onCancel={() => setEditing(null)}
@@ -187,10 +195,13 @@ export default function Trains() {
 
 function formatPlatform(train: Train) {
   const sector = train.sector && train.sector !== "-" ? train.sector : "";
-  if (!sector) return train.platform;
-  return /^\d+$/.test(train.platform) && /^\d+$/.test(sector)
-    ? `${train.platform}-${sector}`
-    : `${train.platform}${sector}`;
+  const platform = train.platform && train.platform !== "-" ? train.platform : "";
+  if (!platform && !sector) return "—";
+  if (!platform) return `Sector ${sector}`;
+  if (!sector) return platform;
+  return /^\d+$/.test(platform) && /^\d+$/.test(sector)
+    ? `${platform}-${sector}`
+    : `${platform}${sector}`;
 }
 
 function CommuterBadge({ code, color }: { code: string; color?: string | null }) {
@@ -342,12 +353,14 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
 }
 
 function TrainForm({
-  value, operators, trainTypes, places, config, announce, onSave, onCancel,
+  value, operators, trainTypes, places, stations, stationDisplays, config, announce, onSave, onCancel,
 }: {
   value: Partial<Train>;
   operators: Operator[];
   trainTypes: TrainType[];
   places: Place[];
+  stations: Station[];
+  stationDisplays: DisplaySummary[];
   config: Config | null;
   announce: (t: Train) => void;
   onSave: (v: Partial<Train>) => void;
@@ -357,13 +370,15 @@ function TrainForm({
   const [stopsText, setStopsText] = useState((value.stops || []).join("\n"));
 
   useEffect(() => {
-    setV(value);
+    setV({ ...value, station_id: value.station_id ?? stations[0]?.id ?? null });
     setStopsText((value.stops || []).join("\n"));
-  }, [value]);
+  }, [value, stations]);
 
   const set = (k: keyof Train, val: any) => setV((s) => ({ ...s, [k]: val }));
 
   const [delayMinutes, setDelayMinutes] = useState(0);
+  const selectedStationId = Number(v.station_id ?? stations[0]?.id ?? null) || null;
+  const selectedDisplayConfig = stationDisplays.find((item) => item.station.id === selectedStationId)?.config || config;
 
   const calculateEstimatedTime = (scheduled: string, delay: number) => {
     const [h, m] = scheduled.split(":").map(Number);
@@ -400,6 +415,16 @@ function TrainForm({
 
   const placeNames = places.map((p) => p.name);
   const dataListId = "places-list";
+  const platformOptions = buildPlatformOptions(selectedDisplayConfig, []);
+  const sectorOptions = buildSectorOptions(selectedDisplayConfig, []);
+  const currentPlatform = v.platform && v.platform !== "-" ? String(v.platform) : "";
+  const currentSector = v.sector && v.sector !== "-" ? String(v.sector) : "";
+  const effectivePlatformOptions = currentPlatform && !platformOptions.includes(currentPlatform)
+    ? [...platformOptions, currentPlatform]
+    : platformOptions;
+  const effectiveSectorOptions = currentSector && !sectorOptions.includes(currentSector)
+    ? [...sectorOptions, currentSector]
+    : sectorOptions;
 
   return (
     <div className="grid grid-cols-2 gap-3">
@@ -435,6 +460,20 @@ function TrainForm({
       <Field label="Destino">
         <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.destination || ""} onChange={(e) => set("destination", e.target.value)} />
       </Field>
+      <Field label="Estación / Display" wide>
+        <select
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          value={selectedStationId ?? ""}
+          onChange={(e) => set("station_id", e.target.value ? Number(e.target.value) : null)}
+        >
+          <option value="">— Selecciona una estación —</option>
+          {stations.map((station) => (
+            <option key={station.id} value={station.id}>
+              {station.short || station.name} · {station.name}
+            </option>
+          ))}
+        </select>
+      </Field>
       <Field label="Hora programada">
         <input className="bg-black/40 rounded px-3 py-2 w-full" type="time" value={v.scheduled_time || ""} onChange={(e) => set("scheduled_time", e.target.value)} />
       </Field>
@@ -456,10 +495,22 @@ function TrainForm({
         )}
       </Field>
       <Field label="Vía">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.platform || ""} onChange={(e) => set("platform", e.target.value)} />
+        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.platform || ""} onChange={(e) => set("platform", e.target.value)}>
+          {effectivePlatformOptions.map((platform) => (
+            <option key={platform || "empty"} value={platform}>
+              {platform ? `Vía ${platform}` : "— Sin vía —"}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Sector">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.sector || ""} onChange={(e) => set("sector", e.target.value)} />
+        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.sector || ""} onChange={(e) => set("sector", e.target.value)}>
+          {effectiveSectorOptions.map((sector) => (
+            <option key={sector || "empty"} value={sector}>
+              {sector ? `Sector ${sector}` : "— Sin sector —"}
+            </option>
+          ))}
+        </select>
       </Field>
       <Field label="Observaciones" wide>
         <textarea

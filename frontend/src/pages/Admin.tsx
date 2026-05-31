@@ -6,7 +6,8 @@ import ServicesPanel from "../components/admin/ServicesPanel";
 import RoutesPanel from "../components/admin/RoutesPanel";
 import WSLogPanel from "../components/admin/WSLogPanel";
 import { LANGUAGES, type Language } from "../lib/i18n";
-import { speak, loadVoiceSettings, getVoices, defaultTemplate, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
+import { speak, loadVoiceSettings, getVoices, defaultTemplate, getAnnouncementTemplate, getVoiceURIForLanguage, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
+import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
 type TabType = "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice";
 type NotificationType = "success" | "error" | "info";
@@ -34,6 +35,18 @@ const normalizeStationName = (value: string) =>
     .toLowerCase()
     .trim();
 
+const LANGUAGE_KEYS = Object.keys(LANGUAGES) as Language[];
+
+type AnnouncementTemplateSet = {
+  departures: string;
+  arrivals: string;
+};
+
+const buildTemplateDefaults = (language: Language): AnnouncementTemplateSet => ({
+  departures: defaultTemplate("departures", language),
+  arrivals: defaultTemplate("arrivals", language),
+});
+
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
@@ -54,6 +67,7 @@ export default function Admin() {
   const [modal, setModal] = useState<Notification | null>(null);
   const [editingTrain, setEditingTrain] = useState<Train | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Train>>({});
+  const [editStopsText, setEditStopsText] = useState("");
   const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
   const [editingType, setEditingType] = useState<TrainType | null>(null);
   const [operatorLogo, setOperatorLogo] = useState<File | null>(null);
@@ -62,6 +76,9 @@ export default function Admin() {
   const [arrivalTmpl, setArrivalTmpl] = useState("");
   const [presets, setPresets] = useState<AnnouncePreset[]>([]);
   const [newPreset, setNewPreset] = useState({ label: "", text: "" });
+  const [ttsVoiceMap, setTtsVoiceMap] = useState<Record<string, string>>({});
+  const [templateMap, setTemplateMap] = useState<Record<string, AnnouncementTemplateSet>>({});
+  const [voicePreviewLanguage, setVoicePreviewLanguage] = useState<Language>("es");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ rate: 0.95, pitch: 1, volume: 1, voiceURI: "" });
   const [activeTab, setActiveTab] = useState<TabType>("station");
@@ -119,6 +136,22 @@ export default function Admin() {
       setDepartureTmpl(c.announce_departure || defaultTemplate("departures"));
       setArrivalTmpl(c.announce_arrival || defaultTemplate("arrivals"));
       setPresets(JSON.parse(c.announce_presets || "[]"));
+      setTtsVoiceMap(JSON.parse(c.tts_voice_map || "{}"));
+      const parsedTemplateMap = JSON.parse(c.announce_templates_map || "{}");
+      setTemplateMap(
+        Object.fromEntries(
+          LANGUAGE_KEYS.map((language) => {
+            const current = parsedTemplateMap?.[language];
+            return [
+              language,
+              {
+                departures: current?.departures || defaultTemplate("departures", language),
+                arrivals: current?.arrivals || defaultTemplate("arrivals", language),
+              },
+            ];
+          })
+        )
+      );
     } catch (error: any) {
       setRoutesError(error?.message || "No se pudieron cargar las rutas");
     } finally {
@@ -271,6 +304,43 @@ export default function Admin() {
     }
   };
 
+  const handleAddDisplay = async () => {
+    const nextIndex = stations.length + 1;
+    const name = window.prompt("Nombre del nuevo display", `Display ${nextIndex}`);
+    if (name === null) return;
+    const short = window.prompt("Nombre corto", name.slice(0, 18)) ?? name;
+    try {
+      await api.createStation({
+        name: name.trim() || `Display ${nextIndex}`,
+        short: short.trim() || name.trim() || `Display ${nextIndex}`,
+        color: "#1A3254",
+      });
+      await refresh();
+      showNotification("success", "✓ Display creado", name.trim() || `Display ${nextIndex}`);
+    } catch (err: any) {
+      showNotification("error", "✗ Error", err.message || "No se pudo crear el display");
+    }
+  };
+
+  const handleDeleteDisplay = async (station: Station) => {
+    if (stations.length <= 1) {
+      showNotification("error", "✗ Bloqueado", "Debe existir al menos un display");
+      return;
+    }
+    const confirmed = confirm(`¿Eliminar el display "${station.short || station.name}"?`);
+    if (!confirmed) return;
+    try {
+      await api.deleteStation(station.id);
+      if (selectedTrainStationId === station.id) {
+        setSelectedTrainStationId(stations.find((s) => s.id !== station.id)?.id ?? null);
+      }
+      await refresh();
+      showNotification("success", "✓ Display eliminado", station.short || station.name);
+    } catch (err: any) {
+      showNotification("error", "✗ Error", err.message || "No se pudo eliminar el display");
+    }
+  };
+
   const updateDisplayConfig = (stationId: number, patch: Partial<Config>) => {
     setDisplays((prev) =>
       prev.map((display) =>
@@ -299,14 +369,20 @@ export default function Admin() {
   const handleEditTrain = (train: Train) => {
     setEditingTrain(train);
     setEditFormData({ ...train });
+    setEditStopsText((train.stops || []).join("\n"));
   };
 
   const handleSaveEditedTrain = async () => {
     if (!editingTrain) return;
     try {
-      await api.updateTrain(editingTrain.id, editFormData);
+      const stops = editStopsText
+        .split(/[\r\n;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await api.updateTrain(editingTrain.id, { ...editFormData, stops });
       await refresh();
       setEditingTrain(null);
+      setEditStopsText("");
       showNotification("success", "✓ Tren actualizado", "Los cambios se han guardado");
     } catch (err: any) {
       showNotification("error", "✗ Error", err.message || "No se pudo actualizar el tren");
@@ -324,7 +400,40 @@ export default function Admin() {
     }
   };
 
-  const testSpeak = (text: string) => speak(text, voiceSettings, config?.language);
+  const testSpeak = (text: string, language: Language = voicePreviewLanguage) => {
+    const voiceURI = getVoiceURIForLanguage(
+      config ? { ...config, tts_voice_map: JSON.stringify(ttsVoiceMap) } : null,
+      language
+    );
+    speak(
+      text,
+      {
+        ...voiceSettings,
+        voiceURI: voiceURI || voiceSettings.voiceURI,
+      },
+      language
+    );
+  };
+
+  const saveVoiceConfiguration = async () => {
+    if (!config) return;
+    const selectedTemplates = templateMap[voicePreviewLanguage] || buildTemplateDefaults(voicePreviewLanguage);
+    try {
+      await api.setConfig({
+        tts_voice: config.tts_voice,
+        tts_rate: config.tts_rate,
+        tts_pitch: config.tts_pitch,
+        tts_volume: config.tts_volume,
+        tts_voice_map: JSON.stringify(ttsVoiceMap),
+        announce_templates_map: JSON.stringify(templateMap),
+        announce_departure: selectedTemplates.departures,
+        announce_arrival: selectedTemplates.arrivals,
+      });
+      showNotification("success", "✓ Guardado", "Voces y plantillas actualizadas");
+    } catch (err: any) {
+      showNotification("error", "✗ Error", err.message);
+    }
+  };
 
   const handleReloadRailRoutes = async () => {
     const confirmed = confirm("¿Quieres recargar el dataset ferroviario? Esto actualizará rutas, estaciones y redes disponibles.");
@@ -355,6 +464,10 @@ export default function Admin() {
 
   const lang = (config.language as string) || "es";
   const testText = TEST_TEXTS[lang] || TEST_TEXTS.es;
+  const editingTrainStationId = Number(editFormData.station_id ?? editingTrain?.station_id ?? selectedTrainStationId ?? null) || null;
+  const editingTrainDisplayConfig = displays.find((item) => item.station.id === editingTrainStationId)?.config || config;
+  const editingPlatformOptions = buildPlatformOptions(editingTrainDisplayConfig, []);
+  const editingSectorOptions = buildSectorOptions(editingTrainDisplayConfig, []);
 
   const normalizeRouteText = (value: string) =>
     String(value || "")
@@ -399,6 +512,7 @@ export default function Admin() {
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
     { id: "station", label: "Estación", icon: "🏢" },
+    { id: "voice", label: "Idiomas y TTS", icon: "🎤" },
     { id: "displays", label: "Displays", icon: "🖥️" },
     { id: "trains", label: "Trenes", icon: "🚂" },
     { id: "services", label: "Servicios", icon: "📋" },
@@ -408,7 +522,6 @@ export default function Admin() {
     { id: "styles", label: "Estilos", icon: "🎨" },
     { id: "places", label: "Destinos", icon: "📍" },
     { id: "locutions", label: "Locuciones", icon: "🔊" },
-    { id: "voice", label: "Voz", icon: "🎤" },
   ];
 
   return (
@@ -484,6 +597,19 @@ export default function Admin() {
                       <option value="arrivals">Llegadas</option>
                     </select>
                   </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
+                      Displays
+                    </label>
+                    <select
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
+                      value={config.displayMode || "multiple"}
+                      onChange={(e) => setConfig({ ...config, displayMode: e.target.value as Config["displayMode"] })}
+                    >
+                      <option value="single">Solo un display</option>
+                      <option value="multiple">Múltiples displays</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -536,7 +662,7 @@ export default function Admin() {
                     />
                   </div>
                 </div>
-                <div className="mt-4">
+              <div className="mt-4">
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">
                     Pie de Pantalla
                   </label>
@@ -546,6 +672,39 @@ export default function Admin() {
                     value={config.footerText || ""}
                     onChange={(e) => setConfig({ ...config, footerText: e.target.value })}
                   />
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                      <span>🎤</span> Idiomas y TTS
+                    </h3>
+                    <p className="text-sm text-slate-400">
+                      Edita voces por idioma, plantillas de anuncios y la voz global de respaldo.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab("voice")}
+                    className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold transition"
+                  >
+                    Abrir editor TTS
+                  </button>
+                </div>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                  <div className="bg-black/20 border border-white/10 rounded-lg p-3">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide">Idioma base</div>
+                    <div className="text-white font-semibold mt-1">{LANGUAGES[(config.language as Language) || "es"]}</div>
+                  </div>
+                  <div className="bg-black/20 border border-white/10 rounded-lg p-3">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide">Voz global</div>
+                    <div className="text-white font-semibold mt-1">{config.tts_voice ? "Configurada" : "Por defecto"}</div>
+                  </div>
+                  <div className="bg-black/20 border border-white/10 rounded-lg p-3">
+                    <div className="text-slate-400 text-xs uppercase tracking-wide">Idiomas editables</div>
+                    <div className="text-white font-semibold mt-1">{LANGUAGE_KEYS.length}</div>
+                  </div>
                 </div>
               </div>
 
@@ -632,12 +791,20 @@ export default function Admin() {
                       Configuración independiente y trenes asociados para cada estación.
                     </p>
                   </div>
-                  <button
-                    onClick={handleGenerateOnePerDisplay}
-                    className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition"
-                  >
-                    1 Tren por Display
-                  </button>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <button
+                      onClick={handleAddDisplay}
+                      className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition"
+                    >
+                      + Añadir display
+                    </button>
+                    <button
+                      onClick={handleGenerateOnePerDisplay}
+                      className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold transition"
+                    >
+                      1 Tren por Display
+                    </button>
+                  </div>
                 </div>
 
                 {displays.length === 0 ? (
@@ -654,7 +821,7 @@ export default function Admin() {
                         const cfg = display.config;
                         const trainsForDisplay = display.trains || [];
                         return (
-                          <div key={s.id} className="bg-black/20 border border-white/10 rounded-xl p-5 space-y-4">
+                      <div key={s.id} className="bg-black/20 border border-white/10 rounded-xl p-5 space-y-4">
                             <div className="flex items-start justify-between gap-4">
                               <div>
                                 <h3 className="text-lg font-bold text-white">{s.short || s.name}</h3>
@@ -662,6 +829,12 @@ export default function Admin() {
                                 <p className="text-xs text-slate-500 mt-1">{trainsForDisplay.length} trenes</p>
                               </div>
                               <div className="flex flex-col gap-2 items-end">
+                                <a
+                                  href={`/admin/displays/${s.id}`}
+                                  className="px-3 py-1.5 bg-indigo-600 text-white text-xs font-semibold rounded hover:bg-indigo-500 transition"
+                                >
+                                  Abrir página
+                                </a>
                                 <a
                                   href={`/display/${s.id}`}
                                   target="_blank"
@@ -678,6 +851,13 @@ export default function Admin() {
                                 >
                                   Abrir Control
                                 </a>
+                                <button
+                                  onClick={() => handleDeleteDisplay(s)}
+                                  disabled={stations.length <= 1}
+                                  className="px-3 py-1.5 bg-red-600 text-white text-xs font-semibold rounded hover:bg-red-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  Eliminar
+                                </button>
                               </div>
                             </div>
 
@@ -743,6 +923,54 @@ export default function Admin() {
                                   onChange={(e) => updateDisplayConfig(s.id, { logo_url: e.target.value })}
                                 />
                               </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía mínima</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.platformMin || "1"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { platformMin: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía máxima</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.platformMax || "8"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { platformMax: e.target.value })}
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={cfg.platformAllowEmpty !== false}
+                                  onChange={(e) => updateDisplayConfig(s.id, { platformAllowEmpty: e.target.checked })}
+                                />
+                                Permitir sin vía
+                              </label>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector mínimo</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.sectorMin || "A"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { sectorMin: e.target.value })}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector máximo</label>
+                                <input
+                                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                                  value={cfg.sectorMax || "D"}
+                                  onChange={(e) => updateDisplayConfig(s.id, { sectorMax: e.target.value })}
+                                />
+                              </div>
+                              <label className="flex items-center gap-2 text-sm text-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={cfg.sectorAllowEmpty !== false}
+                                  onChange={(e) => updateDisplayConfig(s.id, { sectorAllowEmpty: e.target.checked })}
+                                />
+                                Permitir sin sector
+                              </label>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -827,7 +1055,7 @@ export default function Admin() {
                                     <div key={train.id} className="px-4 py-3 flex items-center justify-between gap-3">
                                       <div className="min-w-0">
                                         <div className="text-white font-semibold truncate">{train.number} · {train.destination}</div>
-                                        <div className="text-xs text-slate-400">{train.scheduled_time} · {train.platform} · {train.status}</div>
+                                        <div className="text-xs text-slate-400">{train.scheduled_time} · {train.platform && train.platform !== "-" ? train.platform : "—"} · {train.status}</div>
                                       </div>
                                       <button
                                         onClick={async () => {
@@ -1002,7 +1230,7 @@ export default function Admin() {
                                 <td className="py-2 px-3 text-white truncate max-w-xs">{train.destination}</td>
                                 <td className="py-2 px-3 font-mono text-slate-300">{train.scheduled_time}</td>
                                 <td className="py-2 px-3">
-                                  <span className="bg-blue-900/50 text-blue-200 px-2 py-1 rounded text-xs font-semibold">{train.platform}</span>
+                                  <span className="bg-blue-900/50 text-blue-200 px-2 py-1 rounded text-xs font-semibold">{train.platform && train.platform !== "-" ? train.platform : "—"}</span>
                                 </td>
                                 <td className="py-2 px-3">
                                   <span className={`px-2 py-1 rounded text-xs font-semibold ${train.status === "Departed" ? "bg-green-900/50 text-green-200" :
@@ -1457,13 +1685,33 @@ export default function Admin() {
 
           {/* Voice Tab */}
           {activeTab === "voice" && (
-            <div className="animate-fadeIn bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm space-y-4">
-              <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                <span>🎤</span> Configuración de Voz
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="animate-fadeIn bg-white/5 border border-white/10 rounded-xl p-6 backdrop-blur-sm space-y-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Voz</label>
+                  <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                    <span>🎤</span> Configuración de Voz
+                  </h2>
+                  <p className="text-sm text-slate-400">
+                    Define una voz y una plantilla por idioma. Si un idioma no tiene override, se usa el texto global como fallback.
+                  </p>
+                </div>
+                <div className="min-w-[220px]">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Idioma de prueba</label>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
+                    value={voicePreviewLanguage}
+                    onChange={(e) => setVoicePreviewLanguage(e.target.value as Language)}
+                  >
+                    {LANGUAGE_KEYS.map((language) => (
+                      <option key={language} value={language}>{LANGUAGES[language]}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="bg-black/20 border border-white/10 rounded-xl p-4 lg:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Voz global de respaldo</label>
                   <select
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
                     value={config.tts_voice || ""}
@@ -1472,87 +1720,161 @@ export default function Admin() {
                     <option value="">Voz por defecto</option>
                     {voices.map((v) => (
                       <option key={v.voiceURI} value={v.voiceURI}>
-                        {v.name}
+                        {v.name} {v.lang ? `· ${v.lang}` : ""}
                       </option>
                     ))}
                   </select>
+                  <div className="space-y-4 mt-5">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Velocidad</label>
+                        <span className="text-amber-400 font-semibold">{config.tts_rate || "0.95"}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.3"
+                        max="2"
+                        step="0.05"
+                        className="w-full accent-amber-400"
+                        value={config.tts_rate || "0.95"}
+                        onChange={(e) => setConfig({ ...config, tts_rate: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tono</label>
+                        <span className="text-amber-400 font-semibold">{config.tts_pitch || "1"}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.3"
+                        max="2"
+                        step="0.1"
+                        className="w-full accent-amber-400"
+                        value={config.tts_pitch || "1"}
+                        onChange={(e) => setConfig({ ...config, tts_pitch: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Volumen</label>
+                        <span className="text-amber-400 font-semibold">{config.tts_volume || "1"}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.05"
+                        className="w-full accent-amber-400"
+                        value={config.tts_volume || "1"}
+                        onChange={(e) => setConfig({ ...config, tts_volume: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="lg:col-span-2 space-y-4">
+                  {LANGUAGE_KEYS.map((language) => {
+                    const label = LANGUAGES[language];
+                    const currentTemplates = templateMap[language] || buildTemplateDefaults(language);
+                    const currentVoice = ttsVoiceMap[language] ?? "";
+                    const previewText = getAnnouncementTemplate(
+                      {
+                        ...config,
+                        tts_voice_map: JSON.stringify(ttsVoiceMap),
+                        announce_templates_map: JSON.stringify(templateMap),
+                      },
+                      "departures",
+                      language
+                    );
+                    return (
+                      <div
+                        key={language}
+                        className={`rounded-xl border p-4 ${voicePreviewLanguage === language ? "border-amber-400/70 bg-amber-400/5" : "border-white/10 bg-black/20"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div>
+                            <h3 className="text-lg font-bold text-white">{label}</h3>
+                            <p className="text-xs text-slate-400">{language.toUpperCase()}</p>
+                          </div>
+                          <button
+                            onClick={() => testSpeak(`Prueba de voz en ${label}.`, language)}
+                            className="px-3 py-1.5 rounded bg-green-600 hover:bg-green-700 text-white text-xs font-semibold transition"
+                          >
+                            🔊 Probar
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Voz</label>
+                            <select
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
+                              value={currentVoice}
+                              onChange={(e) => setTtsVoiceMap((prev) => ({ ...prev, [language]: e.target.value }))}
+                            >
+                              <option value="">Usar voz global</option>
+                              {voices.map((v) => (
+                                <option key={`${language}-${v.voiceURI}`} value={v.voiceURI}>
+                                  {v.name} {v.lang ? `· ${v.lang}` : ""}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="text-xs text-slate-400 md:self-end">
+                            La voz seleccionada se aplicará automáticamente a los anuncios en este idioma.
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Plantilla salidas</label>
+                            <textarea
+                              rows={4}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-amber-400 focus:outline-none transition"
+                              value={currentTemplates.departures}
+                              onChange={(e) =>
+                                setTemplateMap((prev) => ({
+                                  ...prev,
+                                  [language]: { ...(prev[language] || buildTemplateDefaults(language)), departures: e.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Plantilla llegadas</label>
+                            <textarea
+                              rows={4}
+                              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm focus:border-amber-400 focus:outline-none transition"
+                              value={currentTemplates.arrivals}
+                              onChange={(e) =>
+                                setTemplateMap((prev) => ({
+                                  ...prev,
+                                  [language]: { ...(prev[language] || buildTemplateDefaults(language)), arrivals: e.target.value },
+                                }))
+                              }
+                            />
+                          </div>
+                          <div className="md:col-span-2 text-xs text-slate-400 bg-black/20 border border-white/10 rounded-lg p-3">
+                            <span className="font-semibold text-slate-300">Plantilla activa: </span>
+                            <span className="font-mono break-words">{previewText}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Sliders */}
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Velocidad</label>
-                    <span className="text-amber-400 font-semibold">{config.tts_rate || "0.95"}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.3"
-                    max="2"
-                    step="0.05"
-                    className="w-full accent-amber-400"
-                    value={config.tts_rate || "0.95"}
-                    onChange={(e) => setConfig({ ...config, tts_rate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Tono</label>
-                    <span className="text-amber-400 font-semibold">{config.tts_pitch || "1"}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0.3"
-                    max="2"
-                    step="0.1"
-                    className="w-full accent-amber-400"
-                    value={config.tts_pitch || "1"}
-                    onChange={(e) => setConfig({ ...config, tts_pitch: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Volumen</label>
-                    <span className="text-amber-400 font-semibold">{config.tts_volume || "1"}</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    className="w-full accent-amber-400"
-                    value={config.tts_volume || "1"}
-                    onChange={(e) => setConfig({ ...config, tts_volume: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="flex gap-3 pt-4">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <button
-                  onClick={async () => {
-                    try {
-                      await api.setConfig({
-                        tts_voice: config.tts_voice,
-                        tts_rate: config.tts_rate,
-                        tts_pitch: config.tts_pitch,
-                        tts_volume: config.tts_volume,
-                      });
-                      showNotification("success", "✓ Guardado", "Voz guardada");
-                    } catch (err: any) {
-                      showNotification("error", "✗ Error", err.message);
-                    }
-                  }}
+                  onClick={saveVoiceConfiguration}
                   className="px-6 py-2 bg-gradient-to-r from-amber-400 to-amber-600 text-black font-semibold rounded-lg hover:shadow-lg transition"
                 >
-                  💾 Guardar Voz
+                  💾 Guardar voces y plantillas
                 </button>
                 <button
-                  onClick={() => testSpeak(testText)}
+                  onClick={() => testSpeak(`Prueba de voz en ${LANGUAGES[voicePreviewLanguage]}`, voicePreviewLanguage)}
                   className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition"
                 >
-                  🔊 Probar
+                  🔊 Probar idioma activo
                 </button>
               </div>
             </div>
@@ -1606,12 +1928,31 @@ export default function Admin() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Andén</label>
-                <input
-                  type="text"
+                <select
                   className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
-                  value={editFormData.platform || ""}
+                  value={editFormData.platform && editFormData.platform !== "-" ? editFormData.platform : ""}
                   onChange={(e) => setEditFormData({ ...editFormData, platform: e.target.value })}
-                />
+                >
+                  {editingPlatformOptions.map((platform) => (
+                    <option key={platform || "empty"} value={platform}>
+                      {platform ? `Vía ${platform}` : "— Sin vía —"}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Sector</label>
+                <select
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition"
+                  value={editFormData.sector && editFormData.sector !== "-" ? editFormData.sector : ""}
+                  onChange={(e) => setEditFormData({ ...editFormData, sector: e.target.value })}
+                >
+                  {editingSectorOptions.map((sector) => (
+                    <option key={sector || "empty"} value={sector}>
+                      {sector ? `Sector ${sector}` : "— Sin sector —"}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Estado</label>
@@ -1627,6 +1968,16 @@ export default function Admin() {
                   <option value="Cancelled">Cancelado</option>
                   <option value="Arrived">Llegado</option>
                 </select>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Paradas intermedias</label>
+                <textarea
+                  rows={4}
+                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white focus:border-amber-400 focus:outline-none transition resize-y"
+                  placeholder="Una parada por línea. Usa ';' para separar en la misma línea."
+                  value={editStopsText}
+                  onChange={(e) => setEditStopsText(e.target.value)}
+                />
               </div>
               <div className="flex gap-3 pt-4 border-t border-white/10">
                 <button

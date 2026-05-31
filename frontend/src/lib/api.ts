@@ -16,11 +16,13 @@ export type Train = {
   operator_id: number | null;
   operator_name?: string | null;
   operator_logo?: string | null;
+  operator_pre_announce?: string | null;
   train_type_id: number | null;
   type_code?: string | null;
   type_name?: string | null;
   type_color?: string | null;
   type_logo?: string | null;
+  type_pre_announce?: string | null;
   origin: string;
   destination: string;
   stops: string[];
@@ -30,6 +32,10 @@ export type Train = {
   sector: string;
   observations?: string;
   station_id?: number | null;
+  station_name?: string | null;
+  station_short?: string | null;
+  station_color?: string | null;
+  station_pre_announce?: string | null;
   created_at?: string;
   sort_order?: number;
   status:
@@ -108,9 +114,16 @@ export type ServiceStop = {
 export type Config = {
   station_name: string;
   mode: "departures" | "arrivals";
+  displayMode?: "single" | "multiple";
   logo_url?: string;
   language?: string;
   footerText?: string;
+  platformMin?: string;
+  platformMax?: string;
+  platformAllowEmpty?: boolean | string;
+  sectorMin?: string;
+  sectorMax?: string;
+  sectorAllowEmpty?: boolean | string;
   // Styling
   bgColor?: string;
   headerBgColor?: string;
@@ -125,11 +138,13 @@ export type Config = {
   clockFakeStepSeconds?: string;
   announce_departure?: string;
   announce_arrival?: string;
+  announce_templates_map?: string;
   announce_presets?: string;
   tts_rate?: string;
   tts_pitch?: string;
   tts_volume?: string;
   tts_voice?: string;
+  tts_voice_map?: string;
 };
 
 const json = (path: string, init?: RequestInit) =>
@@ -229,6 +244,11 @@ export const api = {
   deleteTrainTypePre: (id: number) => authFetch(`/train-types/${id}/pre-announce`, { method: "DELETE" }),
 
   listStations: (): Promise<Station[]> => json("/stations"),
+  createStation: (station: Partial<Station>) =>
+    json("/stations", { method: "POST", body: JSON.stringify(station) }),
+  updateStation: (id: number, station: Partial<Station>) =>
+    json(`/stations/${id}`, { method: "PUT", body: JSON.stringify(station) }),
+  deleteStation: (id: number) => json(`/stations/${id}`, { method: "DELETE" }),
   listDisplays: (): Promise<DisplaySummary[]> => json("/displays"),
   getStationDisplayConfig: (stationId: number): Promise<Config> =>
     fetch(`${API_URL}/api/stations/${stationId}/config`).then(async (r) => {

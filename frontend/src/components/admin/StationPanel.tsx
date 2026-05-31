@@ -33,6 +33,17 @@ export default function StationPanel({ config, setConfig, onSave }: Props) {
                         </select>
                     </div>
                     <div>
+                        <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Displays</label>
+                        <select
+                          className="w-full bg-black/40 rounded px-3 py-2"
+                          value={config.displayMode || "multiple"}
+                          onChange={(e) => setConfig({ ...config, displayMode: e.target.value as Config["displayMode"] })}
+                        >
+                            <option value="single">Solo un display</option>
+                            <option value="multiple">Múltiples displays</option>
+                        </select>
+                    </div>
+                    <div>
                         <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Idioma</label>
                         <select className="w-full bg-black/40 rounded px-3 py-2" value={(config.language as any) ?? "es"} onChange={(e) => setConfig({ ...config, language: e.target.value as any })}>
                             <option value="es">Español</option>

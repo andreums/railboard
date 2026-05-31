@@ -45,10 +45,43 @@ type Configish = {
   tts_pitch?: string;
   tts_volume?: string;
   tts_voice?: string;
+  tts_voice_map?: string;
+  announce_departure?: string;
+  announce_arrival?: string;
+  announce_templates_map?: string;
 };
 
-const DEFAULT_DEPARTURE = "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.";
-const DEFAULT_ARRIVAL = "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.";
+type AnnouncementTemplates = {
+  departures: string;
+  arrivals: string;
+};
+
+const DEFAULT_TEMPLATES: Record<string, AnnouncementTemplates> = {
+  es: {
+    departures: "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.",
+    arrivals: "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.",
+  },
+  ca: {
+    departures: "Atenció. Tren {type_name} {number} amb destinació a {destination}, efectuarà la seva sortida per la via {platform}, sector {sector}.",
+    arrivals: "Atenció. Tren {type_name} {number} procedent de {origin}, efectuarà la seva arribada per la via {platform}, sector {sector}.",
+  },
+  en: {
+    departures: "Attention. Train {type_name} {number} to {destination}, will depart from platform {platform}, sector {sector}.",
+    arrivals: "Attention. Train {type_name} {number} from {origin}, will arrive at platform {platform}, sector {sector}.",
+  },
+  fr: {
+    departures: "Attention. Le train {type_name} {number} à destination de {destination} partira voie {platform}, secteur {sector}.",
+    arrivals: "Attention. Le train {type_name} {number} en provenance de {origin} arrivera voie {platform}, secteur {sector}.",
+  },
+  eu: {
+    departures: "Adi. {destination} helmuga duen {type_name} {number} trena {platform} bidetik irtengo da, {sector} sektorean.",
+    arrivals: "Adi. {origin}tik datorren {type_name} {number} trena {platform} bidetik iritsiko da, {sector} sektorean.",
+  },
+  gl: {
+    departures: "Atención. O tren {type_name} {number} con destino a {destination} sairá pola vía {platform}, sector {sector}.",
+    arrivals: "Atención. O tren {type_name} {number} procedente de {origin} chegará pola vía {platform}, sector {sector}.",
+  },
+};
 
 const DEFAULT_PRESETS: AnnouncePreset[] = [
   { id: "welcome", label: "Bienvenida", text: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías." },
@@ -62,8 +95,18 @@ export function defaultPresets(): AnnouncePreset[] {
   return DEFAULT_PRESETS;
 }
 
-export function defaultTemplate(mode: string): string {
-  return mode === "arrivals" ? DEFAULT_ARRIVAL : DEFAULT_DEPARTURE;
+function safeParse<T>(raw: string | undefined | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+export function defaultTemplate(mode: string, language = "es"): string {
+  const templates = DEFAULT_TEMPLATES[language] || DEFAULT_TEMPLATES.es;
+  return mode === "arrivals" ? templates.arrivals : templates.departures;
 }
 
 export function renderTemplate(template: string, train: Trainish): string {
@@ -74,8 +117,8 @@ export function renderTemplate(template: string, train: Trainish): string {
     operator: train.operator_name || "",
     origin: train.origin || "",
     destination: train.destination || "",
-    platform: train.platform || "",
-    sector: train.sector || "",
+    platform: train.platform && train.platform !== "-" ? train.platform : "sin vía asignada",
+    sector: train.sector && train.sector !== "-" ? train.sector : "sin sector",
     status: train.status || "",
     stops: train.stops?.join(", ") || "",
   };
@@ -89,6 +132,25 @@ export function loadVoiceSettings(config: Configish | null): VoiceSettings {
     volume: config?.tts_volume ? parseFloat(config.tts_volume) : 1,
     voiceURI: config?.tts_voice || "",
   };
+}
+
+export function getVoiceURIForLanguage(config: Configish | null, language?: string) {
+  const lang = language || config?.language || "es";
+  const voiceMap = safeParse<Record<string, string>>(config?.tts_voice_map, {});
+  return voiceMap[lang] || config?.tts_voice || "";
+}
+
+export function getAnnouncementTemplate(config: Configish | null, mode: string, language?: string) {
+  const lang = language || config?.language || "es";
+  const templateMap = safeParse<Record<string, AnnouncementTemplates>>(config?.announce_templates_map, {});
+  const byLang = templateMap[lang];
+  if (byLang && typeof byLang === "object") {
+    return mode === "arrivals"
+      ? byLang.arrivals || defaultTemplate("arrivals", lang)
+      : byLang.departures || defaultTemplate("departures", lang);
+  }
+  const legacy = mode === "arrivals" ? config?.announce_arrival : config?.announce_departure;
+  return legacy || defaultTemplate(mode, lang);
 }
 
 export function speak(text: string, settings?: VoiceSettings, langCode?: string) {
@@ -117,10 +179,15 @@ function resolvePreAnnounce(train: Trainish): string | null {
     || null;
 }
 
-export function announceTrain(train: Trainish, config: Configish | null, template: string) {
-  const text = renderTemplate(template, train);
-  const vs = loadVoiceSettings(config);
-  const lang = config?.language;
+export function announceTrain(train: Trainish, config: Configish | null, template?: string) {
+  const lang = config?.language || "es";
+  const mode = config?.mode === "arrivals" ? "arrivals" : "departures";
+  const resolvedTemplate = template || getAnnouncementTemplate(config, mode, lang);
+  const text = renderTemplate(resolvedTemplate, train);
+  const vs = {
+    ...loadVoiceSettings(config),
+    voiceURI: getVoiceURIForLanguage(config, lang),
+  };
   const pre = resolvePreAnnounce(train);
   const doSpeak = () => speak(text, vs, lang);
   if (pre) {

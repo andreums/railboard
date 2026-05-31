@@ -111,14 +111,31 @@ if (!hasOpPre) {
   db.exec("ALTER TABLE stations ADD COLUMN pre_announce_ogg TEXT");
 }
 
+const DEFAULT_CONFIG = {
+  platformMin: "1",
+  platformMax: "8",
+  platformAllowEmpty: "1",
+  sectorMin: "A",
+  sectorMax: "D",
+  sectorAllowEmpty: "1",
+};
+
 // Defaults
 const seedConfig = db.prepare(
   "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)"
 );
 seedConfig.run("station_name", "MADRID PUERTA DE ATOCHA");
 seedConfig.run("mode", "departures"); // departures | arrivals
+seedConfig.run("displayMode", "multiple"); // single | multiple
+seedConfig.run("platformMin", "1");
+seedConfig.run("platformMax", "8");
+seedConfig.run("platformAllowEmpty", "1");
+seedConfig.run("sectorMin", "A");
+seedConfig.run("sectorMax", "D");
+seedConfig.run("sectorAllowEmpty", "1");
 seedConfig.run("announce_departure", "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.");
 seedConfig.run("announce_arrival", "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.");
+seedConfig.run("announce_templates_map", "{}");
 seedConfig.run("announce_presets", JSON.stringify([
   { id: "welcome", label: "Bienvenida", text: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías." },
   { id: "closing", label: "Cierre", text: "Atención. La estación va a cerrar. Asegúrense de recoger todas sus pertenencias." },
@@ -130,6 +147,7 @@ seedConfig.run("tts_rate", "0.95");
 seedConfig.run("tts_pitch", "1");
 seedConfig.run("tts_volume", "1");
 seedConfig.run("tts_voice", "");
+seedConfig.run("tts_voice_map", "{}");
 
 const hasStation = db.prepare("SELECT id FROM stations LIMIT 1").get();
 if (!hasStation) {
@@ -138,7 +156,10 @@ if (!hasStation) {
 
 export function getConfig() {
   const rows = db.prepare("SELECT key, value FROM config").all();
-  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return {
+    ...DEFAULT_CONFIG,
+    ...Object.fromEntries(rows.map((r) => [r.key, r.value])),
+  };
 }
 
 export function setConfig(patch) {
@@ -237,8 +258,8 @@ export function updateTrain(id, t) {
     stops: JSON.stringify(next.stops || []),
     scheduled_time: next.scheduled_time,
     expected_time: next.expected_time,
-    platform: next.platform,
-    sector: next.sector,
+    platform: next.platform || "-",
+    sector: next.sector || "-",
     status: next.status,
     observations: next.observations || "",
     station_id: next.station_id ?? null,
@@ -337,6 +358,10 @@ export const stations = {
   remove: (id) => db.prepare("DELETE FROM stations WHERE id = ?").run(id),
 };
 
+export function countStations() {
+  return db.prepare("SELECT COUNT(*) AS count FROM stations").get()?.count || 0;
+}
+
 const parseConfigJson = (value) => {
   if (!value) return {};
   try {
@@ -350,6 +375,9 @@ const parseConfigJson = (value) => {
 const stationDisplayConfigDefaults = (station) => ({
   station_name: station?.short || station?.name || "",
   logo_url: station?.logo_url || null,
+  ...DEFAULT_CONFIG,
+  platformAllowEmpty: true,
+  sectorAllowEmpty: true,
 });
 
 export function getStationDisplayConfig(stationId) {

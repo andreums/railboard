@@ -88,6 +88,7 @@ function buildRowsFromServices(stationId, mode) {
         sector: stop.sector || "",
         status: stop.state === "Scheduled" ? "Scheduled" : stop.state,
         stopsText: stopNames.length > 1 ? stopNames.join(" · ") : "",
+        observations: stop.notes || svc.notes || "",
       };
       if (validateRow(row, `service:${svc.id}/stop:${stop.id}`)) rows.push(row);
     }
@@ -117,6 +118,7 @@ function buildRowsFromTrains(stationId, mode) {
       sector: t.sector || "",
       status: t.status || "Scheduled",
       stopsText: Array.isArray(t.stops) ? t.stops.join(" · ") : "",
+      observations: t.observations || "",
     };
     if (modeAllows(mode, row.movement) && validateRow(row, `train:${t.id}`)) rows.push(row);
   }

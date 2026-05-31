@@ -43,6 +43,13 @@ function clockMinuteDelta(fromHHMM: string, toHHMM: string) {
   return diff;
 }
 
+function parseStopsText(stopsText?: string | null) {
+  return String(stopsText || "")
+    .split(/[·|;/\n]+/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function TrainTypeBadge({
   code,
   color,
@@ -179,13 +186,13 @@ export default function Display() {
           type_logo: null,
           origin: row.origin || "Origen",
           destination: row.destination || "Destino",
-          stops: [],
+          stops: parseStopsText(row.stopsText),
           scheduled_time: row.time,
           expected_time: row.expectedTime || row.time,
           platform: row.platform || "?",
           sector: row.sector || "",
           status: row.status || "Scheduled",
-          observations: row.stopsText || "",
+          observations: row.observations || row.notes || "",
         }));
         setTrains(normalizedRows);
         setBoardStationName(boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—");

@@ -70,7 +70,7 @@ console.log("Seeding RailBoard…");
 
 db.exec("DELETE FROM trains; DELETE FROM operators; DELETE FROM train_types; DELETE FROM places;");
 
-setConfig({ station_name: "MADRID PUERTA DE ATOCHA", mode: "departures" });
+setConfig({ station_name: "MADRID PUERTA DE ATOCHA", mode: "departures", displayMode: "multiple" });
 
 operators.create({
   name: "Renfe",

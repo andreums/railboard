@@ -8,7 +8,7 @@ import {
   getConfig, setConfig,
   listTrains, createTrain, updateTrain, deleteTrain, getTrain,
   addMinutes,
-  operators, trainTypes, places, stations,
+  operators, trainTypes, places, stations, countStations,
   getStationDisplayConfig, setStationDisplayConfig, listStationDisplayConfigs,
   services, serviceStops, serviceEvents,
 } from "./db.js";
@@ -117,6 +117,37 @@ const normalizeStation = (value) =>
 const stationIndex = (stations, name) => {
   const target = normalizeStation(name);
   return stations.findIndex((station) => normalizeStation(station) === target);
+};
+
+const isTruthy = (value) => value === true || value === 1 || value === "1" || value === "true";
+
+const normalizeChoiceBounds = (minRaw, maxRaw) => {
+  const min = String(minRaw ?? "").trim();
+  const max = String(maxRaw ?? "").trim();
+  if (!min && !max) return [];
+  if (min && max && /^\d+$/.test(min) && /^\d+$/.test(max)) {
+    const start = Number(min);
+    const end = Number(max);
+    const [lo, hi] = start <= end ? [start, end] : [end, start];
+    const width = Math.max(min.length, max.length);
+    return Array.from({ length: hi - lo + 1 }, (_, idx) => String(lo + idx).padStart(width, "0"));
+  }
+  if (min && max && min.length === 1 && max.length === 1) {
+    const start = min.toUpperCase().charCodeAt(0);
+    const end = max.toUpperCase().charCodeAt(0);
+    const [lo, hi] = start <= end ? [start, end] : [end, start];
+    return Array.from({ length: hi - lo + 1 }, (_, idx) => String.fromCharCode(lo + idx));
+  }
+  return [min || max].filter(Boolean);
+};
+
+const choiceFromConfig = (config, key, fallback = []) => {
+  const min = config?.[`${key}Min`];
+  const max = config?.[`${key}Max`];
+  const allowEmpty = isTruthy(config?.[`${key}AllowEmpty`]);
+  const choices = normalizeChoiceBounds(min, max);
+  if (choices.length === 0) return allowEmpty ? [""] : [...fallback];
+  return allowEmpty ? ["", ...choices] : choices;
 };
 
 function orderedIntermediateStops(stations, fromIndex, toIndex) {
@@ -391,6 +422,9 @@ r.put("/stations/:id", adminAuth, (req, res) => {
   res.json(stations.list());
 });
 r.delete("/stations/:id", adminAuth, (req, res) => {
+  if (countStations() <= 1) {
+    return res.status(400).json({ error: "Debe existir al menos un display." });
+  }
   stations.remove(Number(req.params.id));
   ping();
   res.status(204).end();
@@ -505,6 +539,7 @@ r.post("/generate-random-train", adminAuth, (req, res) => {
     ? stations.get(requestedStationId)
     : null;
   const station = stationRow?.name || config.station_name || "Madrid Puerta de Atocha";
+  const stationConfig = stationRow ? getStationDisplayConfig(stationRow.id) : config;
   const routesAtStation = railRoutes.filter((r) => stationIndex(r.stations, station) >= 0);
   const routePool = routesAtStation.length ? routesAtStation : railRoutes;
   const existing = listTrains().filter((t) => !["Departed", "Arrived"].includes(t.status));
@@ -579,8 +614,8 @@ r.post("/generate-random-train", adminAuth, (req, res) => {
     stops,
     scheduled_time: hhmmFromOffset(scheduledOffset),
     expected_time: hhmmFromOffset(expectedOffset),
-    platform: randomItem(route.platforms),
-    sector: "",
+    platform: randomItem(choiceFromConfig(stationConfig, "platform", route.platforms)),
+    sector: randomItem(choiceFromConfig(stationConfig, "sector", [""])),
     status,
     observations,
     station_id: stationRow?.id ?? null,
@@ -618,6 +653,8 @@ r.post("/trains/from-route/:code", adminAuth, (req, res) => {
   const config = getConfig();
   const mode = config.mode === "arrivals" ? "arrivals" : "departures";
   const station = config.station_name || "Madrid Puerta de Atocha";
+  const stationRow = stations.list().find((s) => normalizeStation(s.name) === normalizeStation(station)) || null;
+  const stationConfig = stationRow ? getStationDisplayConfig(stationRow.id) : config;
   const routeStationIndex = route.stations.indexOf(station);
   const currentIndex = routeStationIndex >= 0 ? routeStationIndex : 0;
   const direction = currentIndex === 0 ? 1 : currentIndex === route.stations.length - 1 ? -1 : randomItem([-1, 1]);
@@ -655,10 +692,11 @@ r.post("/trains/from-route/:code", adminAuth, (req, res) => {
     stops,
     scheduled_time: hhmmNow(),
     expected_time: hhmmNow(),
-    platform: randomItem(route.platforms),
-    sector: "",
+    platform: randomItem(choiceFromConfig(stationConfig, "platform", route.platforms)),
+    sector: randomItem(choiceFromConfig(stationConfig, "sector", [""])),
     status: "Scheduled",
     observations: req.body?.observations || "",
+    station_id: stationRow?.id ?? null,
   });
 
   ping();
