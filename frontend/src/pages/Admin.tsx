@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { api, connectWS, fileUrl, type Config, type Place, type Train, type Route, type Operator, type TrainType, type Station, type DisplaySummary } from "../lib/api";
 import { fetchNetworks, fetchStations, reloadRailwayRoutes, type RailwayReloadStats } from "../services/routeApi";
 import GenerationPanel from "../components/admin/GenerationPanel";
@@ -9,7 +9,7 @@ import { LANGUAGES, type Language } from "../lib/i18n";
 import { speak, loadVoiceSettings, getVoices, defaultTemplate, getAnnouncementTemplate, getVoiceURIForLanguage, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
-type TabType = "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice";
+type TabType = "dashboard" | "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice" | "validation" | "import";
 type NotificationType = "success" | "error" | "info";
 
 interface Notification {
@@ -42,10 +42,99 @@ type AnnouncementTemplateSet = {
   arrivals: string;
 };
 
+type ValidationIssue = {
+  level: "error" | "warning";
+  title: string;
+  detail: string;
+};
+
+type ImportedRouteSummary = {
+  valid: boolean;
+  routes: number;
+  stations: number;
+  networks: number;
+  operators: number;
+  issues: ValidationIssue[];
+};
+
 const buildTemplateDefaults = (language: Language): AnnouncementTemplateSet => ({
   departures: defaultTemplate("departures", language),
   arrivals: defaultTemplate("arrivals", language),
 });
+
+const normalizeRouteKey = (value: string) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+function computeRouteValidation(routes: Route[], stations: Station[], displays: DisplaySummary[]): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  const seen = new Set<string>();
+  const duplicated = new Set<string>();
+
+  routes.forEach((route) => {
+    const codeKey = normalizeRouteKey(route.code);
+    if (seen.has(codeKey)) duplicated.add(route.code);
+    seen.add(codeKey);
+    if (!route.name?.trim()) issues.push({ level: "error", title: `Ruta ${route.code}`, detail: "Falta el nombre de la ruta." });
+    if (!route.network?.trim()) issues.push({ level: "error", title: `Ruta ${route.code}`, detail: "Falta la red ferroviaria." });
+    if (!route.operator?.trim()) issues.push({ level: "error", title: `Ruta ${route.code}`, detail: "Falta el operador." });
+    if (!Array.isArray(route.stations) || route.stations.length === 0) {
+      issues.push({ level: "warning", title: `Ruta ${route.code}`, detail: "No tiene estaciones asociadas." });
+    }
+  });
+
+  duplicated.forEach((code) => {
+    issues.push({ level: "error", title: `Ruta duplicada`, detail: `Existe más de una ruta con el código ${code}.` });
+  });
+
+  if (stations.length === 0) {
+    issues.push({ level: "warning", title: "Estaciones", detail: "No hay estaciones cargadas en el sistema." });
+  }
+  if (displays.length === 0) {
+    issues.push({ level: "warning", title: "Displays", detail: "No hay displays configurados." });
+  }
+
+  return issues;
+}
+
+function summarizeImportedRoutes(raw: any): ImportedRouteSummary {
+  const payload = Array.isArray(raw) ? raw : Array.isArray(raw?.routes) ? raw.routes : [];
+  const issues: ValidationIssue[] = [];
+  const validRoutes = (payload as any[]).filter((route: any) => {
+    const required = ["code", "name", "network", "operator", "color", "headwayMin", "platforms", "numbers", "stations"];
+    if (!route || typeof route !== "object") return false;
+    for (const field of required) {
+      if (!(field in route)) {
+        issues.push({ level: "error", title: "Importación JSON", detail: `Falta el campo obligatorio "${field}" en una ruta.` });
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const stations = new Set<string>();
+  const networks = new Set<string>();
+  const operators = new Set<string>();
+  validRoutes.forEach((route: any) => {
+    if (typeof route.network === "string") networks.add(route.network.trim());
+    if (typeof route.operator === "string") operators.add(route.operator.trim());
+    if (Array.isArray(route.stations)) {
+      route.stations.forEach((station: string) => station && stations.add(String(station).trim()));
+    }
+  });
+
+  return {
+    valid: issues.filter((issue) => issue.level === "error").length === 0,
+    routes: validRoutes.length,
+    stations: stations.size,
+    networks: networks.size,
+    operators: operators.size,
+    issues,
+  };
+}
 
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
@@ -61,6 +150,11 @@ export default function Admin() {
   const [routeOperatorFilter, setRouteOperatorFilter] = useState("all");
   const [routeReloading, setRouteReloading] = useState(false);
   const [routeDatasetStats, setRouteDatasetStats] = useState<RailwayReloadStats | null>(null);
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [importSourceName, setImportSourceName] = useState<string>("railboard_routes.json");
+  const [importSummary, setImportSummary] = useState<ImportedRouteSummary | null>(null);
+  const [importPreview, setImportPreview] = useState<string>("");
+  const [importLoading, setImportLoading] = useState(false);
   const [trains, setTrains] = useState<Train[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [trainTypes, setTrainTypes] = useState<TrainType[]>([]);
@@ -81,7 +175,7 @@ export default function Admin() {
   const [voicePreviewLanguage, setVoicePreviewLanguage] = useState<Language>("es");
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ rate: 0.95, pitch: 1, volume: 1, voiceURI: "" });
-  const [activeTab, setActiveTab] = useState<TabType>("station");
+  const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [newPlace, setNewPlace] = useState("");
   const [autoGen, setAutoGen] = useState(false);
   const [autoInterval, setAutoInterval] = useState(5);
@@ -451,18 +545,39 @@ export default function Admin() {
     }
   };
 
-  if (!config) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-300">Cargando panel...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleImportJsonFile = async (file: File | null) => {
+    if (!file) return;
+    setImportLoading(true);
+    setImportSourceName(file.name);
+    try {
+      const text = await file.text();
+      setImportPreview(text.slice(0, 6000));
+      const parsed = JSON.parse(text);
+      const summary = summarizeImportedRoutes(parsed);
+      setImportSummary(summary);
+      setActiveTab("validation");
+      if (summary.valid) {
+        showNotification("info", "Validación lista", `JSON cargado desde ${file.name}`);
+      } else {
+        showNotification("error", "JSON inválido", "Hay errores en el archivo importado");
+      }
+    } catch (error: any) {
+      setImportSummary({
+        valid: false,
+        routes: 0,
+        stations: 0,
+        networks: 0,
+        operators: 0,
+        issues: [{ level: "error", title: "Importación JSON", detail: error?.message || "No se pudo leer el archivo" }],
+      });
+      setActiveTab("validation");
+      showNotification("error", "Importación fallida", error?.message || "No se pudo cargar el JSON");
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
-  const lang = (config.language as string) || "es";
+  const lang = (config?.language as string) || "es";
   const testText = TEST_TEXTS[lang] || TEST_TEXTS.es;
   const editingTrainStationId = Number(editFormData.station_id ?? editingTrain?.station_id ?? selectedTrainStationId ?? null) || null;
   const editingTrainDisplayConfig = displays.find((item) => item.station.id === editingTrainStationId)?.config || config;
@@ -509,8 +624,32 @@ export default function Admin() {
     const operatorOk = routeOperatorFilter === "all" || route.operator === routeOperatorFilter;
     return regionOk && serviceOk && operatorOk;
   });
+  const validationSummary = useMemo(
+    () => computeRouteValidation(routes, stations, displays),
+    [routes, stations, displays]
+  );
+  const dashboardKpis = [
+    { label: "Rutas", value: routes.length, tone: "from-blue-500 to-cyan-500" },
+    { label: "Estaciones", value: stations.length, tone: "from-emerald-500 to-teal-500" },
+    { label: "Redes", value: new Set(routes.map((route) => route.network)).size, tone: "from-violet-500 to-fuchsia-500" },
+    { label: "Operadores", value: operators.length, tone: "from-amber-500 to-orange-500" },
+    { label: "Displays", value: displays.length, tone: "from-sky-500 to-blue-600" },
+    { label: "Trenes", value: trains.length, tone: "from-rose-500 to-red-500" },
+  ];
+
+  if (!config) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-300">Cargando panel...</p>
+        </div>
+      </div>
+    );
+  }
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
+    { id: "dashboard", label: "Panel", icon: "📊" },
     { id: "station", label: "Estación", icon: "🏢" },
     { id: "voice", label: "Idiomas y TTS", icon: "🎤" },
     { id: "displays", label: "Displays", icon: "🖥️" },
@@ -522,6 +661,8 @@ export default function Admin() {
     { id: "styles", label: "Estilos", icon: "🎨" },
     { id: "places", label: "Destinos", icon: "📍" },
     { id: "locutions", label: "Locuciones", icon: "🔊" },
+    { id: "validation", label: "Validación", icon: "✅" },
+    { id: "import", label: "Importar JSON", icon: "🗂️" },
   ];
 
   return (
@@ -545,26 +686,178 @@ export default function Admin() {
       </header>
 
       {/* Main Content */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
-        {/* Tab Navigation */}
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-8 border-b border-white/10">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 rounded-t-lg font-medium transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === tab.id
-                ? "bg-gradient-to-r from-amber-400 to-amber-600 text-black shadow-lg"
-                : "text-slate-400 hover:text-slate-300 border-b-2 border-transparent hover:border-slate-600"
-                }`}
-            >
-              <span>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
+      <div className="mx-auto max-w-[1600px] px-4 py-4 lg:px-6 lg:py-6">
+        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="lg:sticky lg:top-24 h-fit space-y-4">
+            <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-4">
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.22em] text-slate-400">RailBoard Admin</p>
+                  <h2 className="text-lg font-semibold text-white">{config.station_name || "Panel principal"}</h2>
+                </div>
+                <button
+                  onClick={handleReloadRailRoutes}
+                  disabled={routeReloading}
+                  className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-3 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {routeReloading ? "Recargando..." : "Recargar rutas"}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-slate-400">Dataset</div>
+                  <div className="mt-1 font-semibold text-white">{routeDatasetStats?.routes ?? routes.length} rutas</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-slate-400">Estaciones</div>
+                  <div className="mt-1 font-semibold text-white">{routeDatasetStats?.stations ?? stations.length}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-slate-400">Redes</div>
+                  <div className="mt-1 font-semibold text-white">{routeDatasetStats?.networks ?? new Set(routes.map((route) => route.network)).size}</div>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-3">
+                  <div className="text-slate-400">Validación</div>
+                  <div className="mt-1 font-semibold text-white">{validationSummary.filter((issue) => issue.level === "error").length} errores</div>
+                </div>
+              </div>
+            </div>
+            <nav className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-2">
+              <div className="px-3 py-2 text-xs uppercase tracking-[0.22em] text-slate-400">Navegación</div>
+              <div className="space-y-1">
+                {tabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-medium transition ${
+                      activeTab === tab.id
+                        ? "bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20"
+                        : "text-slate-300 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-base">{tab.icon}</span>
+                    <span>{tab.label}</span>
+                  </button>
+                ))}
+              </div>
+            </nav>
+          </aside>
+
+          <main className="min-w-0 space-y-6">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {dashboardKpis.map((kpi) => (
+                <div key={kpi.label} className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+                  <div className={`h-1.5 rounded-full bg-gradient-to-r ${kpi.tone} mb-4`} />
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">{kpi.label}</div>
+                  <div className="mt-2 text-3xl font-semibold text-white tabular-nums">{kpi.value}</div>
+                </div>
+              ))}
+            </section>
 
         {/* Content Area */}
         <div className="space-y-6">
+          {activeTab === "dashboard" && (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)]">
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Resumen operativo</p>
+                      <h2 className="mt-2 text-2xl font-semibold text-white">Estado del backend ferroviario</h2>
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                        Revisa rutas, estaciones, redes y validación antes de entrar en ediciones. La recarga del dataset
+                        siempre está disponible desde aquí.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleReloadRailRoutes}
+                        disabled={routeReloading}
+                        className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {routeReloading ? "Recargando..." : "Recargar dataset"}
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("validation")}
+                        className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5"
+                      >
+                        Ver validación
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <h3 className="text-base font-semibold text-white">Rutas, redes y estaciones</h3>
+                  <div className="mt-4 overflow-hidden rounded-xl border border-white/10">
+                    <div className="grid grid-cols-4 gap-px bg-white/5 text-xs uppercase tracking-[0.22em] text-slate-400">
+                      <div className="bg-slate-950/70 px-4 py-3">Ruta</div>
+                      <div className="bg-slate-950/70 px-4 py-3">Red</div>
+                      <div className="bg-slate-950/70 px-4 py-3">Operador</div>
+                      <div className="bg-slate-950/70 px-4 py-3 text-right">Estaciones</div>
+                    </div>
+                    <div className="max-h-80 overflow-auto">
+                      {filteredRoutes.slice(0, 10).map((route) => (
+                        <div key={route.code} className="grid grid-cols-4 gap-px border-t border-white/5 bg-white/5 text-sm">
+                          <div className="bg-slate-950/50 px-4 py-3 font-medium text-white">{route.code}</div>
+                          <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.network}</div>
+                          <div className="bg-slate-950/50 px-4 py-3 text-slate-300">{route.operator}</div>
+                          <div className="bg-slate-950/50 px-4 py-3 text-right font-semibold text-white">{route.stations.length}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <h3 className="text-base font-semibold text-white">Carga de dataset</h3>
+                  <p className="mt-2 text-sm text-slate-400">
+                    Importa un JSON para validarlo localmente antes de recargar el dataset ferroviario.
+                  </p>
+                  <div className="mt-4 space-y-3">
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={(e) => handleImportJsonFile(e.target.files?.[0] || null)}
+                      className="block w-full rounded-xl border border-dashed border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:bg-white/5"
+                    />
+                    <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4 text-sm text-slate-300">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-400">Fuente</span>
+                        <span className="font-mono text-white">{importSourceName}</span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded-lg bg-white/5 px-3 py-2">Rutas: <span className="font-semibold text-white">{importSummary?.routes ?? routes.length}</span></div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">Estaciones: <span className="font-semibold text-white">{importSummary?.stations ?? stations.length}</span></div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">Redes: <span className="font-semibold text-white">{importSummary?.networks ?? new Set(routes.map((route) => route.network)).size}</span></div>
+                        <div className="rounded-lg bg-white/5 px-3 py-2">Operadores: <span className="font-semibold text-white">{importSummary?.operators ?? operators.length}</span></div>
+                      </div>
+                    </div>
+                    {importLoading && <p className="text-xs text-amber-300">Validando archivo...</p>}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                  <h3 className="text-base font-semibold text-white">Validación rápida</h3>
+                  <div className="mt-4 space-y-3">
+                    {validationSummary.length === 0 ? (
+                      <p className="text-sm text-emerald-300">No se han detectado problemas en el dataset cargado.</p>
+                    ) : (
+                      validationSummary.slice(0, 6).map((issue, index) => (
+                        <div key={`${issue.title}-${index}`} className={`rounded-xl border p-3 text-sm ${issue.level === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-500/30 bg-amber-500/10 text-amber-100"}`}>
+                          <div className="font-semibold">{issue.title}</div>
+                          <div className="mt-1 text-xs opacity-90">{issue.detail}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Station Tab */}
           {activeTab === "station" && (
             <div className="animate-fadeIn space-y-6">
@@ -1282,6 +1575,120 @@ export default function Admin() {
             </div>
           )}
 
+          {activeTab === "validation" && (
+            <div className="animate-fadeIn space-y-6">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Validación</p>
+                    <h2 className="mt-2 text-2xl font-semibold text-white">Comprobación de dataset</h2>
+                    <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
+                      Revisa errores estructurales, rutas duplicadas y estados vacíos antes de recargar el fichero ferroviario.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleReloadRailRoutes}
+                    disabled={routeReloading}
+                    className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {routeReloading ? "Recargando..." : "Recargar dataset"}
+                  </button>
+                </div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Rutas</div>
+                    <div className="mt-2 text-3xl font-semibold text-white tabular-nums">{routes.length}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Estaciones</div>
+                    <div className="mt-2 text-3xl font-semibold text-white tabular-nums">{stations.length}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Redes</div>
+                    <div className="mt-2 text-3xl font-semibold text-white tabular-nums">{new Set(routes.map((route) => route.network)).size}</div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
+                    <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Errores</div>
+                    <div className="mt-2 text-3xl font-semibold text-white tabular-nums">{validationSummary.filter((issue) => issue.level === "error").length}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <h3 className="text-lg font-semibold text-white">Problemas detectados</h3>
+                <div className="mt-4 space-y-3">
+                  {validationSummary.length === 0 ? (
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200">
+                      Sin incidencias en el dataset cargado.
+                    </div>
+                  ) : (
+                    validationSummary.map((issue, index) => (
+                      <div
+                        key={`${issue.title}-${index}`}
+                        className={`rounded-xl border p-4 ${issue.level === "error" ? "border-red-500/30 bg-red-500/10 text-red-200" : "border-amber-500/30 bg-amber-500/10 text-amber-100"}`}
+                      >
+                        <div className="text-sm font-semibold">{issue.title}</div>
+                        <div className="mt-1 text-sm opacity-90">{issue.detail}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "import" && (
+            <div className="animate-fadeIn space-y-6">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Importación JSON</p>
+                <h2 className="mt-2 text-2xl font-semibold text-white">Carga y validación del dataset</h2>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">
+                  El flujo admite un archivo JSON para revisar el contenido antes de recargar el dataset ferroviario. La
+                  recarga final sigue dependiendo del backend.
+                </p>
+                <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+                  <div className="space-y-3">
+                    <input
+                      type="file"
+                      accept="application/json,.json"
+                      onChange={(e) => handleImportJsonFile(e.target.files?.[0] || null)}
+                      className="block w-full rounded-xl border border-dashed border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-slate-300 file:mr-3 file:rounded-lg file:border-0 file:bg-amber-500 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-950 hover:bg-white/5"
+                    />
+                    <textarea
+                      rows={14}
+                      readOnly
+                      value={importPreview}
+                      placeholder="La vista previa del JSON importado aparecerá aquí."
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/70 px-4 py-3 font-mono text-xs leading-6 text-slate-300"
+                    />
+                  </div>
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Fuente</div>
+                      <div className="mt-2 break-all font-mono text-sm text-white">{importSourceName}</div>
+                    </div>
+                    <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                      <div className="text-xs uppercase tracking-[0.22em] text-slate-400">Resumen</div>
+                      <div className="mt-3 space-y-2 text-sm text-slate-300">
+                        <div className="flex items-center justify-between gap-3"><span>Rutas</span><strong className="text-white">{importSummary?.routes ?? 0}</strong></div>
+                        <div className="flex items-center justify-between gap-3"><span>Estaciones</span><strong className="text-white">{importSummary?.stations ?? 0}</strong></div>
+                        <div className="flex items-center justify-between gap-3"><span>Redes</span><strong className="text-white">{importSummary?.networks ?? 0}</strong></div>
+                        <div className="flex items-center justify-between gap-3"><span>Operadores</span><strong className="text-white">{importSummary?.operators ?? 0}</strong></div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleReloadRailRoutes}
+                      disabled={routeReloading}
+                      className="w-full rounded-xl bg-amber-500 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {routeReloading ? "Recargando..." : "Recargar dataset"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Operators Tab */}
           {activeTab === "operators" && (
             <div className="animate-fadeIn space-y-6">
@@ -1880,7 +2287,9 @@ export default function Admin() {
             </div>
           )}
         </div>
-      </div>
+      </main>
+    </div>
+  </div>
 
       {/* Notification Toast */}
       {modal && (
