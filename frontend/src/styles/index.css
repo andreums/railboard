@@ -12,18 +12,20 @@ body {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
-@keyframes marquee {
-  from {
-    transform: translateX(0);
+@keyframes marquee-full {
+  0% {
+    transform: translateX(100vw);
   }
-
-  to {
-    transform: translateX(-50%);
+  80% {
+    transform: translateX(calc(-100% - 2rem));
+  }
+  100% {
+    transform: translateX(calc(-100% - 2rem));
   }
 }
 
-.animate-marquee {
-  animation: marquee 30s linear infinite;
+.animate-marquee-full {
+  animation: marquee-full 24s linear infinite;
 }
 
 @keyframes marquee-pause {

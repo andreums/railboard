@@ -171,7 +171,16 @@ export function loadVoiceSettings(config: Configish | null): VoiceSettings {
 export function getVoiceURIForLanguage(config: Configish | null, language?: string) {
   const lang = resolveDisplayLanguage(config, language);
   const voiceMap = safeParse<Record<string, string>>(config?.tts_voice_map, {});
-  return voiceMap[lang] || config?.tts_voice || "";
+  const configured = voiceMap[lang] || config?.tts_voice || "";
+  if (configured) return configured;
+  const bcp47 = LANG_TO_BCP47[lang];
+  if (bcp47) {
+    const langPrefix = bcp47.split("-")[0];
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v => v.lang.startsWith(langPrefix));
+    if (match) return match.voiceURI;
+  }
+  return "";
 }
 
 export function getAnnouncementTemplate(config: Configish | null, mode: string, language?: string) {

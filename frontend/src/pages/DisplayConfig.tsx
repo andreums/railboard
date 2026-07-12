@@ -28,6 +28,7 @@ const defaultConfig = (stationName = ""): Config => ({
   clockMode: "real",
   clockFakeTime: "12:00:00",
   clockFakeStepSeconds: "1",
+  showDestinationIcon: true,
 });
 
 const formatPlatform = (train: Train) => {
@@ -43,7 +44,7 @@ const formatPlatform = (train: Train) => {
 
 export default function DisplayConfigPage() {
   const { stationId } = useParams<{ stationId?: string }>();
-  const [activeTab, setActiveTab] = useState<"config" | "platforms" | "style" | "trains">("config");
+  const [activeTab, setActiveTab] = useState<"config" | "platforms" | "style" | "trains" | "types">("config");
   const [displays, setDisplays] = useState<DisplaySummary[]>([]);
   const [globalConfig, setGlobalConfig] = useState<Config | null>(null);
   const [operators, setOperators] = useState<Operator[]>([]);
@@ -59,6 +60,7 @@ export default function DisplayConfigPage() {
   const [trainSaving, setTrainSaving] = useState(false);
   const [editingStopsText, setEditingStopsText] = useState("");
   const [stationNameDraft, setStationNameDraft] = useState("");
+  const [trainIconMode, setTrainIconMode] = useState<"none" | "operator" | "type" | "destination" | "custom">("destination");
 
   const load = async () => {
     try {
@@ -307,6 +309,26 @@ export default function DisplayConfigPage() {
     );
   }
 
+  const handleAddDisplay = async () => {
+    const nextIndex = displays.length + 1;
+    const name = window.prompt("Nombre del nuevo display", `Display ${nextIndex}`);
+    if (name === null) return;
+    const short = window.prompt("Nombre corto", name.slice(0, 18)) ?? name;
+    try {
+      setLoading(true);
+      await api.createStation({
+        name: name.trim() || `Display ${nextIndex}`,
+        short: short.trim() || name.trim() || `Display ${nextIndex}`,
+        color: "#1A3254",
+      });
+      await load();
+    } catch (err: any) {
+      setError(err?.message || "No se pudo crear el display");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (displayMode === "multiple" && !displayedStation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white p-6">
@@ -316,9 +338,14 @@ export default function DisplayConfigPage() {
               <h1 className="text-3xl font-bold">Displays</h1>
               <p className="text-slate-400">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
             </div>
-            <Link to="/admin" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
-              ← Volver al admin
-            </Link>
+            <div className="flex gap-2">
+              <button onClick={handleAddDisplay} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition">
+                + Añadir display
+              </button>
+              <Link to="/admin" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
+                ← Volver al admin
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {displays.map((display) => (
@@ -395,6 +422,7 @@ export default function DisplayConfigPage() {
               { id: "platforms", label: "Vías y sectores" },
               { id: "style", label: "Estilo y reloj" },
               { id: "trains", label: "Trenes" },
+              { id: "types", label: "Tipos de tren" },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -564,6 +592,14 @@ export default function DisplayConfigPage() {
                   onChange={(e) => update({ sectorAllowEmpty: e.target.checked })}
                 />
                 Permitir sin sector
+              </label>
+              <label className="flex items-center gap-3 text-slate-100 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={displayedConfig?.showDestinationIcon !== false}
+                  onChange={(e) => update({ showDestinationIcon: e.target.checked })}
+                />
+                Mostrar icono antes del destino
               </label>
             </div>
           </div>
@@ -751,6 +787,64 @@ export default function DisplayConfigPage() {
           </div>
           </section>
           )}
+
+          {activeTab === "types" && (
+            <section className="space-y-4 h-full overflow-hidden">
+              <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-full flex flex-col">
+                <div className="mb-4">
+                  <h3 className="text-lg font-bold">Tipos de tren</h3>
+                  <p className="text-sm text-slate-400">Edita icono para destino por tipo de tren</p>
+                </div>
+
+                <div className="overflow-auto rounded-lg border border-white/10 flex-1 min-h-0">
+                  <div className="grid gap-3 p-4">
+                    {trainTypes.map((type) => (
+                      <div key={type.id} className="border border-white/10 rounded-lg p-4 bg-black/20 flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            {type.color && (
+                              <span
+                                className="inline-flex items-center justify-center rounded px-3 py-1 text-xs font-bold text-white min-w-12"
+                                style={{ backgroundColor: type.color }}
+                              >
+                                {type.code}
+                              </span>
+                            )}
+                            <span className="font-semibold text-white">{type.name}</span>
+                          </div>
+                          {type.destination_icon_url && (
+                            <div className="text-xs text-slate-400 mb-2">Icono: {type.destination_icon_url}</div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/*";
+                            input.onchange = async (e) => {
+                              const file = (e.target as HTMLInputElement).files?.[0];
+                              if (file) {
+                                try {
+                                  await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, file);
+                                  await load();
+                                } catch (err) {
+                                  alert("Error al subir icono");
+                                }
+                              }
+                            };
+                            input.click();
+                          }}
+                          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm whitespace-nowrap"
+                        >
+                          {type.destination_icon_url ? "Cambiar" : "Agregar"} icono
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
       </main>
 
@@ -813,6 +907,37 @@ export default function DisplayConfigPage() {
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Destino</div>
                   <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.destination || ""} onChange={(e) => setEditingTrain({ ...editingTrain, destination: e.target.value })} />
+                </label>
+                <label className="block md:col-span-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Imagen personalizada destino</div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    id={`train-icon-${editingTrain.id || 'new'}`}
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-400 focus:outline-none"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setTrainIconMode("custom");
+                        setEditingTrain({ ...editingTrain, custom_icon_file: file });
+                      }
+                    }}
+                  />
+                  {editingTrain.custom_icon_url && (
+                    <div className="mt-2 text-xs text-slate-400">
+                      Imagen actual: {editingTrain.custom_icon_url}
+                    </div>
+                  )}
+                </label>
+                <label className="block md:col-span-2">
+                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Mostrar</div>
+                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={trainIconMode} onChange={(e) => setTrainIconMode(e.target.value as typeof trainIconMode)}>
+                    <option value="none">No mostrar imagen</option>
+                    <option value="custom">Imagen personalizada</option>
+                    <option value="destination">Icono de destino (tipo tren)</option>
+                    <option value="type">Logo de tipo de tren</option>
+                    <option value="operator">Logo de operador</option>
+                  </select>
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Hora programada</div>

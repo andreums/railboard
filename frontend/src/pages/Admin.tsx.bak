@@ -323,7 +323,6 @@ export default function Admin() {
   const [editingType, setEditingType] = useState<TrainType | null>(null);
   const [operatorLogo, setOperatorLogo] = useState<File | null>(null);
   const [typeLogo, setTypeLogo] = useState<File | null>(null);
-  const [typeDestinationIcon, setTypeDestinationIcon] = useState<File | null>(null);
   const [departureTmpl, setDepartureTmpl] = useState("");
   const [arrivalTmpl, setArrivalTmpl] = useState("");
   const [presets, setPresets] = useState<AnnouncePreset[]>([]);
@@ -1490,9 +1489,8 @@ export default function Admin() {
                             >
                               Eliminar
                             </button>
-                          </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <div>
                                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Nombre de la estación</label>
                                 <input
@@ -1742,7 +1740,6 @@ export default function Admin() {
                               )}
                             </div>
                           </div>
-                        </div>
                         );
                       })}
                   </div>
@@ -2242,29 +2239,18 @@ export default function Admin() {
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Icono para Destino</label>
-                    <input
-                      type="file"
-                      id="newTypeDestinationIcon"
-                      accept="image/*"
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none"
-                    />
-                  </div>
                   <button
                     onClick={async () => {
                       const code = (document.getElementById("newTypeCode") as HTMLInputElement)?.value;
                       const name = (document.getElementById("newTypeName") as HTMLInputElement)?.value;
                       const color = (document.getElementById("newTypeColor") as HTMLInputElement)?.value;
                       const logoFile = (document.getElementById("newTypeLogo") as HTMLInputElement)?.files?.[0];
-                      const iconFile = (document.getElementById("newTypeDestinationIcon") as HTMLInputElement)?.files?.[0];
                       if (code && name) {
-                        await api.createTrainType(code, name, color, logoFile || null, iconFile || null);
+                        await api.createTrainType(code, name, color, logoFile || null);
                         (document.getElementById("newTypeCode") as HTMLInputElement).value = "";
                         (document.getElementById("newTypeName") as HTMLInputElement).value = "";
                         (document.getElementById("newTypeColor") as HTMLInputElement).value = "#3E8DCA";
                         (document.getElementById("newTypeLogo") as HTMLInputElement).value = "";
-                        (document.getElementById("newTypeDestinationIcon") as HTMLInputElement).value = "";
                         await refresh();
                         showNotification("success", "✓ Tipo creado", "");
                       }
@@ -3065,27 +3051,12 @@ export default function Admin() {
                   onChange={(e) => setTypeLogo(e.target.files?.[0] || null)}
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Icono para Destino</label>
-                {editingType.destination_icon_url && (
-                  <div className="mb-2">
-                    <img src={fileUrl(editingType.destination_icon_url)!} alt="Destination Icon" className="w-12 h-12 object-contain" />
-                  </div>
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none"
-                  onChange={(e) => setTypeDestinationIcon(e.target.files?.[0] || null)}
-                />
-              </div>
               <div className="flex gap-3 pt-4 border-t border-slate-200">
                 <button
                   onClick={async () => {
-                    await api.updateTrainType(editingType.id, editingType.code, editingType.name, editingType.color, typeLogo || undefined, typeDestinationIcon || undefined);
+                    await api.updateTrainType(editingType.id, editingType.code, editingType.name, editingType.color, typeLogo || undefined);
                     setEditingType(null);
                     setTypeLogo(null);
-                    setTypeDestinationIcon(null);
                     await refresh();
                     showNotification("success", "✓ Tipo actualizado", "");
                   }}
@@ -3097,7 +3068,6 @@ export default function Admin() {
                   onClick={() => {
                     setEditingType(null);
                     setTypeLogo(null);
-                    setTypeDestinationIcon(null);
                   }}
                   className="flex-1 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
                 >

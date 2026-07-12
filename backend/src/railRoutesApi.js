@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listTrains, services, serviceStops, stations, getStationDisplayConfig } from "./db.js";
+import { listTrains, services, serviceStops, stations, getStationDisplayConfig, trainTypes } from "./db.js";
 import {
   getAllRoutes,
   getRouteByCode,
@@ -48,7 +48,7 @@ const toSortMinutes = (hhmm) => {
 
 function validateRow(row, ctx) {
   const hasDirection = Boolean(row.destination || row.origin);
-  if (!row.time || !row.number || !row.trainTypeCode || !hasDirection || !row.platform || !row.status) {
+  if (!row.time || !row.number || !hasDirection || !row.platform || !row.status) {
     console.warn(`${WARN_PREFIX} invalid row at ${ctx}`, row);
     return false;
   }
@@ -72,6 +72,7 @@ function buildRowsFromServices(stationId, mode) {
       const timeBase = movement === "arrival" ? (stop.arrival_scheduled || stop.departure_scheduled) : (stop.departure_scheduled || stop.arrival_scheduled);
       const expectedBase = movement === "arrival" ? (stop.arrival_expected || stop.departure_expected) : (stop.departure_expected || stop.arrival_expected);
 
+      const trainType = svc.train_type_id ? trainTypes.list().find((t) => t.id === svc.train_type_id) : null;
       const row = {
         movement,
         serviceId: svc.id,
@@ -82,9 +83,13 @@ function buildRowsFromServices(stationId, mode) {
         number: svc.number || `SVC-${svc.id}`,
         operatorName: svc.operator_name || "Operador",
         operatorLogo: svc.operator_logo || null,
-        trainTypeCode: svc.train_type_code || "SERV",
-        trainTypeName: svc.train_type_name || "Servicio",
+        trainTypeCode: trainType?.code || svc.train_type_code || "SERV",
+        trainTypeName: trainType?.name || svc.train_type_name || "Servicio",
+        trainTypeColor: trainType?.color || null,
         trainTypeLogo: svc.train_type_logo || null,
+        trainTypeDestinationIcon: trainType?.destination_icon_url || null,
+        customIcon: null,
+        iconMode: "destination",
         origin: svc.origin_name || stopNames[0] || "Origen",
         destination: svc.destination_name || stopNames[stopNames.length - 1] || "Destino",
         platform: stop.platform || "?",
@@ -114,9 +119,13 @@ function buildRowsFromTrains(stationId, mode) {
       number: t.number || `TR-${t.id}`,
       operatorName: t.operator_name || "Operador",
       operatorLogo: t.operator_logo || null,
-      trainTypeCode: t.type_code || "TRN",
+      trainTypeCode: t.type_code || "",
       trainTypeName: t.type_name || "Tren",
+      trainTypeColor: t.type_color || null,
       trainTypeLogo: t.type_logo || null,
+      trainTypeDestinationIcon: t.type_destination_icon || null,
+      customIcon: t.custom_icon_url || null,
+      iconMode: t.icon_mode || "destination",
       origin: t.origin || "Origen",
       destination: t.destination || "Destino",
       platform: t.platform || "?",

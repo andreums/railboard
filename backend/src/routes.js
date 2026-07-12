@@ -8,7 +8,7 @@ import {
   getConfig, setConfig,
   listTrains, createTrain, updateTrain, deleteTrain, getTrain,
   addMinutes,
-  operators, trainTypes, places, stations, countStations,
+  operators, trainTypes, places, stations, trainIcons, countStations,
   getStationDisplayConfig, setStationDisplayConfig, listStationDisplayConfigs,
   services, serviceStops, serviceEvents,
 } from "./db.js";
@@ -215,6 +215,16 @@ const OBSERVATION_BANK = {
       "Salida prevista según horario",
       "Servicio reforzado por demanda",
       "Tren con alta ocupación prevista",
+      "Circulación con normalidad",
+      "Servicio sin novedades",
+      "Tren revisado y listo",
+      "Personal a bordo completo",
+      "Condiciones de viaje habituales",
+      "Tren preparado para salida",
+      "Conexiones garantizadas",
+      "Servicio de temporada activo",
+      "Refuerzo de personal en estación",
+      "Tren con servicio de cafetería",
     ],
     service: [
       "Por trabajos de mantenimiento en la infraestructura",
@@ -223,6 +233,16 @@ const OBSERVATION_BANK = {
       "Afectado por circulación densa en el tramo central",
       "Cambio puntual de material por necesidades operativas",
       "Parada reforzada en estaciones intermedias",
+      "Por obras de modernización en la vía",
+      "Servicio afectado por obras de electrificación",
+      "Por renovación de catenaria en el trayecto",
+      "Adaptación temporal por obras estacionales",
+      "Por mejora de la accesibilidad en andenes",
+      "Cambio de material rodante por mantenimiento programado",
+      "Afectado por trabajos de señalización",
+      "Por sustitución de traviesas en el tramo",
+      "Desvío provisional por obras en la estación",
+      "Por obras de soterramiento en el casco urbano",
     ],
     delay: [
       "Retraso por incidencia en la infraestructura",
@@ -230,11 +250,48 @@ const OBSERVATION_BANK = {
       "Retraso por avería de material",
       "Retraso por maniobras de regulación",
       "Demora por intervención técnica",
+      "Retraso por incidencia en la catenaria",
+      "Retraso por cruce de trenes en vía única",
+      "Demora por operaciones de estacionamiento",
+      "Retraso por revisión extraordinaria de seguridad",
+      "Retraso por alta densidad de viajeros en origen",
+      "Demora por procedimientos de seguridad en estación",
+      "Retraso por incidencia en el sistema de bordo",
+      "Demora por espera de correspondencia",
+      "Retraso por baja visibilidad en el trayecto",
     ],
     platform: [
       "Se confirma vía asignada en panel",
       "Posible cambio de vía por regulación de tráfico",
       "Asignación de vía sujeta a última hora",
+      "Vía confirmada por megafonía",
+      "Cambio de vía por obras en andén contiguo",
+      "Por obras en la vía habitual, acceso por andén alternativo",
+      "Estacionamiento en vía provisional por eventos en la estación",
+      "Compruebe el panel informativo para posible cambio de vía",
+      "Vía asignada momentáneamente por operativa de tráfico",
+    ],
+    status: [
+      "Embarque en curso por puertas 1-4",
+      "Última llamada para viajeros con destino a bordo",
+      "Puertas de acceso abiertas",
+      "Personal de a bordo esperando en andén",
+      "Tren listo para recibir viajeros",
+      "Cancelado por incidencias técnicas",
+      "Cancelado por condiciones meteorológicas adversas",
+      "Cancelado por huelga en el sector",
+      "Cancelado por obras de emergencia en la vía",
+      "Transbordo organizado por carretera",
+    ],
+    info: [
+      "Recuerden validar su billete antes de subir",
+      "Atención al llegar a su destino por posible cambio de andén",
+      "Mantengan su equipaje controlado en todo momento",
+      "Próxima estación con correspondencia de metro",
+      "Tren con espacio para bicicletas disponible",
+      "Servicio de asistencia disponible para movilidad reducida",
+      "Tren con zona de silencio en coches centrales",
+      "Se ruega cedan el asiento a personas con movilidad reducida",
     ],
   },
   ca: {
@@ -246,14 +303,31 @@ const OBSERVATION_BANK = {
       "Sortida prevista segons horari",
       "Servei reforçat per demanda",
       "Tren amb alta ocupació prevista",
+      "Circulació amb normalitat",
+      "Servei sense novetats",
+      "Tren revisat i a punt",
+      "Personal a bord complet",
+      "Condicions de viatge habituals",
+      "Tren preparat per a la sortida",
+      "Connexions garantides",
+      "Servei de temporada actiu",
+      "Reforç de personal a l'estació",
     ],
     service: [
       "Per treballs de manteniment a la infraestructura",
-      "A causa d’obres al corredor",
+      "A causa d'obres al corredor",
       "Servei sotmès a regulació de trànsit",
       "Afectat per circulació densa al tram central",
       "Canvi puntual de material per necessitats operatives",
       "Parada reforçada en estacions intermèdies",
+      "Per obres de modernització a la via",
+      "Servei afectat per obres d'electrificació",
+      "Per renovació de catenària al trajecte",
+      "Adaptació temporal per obres estacionals",
+      "Per millora de l'accessibilitat als andanes",
+      "Canvi de material rodant per manteniment programat",
+      "Afectat per treballs de senyalització",
+      "Desviament provisional per obres a l'estació",
     ],
     delay: [
       "Retard per incidència a la infraestructura",
@@ -261,11 +335,39 @@ const OBSERVATION_BANK = {
       "Retard per avaria de material",
       "Retard per maniobres de regulació",
       "Demora per intervenció tècnica",
+      "Retard per incidència a la catenària",
+      "Retard per encreuament de trens en via única",
+      "Demora per operacions d'estacionament",
+      "Retard per revisió extraordinària de seguretat",
+      "Retard per alta densitat de viatgers a l'origen",
+      "Retard per incidència al sistema de bord",
+      "Demora per espera de correspondència",
     ],
     platform: [
       "Via assignada confirmada al panell",
       "Possible canvi de via per regulació de trànsit",
       "Assignació de via subjecta a última hora",
+      "Via confirmada per megafonia",
+      "Canvi de via per obres a l'andana contigua",
+      "Per obres a la via habitual, accés per andana alternativa",
+      "Comproveu el panell informatiu per a possible canvi de via",
+    ],
+    status: [
+      "Embarque en curs per portes 1-4",
+      "Darrera crida per a viatgers amb destinació a bord",
+      "Portes d'accés obertes",
+      "Personal a bord esperant a l'andana",
+      "Cancel·lat per incidències tècniques",
+      "Cancel·lat per condicions meteorològiques adverses",
+      "Cancel·lat per vaga al sector",
+      "Transbord organitzat per carretera",
+    ],
+    info: [
+      "Recordeu validar el vostre bitllet abans de pujar",
+      "Mantingueu l'equipatge controlat en tot moment",
+      "Tren amb espai per a bicicletes disponible",
+      "Servei d'assistència disponible per a mobilitat reduïda",
+      "Tren amb zona de silenci en cotxes centrals",
     ],
   },
   en: {
@@ -277,6 +379,12 @@ const OBSERVATION_BANK = {
       "Departure expected on time",
       "Service reinforced due to demand",
       "High occupancy expected",
+      "Service running smoothly",
+      "Train ready for departure",
+      "Full crew on board",
+      "Standard travel conditions",
+      "Seasonal service active",
+      "All connections guaranteed",
     ],
     service: [
       "Maintenance work on the infrastructure",
@@ -285,6 +393,12 @@ const OBSERVATION_BANK = {
       "Affected by heavy traffic on the central section",
       "Temporary rolling stock change for operational needs",
       "Extra intermediate stops in place",
+      "Due to track modernisation works",
+      "Electrification works affecting service",
+      "Catenary renewal in progress",
+      "Temporary adaptation for seasonal works",
+      "Platform accessibility improvements underway",
+      "Rolling stock change for scheduled maintenance",
     ],
     delay: [
       "Delay due to an infrastructure incident",
@@ -292,42 +406,105 @@ const OBSERVATION_BANK = {
       "Delay due to rolling stock failure",
       "Delay due to traffic management",
       "Delay due to technical intervention",
+      "Delay due to a catenary fault",
+      "Delay due to single-track crossing operations",
+      "Delay due to extraordinary safety inspection",
+      "Delay due to high passenger density at origin",
+      "Delay due to on-board system fault",
+      "Delay waiting for connecting service",
     ],
     platform: [
       "Platform assignment confirmed on the board",
       "Possible platform change due to traffic regulation",
       "Platform assignment may change at short notice",
+      "Platform confirmed via announcement",
+      "Platform change due to works on adjacent platform",
+      "Check information boards for possible platform change",
+      "Temporary platform due to station events",
+    ],
+    status: [
+      "Boarding in progress via gates 1-4",
+      "Final call for passengers",
+      "Boarding gates open",
+      "Train crew waiting on platform",
+      "Cancelled due to technical issues",
+      "Cancelled due to adverse weather conditions",
+      "Cancelled due to strike action",
+      "Coach transfer organised",
+    ],
+    info: [
+      "Please validate your ticket before boarding",
+      "Keep your luggage with you at all times",
+      "Next station with underground connection",
+      "Bicycle storage available on this service",
+      "Assistance available for reduced mobility",
+      "Silent zone carriages available",
     ],
   },
   fr: {
     generic: [
       "Aucun incident signalé",
       "Service normal",
-      "Exploitation conforme à l’horaire",
+      "Exploitation conforme à l'horaire",
       "Matériel vérifié",
-      "Départ prévu à l’heure",
+      "Départ prévu à l'heure",
       "Service renforcé en fonction de la demande",
-      "Fort taux d’occupation attendu",
+      "Fort taux d'occupation attendu",
+      "Circulation normale",
+      "Train prêt pour le départ",
+      "Équipage complet à bord",
+      "Service saisonnier actif",
+      "Correspondances garanties",
     ],
     service: [
-      "Travaux de maintenance sur l’infrastructure",
+      "Travaux de maintenance sur l'infrastructure",
       "Chantiers sur le corridor",
       "Service soumis à régulation du trafic",
       "Trafic dense sur la section centrale",
-      "Changement ponctuel de matériel pour besoins d’exploitation",
+      "Changement ponctuel de matériel pour besoins d'exploitation",
       "Arrêts intermédiaires renforcés",
+      "Travaux de modernisation de la voie",
+      "Travaux d'électrification en cours",
+      "Renouvellement de la caténaire",
+      "Adaptation temporaire pour travaux saisonniers",
+      "Amélioration de l'accessibilité des quais",
     ],
     delay: [
-      "Retard dû à un incident d’infrastructure",
+      "Retard dû à un incident d'infrastructure",
       "Retard dû à la congestion ferroviaire",
       "Retard dû à une panne de matériel",
       "Retard dû à une régulation du trafic",
       "Retard dû à une intervention technique",
+      "Retard dû à un incident de caténaire",
+      "Retard dû au croisement sur voie unique",
+      "Retard dû à un contrôle de sécurité extraordinaire",
+      "Retard dû à une forte affluence au départ",
+      "Retard pour attente de correspondance",
     ],
     platform: [
       "Voie attribuée confirmée sur le panneau",
       "Changement de voie possible selon la régulation",
       "Attribution de voie susceptible de changer à la dernière minute",
+      "Voie confirmée par haut-parleur",
+      "Changement de voie pour travaux sur quai adjacent",
+      "Consultez le panneau pour un éventuel changement de voie",
+    ],
+    status: [
+      "Embarquement en cours portes 1-4",
+      "Dernier appel pour les voyageurs",
+      "Portes d'accès ouvertes",
+      "Personnel à bord attendant en quai",
+      "Annulé pour raisons techniques",
+      "Annulé en raison des conditions météorologiques",
+      "Annulé pour grève dans le secteur",
+      "Transfert par car organisé",
+    ],
+    info: [
+      "Pensez à valider votre billet avant de monter",
+      "Surveillez vos bagages en tout temps",
+      "Prochain gare avec correspondance métro",
+      "Espace vélo disponible à bord",
+      "Assistance disponible pour mobilité réduite",
     ],
   },
   eu: {
@@ -339,6 +516,11 @@ const OBSERVATION_BANK = {
       "Irteera orduz espero da",
       "Eskariagatik zerbitzu indartua",
       "Gaitasun handia espero da",
+      "Zirkulazio normala",
+      "Treina prest irteerarako",
+      "Langile osoa treinean",
+      "Sasoiko zerbitzua aktibatuta",
+      "Konexioak bermatuta",
     ],
     service: [
       "Azpiegiturako mantentze lanengatik",
@@ -347,6 +529,10 @@ const OBSERVATION_BANK = {
       "Erdiko tarteko zirkulazio trinkoak eraginda",
       "Eragiketa beharretarako material aldaketa puntuala",
       "Tarteko geltokietan geldialdi indartuak",
+      "Bidean modernizazio lanengatik",
+      "Elektrifikazio lanek zerbitzuan eraginda",
+      "Katenaria berritze lanak",
+      "Aldi baterako egokitzapena sasoiko lanengatik",
     ],
     delay: [
       "Atzerapena azpiegiturako gorabeheragatik",
@@ -354,11 +540,36 @@ const OBSERVATION_BANK = {
       "Atzerapena materialaren matxuragatik",
       "Atzerapena trafikoaren erregulazioagatik",
       "Atzerapena esku-hartze teknikoagatik",
+      "Atzerapena katenariako matxuragatik",
+      "Atzerapena bide bakarreko gurutzatzeagatik",
+      "Atzerapena segurtasun ikuskapenagatik",
+      "Atzerapena jatorrian bidaiari dentsitate handiagatik",
+      "Atzerapena barneko sistemaren matxuragatik",
     ],
     platform: [
       "Esleitutako nasaren baieztapena panelean",
       "Nasaren aldaketa posiblea trafikoaren arabera",
       "Nasa azken unean alda daiteke",
+      "Nasa baieztatua megafonia bidez",
+      "Nasa aldaketa ondoko nasako obrengatik",
+      "Egiaztatu informazio panela nasa aldaketa posibleagatik",
+    ],
+    status: [
+      "Ontziratzea martxan 1-4 ateetatik",
+      "Azken deia bidaiarientzat",
+      "Sarbide ateak irekita",
+      "Treineko langileak nasan itxaroten",
+      "Bertan behera utzia arrazoi teknikoengatik",
+      "Bertan behera utzia eguraldi txarrarengatik",
+      "Bertan behera utzia grebarengatik",
+      "Autobusez transbordoa antolatuta",
+    ],
+    info: [
+      "Txartela balidatu igo aurretik",
+      "Ekipajea uneoro kontrolpean eduki",
+      "Hurrengo geltokia metrorako konexioarekin",
+      "Bizikleta lekua eskuragarri treinean",
+      "Mugikortasun urrikoentzako laguntza eskuragarri",
     ],
   },
   gl: {
@@ -370,6 +581,13 @@ const OBSERVATION_BANK = {
       "Saída prevista segundo horario",
       "Servizo reforzado por demanda",
       "Alta ocupación prevista",
+      "Circulación con normalidade",
+      "Servizo sen novidades",
+      "Tren preparado para a saída",
+      "Persoal a bordo completo",
+      "Condicións de viaxe habituais",
+      "Servizo de tempada activo",
+      "Reforzo de personal na estación",
     ],
     service: [
       "Por traballos de mantemento na infraestrutura",
@@ -378,6 +596,12 @@ const OBSERVATION_BANK = {
       "Afectado por circulación densa no tramo central",
       "Cambio puntual de material por necesidades operativas",
       "Parada reforzada en estacións intermedias",
+      "Por obras de modernización na vía",
+      "Servizo afectado por obras de electrificación",
+      "Por renovación de catenaria no traxecto",
+      "Adaptación temporal por obras estacionais",
+      "Cambio de material rodante por mantemento programado",
+      "Desvío provisional por obras na estación",
     ],
     delay: [
       "Retraso por incidencia na infraestrutura",
@@ -385,11 +609,38 @@ const OBSERVATION_BANK = {
       "Retraso por avaría de material",
       "Retraso por manobras de regulación",
       "Demora por intervención técnica",
+      "Retraso por incidencia na catenaria",
+      "Retraso por cruce de trens en vía única",
+      "Demora por operacións de estacionamento",
+      "Retraso por revisión extraordinaria de seguridade",
+      "Retraso por alta densidade de viaxeiros na orixe",
+      "Retraso por incidencia no sistema de a bordo",
     ],
     platform: [
       "Vía asignada confirmada no panel",
       "Posible cambio de vía por regulación de tráfico",
       "A asignación de vía pode mudar á última hora",
+      "Vía confirmada por megafonía",
+      "Cambio de vía por obras no andén contiguo",
+      "Por obras na vía habitual, acceso por andén alternativo",
+      "Comprobe o panel informativo para posible cambio de vía",
+    ],
+    status: [
+      "Embarque en curso polas portas 1-4",
+      "Última chamada para viaxeiros con destino a bordo",
+      "Portas de acceso abertas",
+      "Persoal de a bordo esperando no andén",
+      "Cancelado por incidencias técnicas",
+      "Cancelado por condicións meteorolóxicas adversas",
+      "Cancelado por folga no sector",
+      "Transbordo organizado por estrada",
+    ],
+    info: [
+      "Lembren validar o seu billete antes de subir",
+      "Manteñan a súa equipaxe controlada en todo momento",
+      "Vindeira estación con correspondencia de metro",
+      "Tren con espazo para bicicletas dispoñible",
+      "Servizo de asistencia dispoñible para mobilidade reducida",
     ],
   },
 };
@@ -436,42 +687,33 @@ const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 const pickObservation = ({ language, status, modeValue }) => {
   const lang = normalizeLanguage(language);
   const bank = OBSERVATION_BANK[lang] || OBSERVATION_BANK.es;
-  const pool = [];
 
-  if (status === "Delayed") pool.push(...bank.delay);
-  pool.push(...bank.service);
-  pool.push(...bank.platform);
-  if (modeValue === "arrivals") {
-    pool.push(
-      lang === "ca" ? "Arribada prevista amb normalitat" :
-        lang === "en" ? "Arrival expected on time" :
-          lang === "fr" ? "Arrivée prévue à l’heure" :
-            lang === "eu" ? "Iritsiera garaiz espero da" :
-              lang === "gl" ? "Chegada prevista con normalidade" :
-                "Llegada prevista con normalidad"
-    );
+  const parts = [];
+
+  if (status === "Delayed") {
+    parts.push(randomItem(bank.delay));
+    if (Math.random() < 0.35) parts.push(randomItem(bank.service));
+  } else if (status === "Cancelled") {
+    parts.push(randomItem(bank.status.filter(s => s.toLowerCase().includes("cancel"))));
+  } else if (status === "Boarding") {
+    if (Math.random() < 0.55) parts.push(randomItem(bank.status));
+    parts.push(randomItem(bank.generic));
   } else {
-    pool.push(
-      lang === "ca" ? "Sortida prevista amb normalitat" :
-        lang === "en" ? "Departure expected on time" :
-          lang === "fr" ? "Départ prévu à l’heure" :
-            lang === "eu" ? "Irteera garaiz espero da" :
-              lang === "gl" ? "Saída prevista con normalidade" :
-                "Salida prevista con normalidad"
-    );
+    const pool = [
+      ...bank.generic,
+      ...bank.service,
+      ...bank.platform,
+      ...bank.info,
+    ];
+    parts.push(randomItem(pool));
+    if (Math.random() < 0.25) parts.push(randomItem(pool));
   }
-  pool.push(...bank.generic);
 
-  const weighted = [
-    "",
-    "",
-    randomItem(pool),
-    randomItem(pool),
-    randomItem(pool),
-    randomItem(pool),
-  ].filter(Boolean);
+  if (parts.length === 0) {
+    parts.push(randomItem(bank.generic));
+  }
 
-  return randomItem(weighted.length ? weighted : bank.generic);
+  return parts.join(" · ");
 };
 
 // ----- config -----
@@ -537,13 +779,23 @@ r.put("/trains/reorder", adminAuth, (req, res) => {
   res.json(listTrains());
 });
 
-r.post("/trains", adminAuth, (req, res) => {
-  const t = createTrain(req.body);
+r.post("/trains", adminAuth, upload.single("custom_icon"), (req, res) => {
+  const body = req.body;
+  if (req.file) {
+    body.custom_icon_url = `/uploads/${req.file.filename}`;
+  }
+  const t = createTrain(body);
   ping();
   res.status(201).json(t);
 });
-r.put("/trains/:id", adminAuth, (req, res) => {
-  const t = updateTrain(Number(req.params.id), req.body);
+r.put("/trains/:id", adminAuth, upload.single("custom_icon"), (req, res) => {
+  const body = req.body;
+  if (req.file) {
+    body.custom_icon_url = `/uploads/${req.file.filename}`;
+  } else if (body.custom_icon_url === "") {
+    body.custom_icon_url = null;
+  }
+  const t = updateTrain(Number(req.params.id), body);
   if (!t) return res.status(404).end();
   ping();
   res.json(t);
@@ -623,10 +875,39 @@ r.get("/routes/export", adminAuth, (_req, res) => {
 });
 r.post("/routes/reload", adminAuth, (_req, res) => res.json(reloadRoutesDataset()));
 
+// ----- train icons (library) -----
+r.get("/train-icons", (_req, res) => res.json(trainIcons.list()));
+r.post("/train-icons", adminAuth, upload.single("icon"), (req, res) => {
+  const icon_url = req.file ? `/uploads/${req.file.filename}` : null;
+  if (!icon_url || !req.body.name) return res.status(400).json({ error: "name and icon required" });
+  trainIcons.create({ name: req.body.name, icon_url });
+  ping();
+  res.status(201).json(trainIcons.list());
+});
+r.put("/train-icons/:id", adminAuth, upload.single("icon"), (req, res) => {
+  const id = Number(req.params.id);
+  const icon_url = req.file ? `/uploads/${req.file.filename}` : req.body.icon_url;
+  trainIcons.update(id, { name: req.body.name, icon_url });
+  ping();
+  res.json(trainIcons.list());
+});
+r.delete("/train-icons/:id", adminAuth, (req, res) => {
+  trainIcons.remove(Number(req.params.id));
+  ping();
+  res.status(204).end();
+});
+
 // ----- train types -----
 r.get("/train-types", (_req, res) => res.json(trainTypes.list()));
-r.post("/train-types", adminAuth, upload.single("logo"), (req, res) => {
-  const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+const uploadFields = upload.fields([
+  { name: "logo", maxCount: 1 },
+  { name: "destination_icon", maxCount: 1 },
+]);
+
+r.post("/train-types", adminAuth, uploadFields, (req, res) => {
+  const logo_url = req.files?.logo?.[0] ? `/uploads/${req.files.logo[0].filename}` : null;
+  const destination_icon_url = req.files?.destination_icon?.[0] ? `/uploads/${req.files.destination_icon[0].filename}` : null;
   const code = String(req.body.code || "").trim();
   const existing = trainTypes.list().find((t) => t.code === code);
   let statusCode = 201;
@@ -638,6 +919,7 @@ r.post("/train-types", adminAuth, upload.single("logo"), (req, res) => {
       name: req.body.name,
       color: req.body.color,
       logo_url: logo_url ?? existing.logo_url,
+      destination_icon_url: destination_icon_url ?? existing.destination_icon_url,
     });
   } else {
     trainTypes.create({
@@ -645,19 +927,22 @@ r.post("/train-types", adminAuth, upload.single("logo"), (req, res) => {
       name: req.body.name,
       color: req.body.color,
       logo_url,
+      destination_icon_url,
     });
   }
   ping();
   res.status(statusCode).json(trainTypes.list());
 });
-r.put("/train-types/:id", adminAuth, upload.single("logo"), (req, res) => {
+r.put("/train-types/:id", adminAuth, uploadFields, (req, res) => {
   const id = Number(req.params.id);
-  const logo_url = req.file ? `/uploads/${req.file.filename}` : req.body.logo_url;
+  const logo_url = req.files?.logo?.[0] ? `/uploads/${req.files.logo[0].filename}` : req.body.logo_url;
+  const destination_icon_url = req.files?.destination_icon?.[0] ? `/uploads/${req.files.destination_icon[0].filename}` : req.body.destination_icon_url;
   trainTypes.update(id, {
     code: req.body.code,
     name: req.body.name,
     color: req.body.color,
     logo_url,
+    destination_icon_url,
   });
   ping();
   res.json(trainTypes.list());
@@ -1325,7 +1610,9 @@ r.get("/stations/:stationId/board", (req, res) => {
     operatorLogo: train.operator_logo || null,
     trainTypeCode: train.type_code || "",
     trainTypeName: train.type_name || "",
+    trainTypeColor: train.type_color || null,
     trainTypeLogo: train.type_logo || null,
+    trainTypeDestinationIcon: train.type_destination_icon || null,
     destination: train.destination || "—",
     origin: train.origin || "—",
     stopsText: train.stops && train.stops.length > 0 ? train.stops.join(" · ") : "",
@@ -1348,15 +1635,18 @@ r.get("/stations/:stationId/board", (req, res) => {
       })
       .join(" · ");
 
+    const trainType = svc.train_type_id ? trainTypes.list().find(t => t.id === svc.train_type_id) : null;
     return {
       stopId: svc.id,
       serviceId: svc.id,
       number: svc.number || "?",
       operatorName: svc.operator_id ? operators.list().find(o => o.id === svc.operator_id)?.name || "" : "",
       operatorLogo: svc.operator_logo || null,
-      trainTypeCode: svc.train_type_id ? trainTypes.list().find(t => t.id === svc.train_type_id)?.code || "" : "",
-      trainTypeName: svc.train_type_id ? trainTypes.list().find(t => t.id === svc.train_type_id)?.name || "" : "",
+      trainTypeCode: trainType?.code || "",
+      trainTypeName: trainType?.name || "",
+      trainTypeColor: trainType?.color || null,
       trainTypeLogo: svc.train_type_logo || null,
+      trainTypeDestinationIcon: trainType?.destination_icon_url || null,
       destination: svc.destination_place_id ? places.list().find(p => p.id === svc.destination_place_id)?.name || "—" : "—",
       origin: svc.origin_place_id ? places.list().find(p => p.id === svc.origin_place_id)?.name || "—" : "—",
       stopsText: stopsText,

@@ -24,6 +24,7 @@ export type Train = {
   type_color?: string | null;
   type_logo?: string | null;
   type_pre_announce?: string | null;
+  type_destination_icon?: string | null;
   origin: string;
   destination: string;
   stops: string[];
@@ -39,13 +40,17 @@ export type Train = {
   station_pre_announce?: string | null;
   created_at?: string;
   sort_order?: number;
+  icon_mode?: "none" | "operator" | "type" | "destination" | "custom";
+  custom_icon_url?: string | null;
+  custom_icon_file?: File;
   status:
   | "Scheduled" | "Boarding" | "Delayed"
   | "Departed" | "Arrived" | "Cancelled";
 };
 
 export type Operator = { id: number; name: string; logo_url: string | null; pre_announce_ogg?: string | null };
-export type TrainType = { id: number; code: string; name: string; color: string; logo_url: string | null; pre_announce_ogg?: string | null };
+export type TrainType = { id: number; code: string; name: string; color: string; logo_url: string | null; pre_announce_ogg?: string | null; destination_icon_url?: string | null };
+export type TrainIcon = { id: number; name: string; icon_url: string; created_at?: string };
 export type Route = {
   code: string;
   name: string;
@@ -127,6 +132,7 @@ export type Config = {
   sectorMin?: string;
   sectorMax?: string;
   sectorAllowEmpty?: boolean | string;
+  showDestinationIcon?: boolean;
   // Styling
   bgColor?: string;
   headerBgColor?: string;
@@ -213,10 +219,34 @@ export const api = {
     json(stationId != null ? `/trains?station_id=${stationId}` : "/trains"),
   reorderTrains: (ids: number[]) =>
     json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
-  createTrain: (t: Partial<Train>) =>
-    json("/trains", { method: "POST", body: JSON.stringify(t) }),
-  updateTrain: (id: number, t: Partial<Train>) =>
-    json(`/trains/${id}`, { method: "PUT", body: JSON.stringify(t) }),
+  createTrain: (t: Partial<Train>) => {
+    const hasFile = (t as any).custom_icon_file;
+    if (hasFile) {
+      const fd = new FormData();
+      Object.entries(t).forEach(([key, value]) => {
+        if (key === "custom_icon_file") return;
+        if (Array.isArray(value)) fd.append(key, JSON.stringify(value));
+        else if (value != null) fd.append(key, String(value));
+      });
+      if (hasFile) fd.append("custom_icon", hasFile);
+      return authFetch("/trains", { method: "POST", body: fd }).then((r) => r.json());
+    }
+    return json("/trains", { method: "POST", body: JSON.stringify(t) });
+  },
+  updateTrain: (id: number, t: Partial<Train>) => {
+    const hasFile = (t as any).custom_icon_file;
+    if (hasFile) {
+      const fd = new FormData();
+      Object.entries(t).forEach(([key, value]) => {
+        if (key === "custom_icon_file") return;
+        if (Array.isArray(value)) fd.append(key, JSON.stringify(value));
+        else if (value != null) fd.append(key, String(value));
+      });
+      if (hasFile) fd.append("custom_icon", hasFile);
+      return authFetch(`/trains/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
+    }
+    return json(`/trains/${id}`, { method: "PUT", body: JSON.stringify(t) });
+  },
   setStatus: (id: number, status: Train["status"]) =>
     json(`/trains/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
   addDelay: (id: number, minutes: number) =>
@@ -255,16 +285,18 @@ export const api = {
   deleteOperatorPre: (id: number) => authFetch(`/operators/${id}/pre-announce`, { method: "DELETE" }),
 
   listTrainTypes: (): Promise<TrainType[]> => json("/train-types"),
-  createTrainType: (code: string, name: string, color: string, logo?: File | null) => {
+  createTrainType: (code: string, name: string, color: string, logo?: File | null, destinationIcon?: File | null) => {
     const fd = new FormData();
     fd.append("code", code); fd.append("name", name); fd.append("color", color);
     if (logo) fd.append("logo", logo);
+    if (destinationIcon) fd.append("destination_icon", destinationIcon);
     return authFetch("/train-types", { method: "POST", body: fd }).then((r) => r.json());
   },
-  updateTrainType: (id: number, code: string, name: string, color: string, logo?: File | null) => {
+  updateTrainType: (id: number, code: string, name: string, color: string, logo?: File | null, destinationIcon?: File | null) => {
     const fd = new FormData();
     fd.append("code", code); fd.append("name", name); fd.append("color", color);
     if (logo) fd.append("logo", logo);
+    if (destinationIcon) fd.append("destination_icon", destinationIcon);
     return authFetch(`/train-types/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
   },
   deleteTrainType: (id: number) => json(`/train-types/${id}`, { method: "DELETE" }),
@@ -274,6 +306,23 @@ export const api = {
     return authFetch(`/train-types/${id}/pre-announce`, { method: "POST", body: fd }).then((r) => r.json());
   },
   deleteTrainTypePre: (id: number) => authFetch(`/train-types/${id}/pre-announce`, { method: "DELETE" }),
+
+  // ---- TRAIN ICONS (Library) ----
+  listTrainIcons: (): Promise<TrainIcon[]> =>
+    json("/train-icons").then(r => r?.data || r || []),
+  createTrainIcon: (name: string, file: File): Promise<TrainIcon> => {
+    const fd = new FormData();
+    fd.append("name", name);
+    fd.append("icon", file);
+    return authFetch("/train-icons", { method: "POST", body: fd }).then(r => r.json());
+  },
+  updateTrainIcon: (id: number, name: string, file?: File): Promise<TrainIcon> => {
+    const fd = new FormData();
+    fd.append("name", name);
+    if (file) fd.append("icon", file);
+    return authFetch(`/train-icons/${id}`, { method: "PUT", body: fd }).then(r => r.json());
+  },
+  deleteTrainIcon: (id: number) => json(`/train-icons/${id}`, { method: "DELETE" }),
 
   listStations: (): Promise<Station[]> => json("/stations"),
   createStation: (station: Partial<Station>) =>

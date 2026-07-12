@@ -70,6 +70,13 @@ db.exec(`
     sort_order      INTEGER NOT NULL DEFAULT 0,
     created_at      TEXT NOT NULL DEFAULT (datetime('now'))
   );
+
+  CREATE TABLE IF NOT EXISTS train_icons (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    name     TEXT NOT NULL UNIQUE,
+    icon_url TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
 
 const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "sort_order");
@@ -109,6 +116,17 @@ if (!hasOpPre) {
   db.exec("ALTER TABLE operators ADD COLUMN pre_announce_ogg TEXT");
   db.exec("ALTER TABLE train_types ADD COLUMN pre_announce_ogg TEXT");
   db.exec("ALTER TABLE stations ADD COLUMN pre_announce_ogg TEXT");
+}
+
+const hasDestIcon = db.prepare("PRAGMA table_info('train_types')").all().some((c) => c.name === "destination_icon_url");
+if (!hasDestIcon) {
+  db.exec("ALTER TABLE train_types ADD COLUMN destination_icon_url TEXT");
+}
+
+const hasTrainCustomIcon = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "custom_icon_url");
+if (!hasTrainCustomIcon) {
+  db.exec("ALTER TABLE trains ADD COLUMN custom_icon_url TEXT");
+  db.exec("ALTER TABLE trains ADD COLUMN icon_mode TEXT DEFAULT 'destination'");
 }
 
 const DEFAULT_CONFIG = {
@@ -193,6 +211,7 @@ export function listTrains(stationId) {
                     tt.color             AS type_color,
                     tt.logo_url          AS type_logo,
                     tt.pre_announce_ogg  AS type_pre_announce,
+                    tt.destination_icon_url AS type_destination_icon,
                     st.name              AS station_name,
                     st.short             AS station_short,
                     st.color             AS station_color,
@@ -219,10 +238,10 @@ export function createTrain(t) {
   const stmt = db.prepare(`
     INSERT INTO trains
       (number, operator_id, train_type_id, origin, destination, stops,
-       scheduled_time, expected_time, platform, sector, status, observations, station_id)
+       scheduled_time, expected_time, platform, sector, status, observations, station_id, custom_icon_url, icon_mode)
     VALUES
       (@number, @operator_id, @train_type_id, @origin, @destination, @stops,
-       @scheduled_time, @expected_time, @platform, @sector, @status, @observations, @station_id)
+       @scheduled_time, @expected_time, @platform, @sector, @status, @observations, @station_id, @custom_icon_url, @icon_mode)
   `);
   const info = stmt.run({
     number: t.number,
@@ -238,6 +257,8 @@ export function createTrain(t) {
     status: t.status || "Scheduled",
     observations: t.observations || "",
     station_id: t.station_id ?? null,
+    custom_icon_url: t.custom_icon_url || null,
+    icon_mode: t.icon_mode || "destination",
   });
   return getTrain(info.lastInsertRowid);
 }
@@ -252,7 +273,7 @@ export function updateTrain(id, t) {
        origin=@origin, destination=@destination, stops=@stops,
        scheduled_time=@scheduled_time, expected_time=@expected_time,
        platform=@platform, sector=@sector, status=@status,
-       observations=@observations, station_id=@station_id
+       observations=@observations, station_id=@station_id, custom_icon_url=@custom_icon_url, icon_mode=@icon_mode
      WHERE id=@id`
   ).run({
     id,
@@ -269,6 +290,8 @@ export function updateTrain(id, t) {
     status: next.status,
     observations: next.observations || "",
     station_id: next.station_id ?? null,
+    custom_icon_url: next.custom_icon_url || null,
+    icon_mode: next.icon_mode || "destination",
   });
   return getTrain(id);
 }
@@ -308,22 +331,23 @@ export const operators = {
 
 export const trainTypes = {
   list: () => db.prepare("SELECT * FROM train_types ORDER BY code").all(),
-  create: ({ code, name, color, logo_url, pre_announce_ogg }) =>
+  create: ({ code, name, color, logo_url, pre_announce_ogg, destination_icon_url }) =>
     db
       .prepare(
-        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg) VALUES (?, ?, ?, ?, ?)"
+        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg, destination_icon_url) VALUES (?, ?, ?, ?, ?, ?)"
       )
-      .run(code, name, color || "#7c1d2e", logo_url || null, pre_announce_ogg || null),
-  update: (id, { code, name, color, logo_url, pre_announce_ogg }) => {
+      .run(code, name, color || "#7c1d2e", logo_url || null, pre_announce_ogg || null, destination_icon_url || null),
+  update: (id, { code, name, color, logo_url, pre_announce_ogg, destination_icon_url }) => {
     const cur = db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
     if (!cur) return null;
-    db.prepare("UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=? WHERE id=?")
+    db.prepare("UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=?, destination_icon_url=? WHERE id=?")
       .run(
         code ?? cur.code,
         name ?? cur.name,
         color ?? cur.color,
         logo_url !== undefined ? logo_url : cur.logo_url,
         pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
+        destination_icon_url !== undefined ? destination_icon_url : cur.destination_icon_url,
         id,
       );
     return db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
@@ -338,6 +362,15 @@ export const places = {
   update: (id, { name, logo_url }) =>
     db.prepare("UPDATE places SET name = ?, logo_url = ? WHERE id = ?").run(name, logo_url || null, id),
   remove: (id) => db.prepare("DELETE FROM places WHERE id = ?").run(id),
+};
+
+export const trainIcons = {
+  list: () => db.prepare("SELECT * FROM train_icons ORDER BY name").all(),
+  create: ({ name, icon_url }) =>
+    db.prepare("INSERT INTO train_icons (name, icon_url) VALUES (?, ?)").run(name, icon_url),
+  update: (id, { name, icon_url }) =>
+    db.prepare("UPDATE train_icons SET name = ?, icon_url = ? WHERE id = ?").run(name, icon_url, id),
+  remove: (id) => db.prepare("DELETE FROM train_icons WHERE id = ?").run(id),
 };
 
 export const stations = {

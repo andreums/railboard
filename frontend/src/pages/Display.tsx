@@ -6,6 +6,32 @@ import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
 import { resolveDisplayLanguage } from "../lib/tts";
 
+const SUPPORTED_LANGUAGES = new Set<string>(["es", "ca", "en", "fr", "eu", "gl"]);
+
+function resolveDisplayLanguages(config: Config | null): Language[] {
+  const rawList = Array.isArray(config?.languages)
+    ? config.languages
+    : typeof config?.languages === "string" && (config.languages as string).trim().startsWith("[")
+      ? (() => {
+          try {
+            const parsed = JSON.parse(config.languages as string);
+            return Array.isArray(parsed) ? parsed : [config.languages];
+          } catch {
+            return [config.languages];
+          }
+        })()
+      : typeof config?.languages === "string" && (config.languages as string).includes(",")
+        ? (config.languages as string).split(",")
+        : config?.languages != null
+          ? [config.languages]
+          : [];
+
+  return rawList
+    .map((v) => String(v || "").toLowerCase().trim())
+    .filter((v): v is Language => SUPPORTED_LANGUAGES.has(v))
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+}
+
 if (!document.getElementById("board-fonts")) {
   const link = document.createElement("link");
   link.id = "board-fonts";
@@ -59,8 +85,9 @@ function TrainTypeBadge({
   color?: string | null;
 }) {
   const label = code.toUpperCase().trim();
+  // Use color from DB always; only fall back to defaults if no color provided
   const isCommuter = /^(C(-\d+)?[A-Z]?|R\d+[A-Z]?)$/i.test(label);
-  const bg = color || (isCommuter ? "#2E4DA7" : "#7C1D2E");
+  const bg = color && color.trim() ? color : (isCommuter ? "#2E4DA7" : "#7C1D2E");
   const width = isCommuter ? "2.45em" : "2.95em";
   const fontSize = label.length > 4 ? 23 : label.length > 3 ? 25 : 28;
 
@@ -148,7 +175,9 @@ export default function Display() {
   const [boardStationName, setBoardStationName] = useState<string>("—");
   const [boardMode, setBoardMode] = useState<"departures" | "arrivals" | "mixed">("departures");
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
+  const [langIndex, setLangIndex] = useState(0);
 
   const refresh = async () => {
     try {
@@ -156,16 +185,28 @@ export default function Display() {
       setStations(st);
       setPlaces(p);
 
-      // Priority: URL /display/:stationId > config.station_name > first station
+      // Respect displayMode: "single" ignores URL param, "multiple" uses it
+      const displayMode = c?.displayMode || "multiple";
       let stationId = 1;
-      const parsedStationId = Number(stationIdParam);
-      if (Number.isFinite(parsedStationId) && parsedStationId > 0 && st.some((s) => s.id === parsedStationId)) {
-        stationId = parsedStationId;
-      } else if (c?.station_name && st?.length) {
-        const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
-        if (found) stationId = found.id;
-      } else if (st?.length) {
-        stationId = st[0].id;
+      if (displayMode === "single") {
+        // Single mode: always use the configured station (ignore URL param)
+        if (c?.station_name && st?.length) {
+          const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
+          if (found) stationId = found.id;
+        } else if (st?.length) {
+          stationId = st[0].id;
+        }
+      } else {
+        // Multiple mode: use URL param, fall back to config or first station
+        const parsedStationId = Number(stationIdParam);
+        if (Number.isFinite(parsedStationId) && parsedStationId > 0 && st.some((s) => s.id === parsedStationId)) {
+          stationId = parsedStationId;
+        } else if (c?.station_name && st?.length) {
+          const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
+          if (found) stationId = found.id;
+        } else if (st?.length) {
+          stationId = st[0].id;
+        }
       }
 
       let stationConfig = c;
@@ -189,8 +230,11 @@ export default function Display() {
           train_type_id: null,
           type_code: row.trainTypeCode,
           type_name: row.trainTypeName,
-          type_color: null,
+          type_color: row.trainTypeColor || null,
           type_logo: row.trainTypeLogo || null,
+          type_destination_icon: row.trainTypeDestinationIcon || null,
+          custom_icon_url: row.customIcon || null,
+          icon_mode: row.iconMode || "destination",
           origin: row.origin || "Origen",
           destination: row.destination || "Destino",
           stops: parseStopsText(row.stopsText),
@@ -204,17 +248,27 @@ export default function Display() {
         setTrains(normalizedRows);
         setBoardStationName(boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—");
         setBoardMode((boardData?.mode || mode) as "departures" | "arrivals" | "mixed");
-      } catch {
+        setError(null);
+      } catch (boardError) {
         // Fallback to legacy trains if board endpoint fails
-        const tr = await api.listTrains();
-        setTrains(tr);
-        setBoardStationName(stationConfig?.station_name || c?.station_name || "—");
-        setBoardMode((mode as "departures" | "arrivals") || "departures");
+        try {
+          const tr = await api.listTrains();
+          setTrains(tr);
+          setBoardStationName(stationConfig?.station_name || c?.station_name || "—");
+          setBoardMode((mode as "departures" | "arrivals") || "departures");
+          setError(null);
+        } catch (fallbackError) {
+          setTrains([]);
+          setError("No se pudieron cargar los trenes. Intentando de nuevo...");
+          console.error("Both board and legacy trains failed:", fallbackError);
+        }
       }
 
       setLoading(false);
     } catch (error) {
       console.error("Refresh error:", error);
+      setTrains([]);
+      setError("Error al cargar la configuración");
       setLoading(false);
     }
   };
@@ -233,8 +287,23 @@ export default function Display() {
     };
   }, [stationIdParam]);
 
+  // ── Language rotation: cycle every 5s when multiple languages configured ──
+  const displayLanguages = useMemo(() => resolveDisplayLanguages(config), [config]);
+  const hasMultipleLanguages = displayLanguages.length > 1;
+
+  useEffect(() => {
+    if (!hasMultipleLanguages) return;
+    setLangIndex(0);
+    const interval = setInterval(() => {
+      setLangIndex((prev) => (prev + 1) % displayLanguages.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hasMultipleLanguages, displayLanguages.length]);
+
   const mode = boardMode || (config?.mode as "departures" | "arrivals") || "departures";
-  const lang = resolveDisplayLanguage(config) as Language;
+  const lang = hasMultipleLanguages
+    ? displayLanguages[langIndex] || displayLanguages[0]
+    : (resolveDisplayLanguage(config) as Language);
   const rows = useMemo(() => [
     ...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status)),
   ]
@@ -273,7 +342,45 @@ export default function Display() {
   const W_MARG = "0.5%";
   // access not shown (no access data)
 
-  if (loading) return <SteamTrain />;
+  if (error) {
+    return (
+      <div style={{
+        height: "100dvh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "column",
+        backgroundColor: "#050a14",
+        color: "#fff",
+        fontFamily: "'Roboto Condensed', sans-serif",
+        gap: "2rem",
+        padding: "2rem",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>⚠️</div>
+          <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0" }}>{error}</h1>
+          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>Reintentando en 5 segundos...</p>
+        </div>
+        <button
+          onClick={() => refresh()}
+          style={{
+            padding: "0.75rem 1.5rem",
+            fontSize: "1rem",
+            backgroundColor: "#2563eb",
+            color: "white",
+            border: "none",
+            borderRadius: "0.5rem",
+            cursor: "pointer",
+            fontWeight: "bold",
+          }}
+        >
+          Reintentar ahora
+        </button>
+      </div>
+    );
+  }
+
+  if (loading || rows.length === 0) return <SteamTrain />;
 
   return (
     <div style={{
@@ -358,12 +465,6 @@ export default function Display() {
 
       {/* ══════════ TABLE ══════════ */}
       <div style={{ height: tableH, overflow: "hidden", flexShrink: 0 }}>
-        {rows.length === 0 && (
-          <div style={{ textAlign: "center", padding: "5rem 0", color: "#4466aa", fontSize: "1.2rem" }}>
-            {t("no-trains", lang)}
-          </div>
-        )}
-
         {rows.map((train, i) => {
           const place = mode === "departures" ? train.destination : train.origin;
           const minutes = minutesUntil(train.expected_time);
@@ -445,13 +546,39 @@ export default function Display() {
               <div style={{
                 width: W_DEST,
                 height: "60%",
-                fontSize: "40%",
+                fontSize: "38%",
                 display: "flex",
                 alignItems: "center",
                 overflow: "hidden",
                 boxSizing: "border-box",
-                paddingLeft: "0.4em",
+                paddingLeft: "calc(0.4em - 10px)",
+                gap: "0.5em",
               }}>
+                {(() => {
+                  const mode = train.icon_mode || (config?.showDestinationIcon !== false ? "destination" : "none");
+                  if (mode === "none") return null;
+
+                  let iconUrl: string | undefined | null = null;
+                  if (mode === "custom") iconUrl = train.custom_icon_url;
+                  else if (mode === "destination") iconUrl = train.type_destination_icon || train.type_logo || train.operator_logo;
+                  else if (mode === "type") iconUrl = train.type_logo;
+                  else if (mode === "operator") iconUrl = train.operator_logo;
+
+                  if (!iconUrl) return null;
+
+                  return (
+                    <img
+                      src={fileUrl(iconUrl || null)!}
+                      alt=""
+                      style={{
+                        height: "1em",
+                        width: "auto",
+                        flexShrink: 0,
+                        objectFit: "contain",
+                      }}
+                    />
+                  );
+                })()}
                 <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                   <div style={{
                     fontFamily: "'Oswald', sans-serif",
@@ -461,7 +588,7 @@ export default function Display() {
                     textOverflow: "ellipsis",
                     color: isCancelled ? "#4a5568" : "#ffffff",
                     textDecoration: isCancelled ? "line-through" : "none",
-                    lineHeight: 1.12,
+                    lineHeight: 1,
                     width: "100%",
                   }}>
                     {place}
@@ -500,13 +627,12 @@ export default function Display() {
                       alt={train.type_code || ""}
                       style={{
                         maxWidth: "100%",
-                        height: "85%",   // Gravita: .train-product img height: 85%
+                        height: "40%",
                         width: "auto",
                         objectFit: "contain",
                         borderRadius: "0.2em",
                         display: "block",
                         margin: 0,
-                        justifySelf: "center",
                       }}
                     />
                   ) : train.type_code ? (
@@ -517,15 +643,30 @@ export default function Display() {
                       alt={train.operator_name || ""}
                       style={{
                         maxWidth: "100%",
-                        height: "85%",
+                        height: "1.22em",
                         width: "auto",
                         objectFit: "contain",
                         borderRadius: "0.2em",
                         display: "block",
                         margin: 0,
-                        justifySelf: "center",
+                        overflow: "visible",
+                        transform: "translateY(0.25em)",
                       }}
                     />
+                  ) : train.operator_name ? (
+                    <span style={{
+                      fontSize: "55%",
+                      fontWeight: 700,
+                      fontFamily: "'Roboto Condensed', sans-serif",
+                      color: "#ffffff",
+                      lineHeight: 1,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.04em",
+                      transform: "translateY(0.25em)",
+                      display: "inline-block",
+                    }}>
+                      {train.operator_name}
+                    </span>
                   ) : null}
                 </div>
                 {/* Margin */}
@@ -557,7 +698,7 @@ export default function Display() {
                 display: "flex",
                 justifyContent: "flex-end",
                 alignItems: "center",
-                overflow: "hidden",
+                overflow: "visible",
                 boxSizing: "border-box",
                 fontFamily: "'Oswald', sans-serif",
                 fontWeight: 700,
@@ -565,7 +706,7 @@ export default function Display() {
                 paddingRight: 0,
                 paddingLeft: "0.2em",
               }}>
-                <div style={{ transform: "translateY(0.25em)" }}>{platText}</div>
+                <div style={{ transform: "translateY(0.12em)" }}>{platText}</div>
               </div>
 
               {/* ═══ LOWER ROW — 40% of row height, font 32% of rowH ═══ */}
@@ -606,7 +747,7 @@ export default function Display() {
                 fontFamily: "'Roboto Condensed', sans-serif",
               }}>
                 {hasStops && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden", marginTop: "10px" }}>
                     <ScrollText
                       text={train.stops.join(" · ")}
                       color="#ffffff"
@@ -631,7 +772,7 @@ export default function Display() {
                 boxSizing: "border-box",
               }}>
                 {hasObservations && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden", marginTop: "10px" }}>
                     <ScrollText
                       text={train.observations!}
                       color="#5FE0AF"
@@ -660,24 +801,20 @@ export default function Display() {
         alignItems: "center",
       }}>
         <div
-          className="animate-marquee"
+          className="animate-marquee-full"
           style={{
-            display: "flex",
-            gap: "4rem",
             whiteSpace: "nowrap",
             color: "#3d5a80",
-            fontSize: "clamp(0.9rem, 1.6dvh, 1.4rem)",
+            fontSize: "clamp(1.2rem, 2.4dvh, 2rem)",
             textTransform: "uppercase",
             letterSpacing: "0.2em",
             fontWeight: 700,
           }}
         >
-          {[0, 1].map((k) => (
-            <span key={k}>
-              {config?.footerText ||
-                `${t("welcome", lang)} ${boardStationName} · ${t("ticket", lang)} · ${t("tracks", lang)} · ${t("wifi", lang)} · ${t("event", lang)}`}
-            </span>
-          ))}
+          <span>
+            {config?.footerText ||
+              `${t("welcome", lang)} ${boardStationName} · ${t("ticket", lang)} · ${t("tracks", lang)} · ${t("wifi", lang)} · ${t("event", lang)}`}
+          </span>
         </div>
       </footer>
     </div>
