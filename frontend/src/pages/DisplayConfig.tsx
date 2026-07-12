@@ -716,7 +716,7 @@ export default function DisplayConfigPage() {
                         <td className="py-2 px-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.2em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.22em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
                             )}
                             {train.type_color ? (
                               <span

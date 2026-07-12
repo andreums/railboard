@@ -781,7 +781,7 @@ export default function Display() {
                     <img
                       src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
                       alt="Cercanías"
-                      style={{ height: "1.2em", width: "auto", objectFit: "contain" }}
+                      style={{ height: "1.22em", width: "auto", objectFit: "contain" }}
                     />
                   </div>
                 )}
