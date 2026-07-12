@@ -763,7 +763,12 @@ export default function DisplayConfigPage() {
                           {train.operator_name || "—"}
                         </td>
                         <td className="py-2 px-3 text-white min-w-[14rem]">
-                          <div className="font-semibold truncate">{train.destination}</div>
+                          <div className="font-semibold truncate flex items-center gap-2">
+                            {train.type_destination_icon && (
+                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1.2em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                            )}
+                            {train.destination}
+                          </div>
                           {train.stops?.length ? (
                             <div className="text-xs text-slate-400 truncate">{train.stops.join(" · ")}</div>
                           ) : (
