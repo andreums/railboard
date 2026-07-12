@@ -767,12 +767,22 @@ export default function Display() {
                 height: "40%",
                 fontSize: "19%",
                 display: "flex",
-                alignItems: "center",
+                flexDirection: "column",
+                justifyContent: "flex-start",
                 overflow: "hidden",
                 boxSizing: "border-box",
               }}>
+                {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
+                  <div style={{ paddingBottom: "8px", flexShrink: 0 }}>
+                    <img
+                      src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
+                      alt="Cercanías"
+                      style={{ height: "1.2em", width: "auto", objectFit: "contain" }}
+                    />
+                  </div>
+                )}
                 {hasObservations && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden", marginTop: "10px" }}>
+                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <ScrollText
                       text={train.observations!}
                       color="#5FE0AF"
