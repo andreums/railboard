@@ -555,9 +555,6 @@ export default function Display() {
                 gap: "0.5em",
               }}>
                 {(() => {
-                  const isCercania = train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías");
-                  if (isCercania) return null;
-
                   const mode = train.icon_mode || (config?.showDestinationIcon !== false ? "destination" : "none");
                   if (mode === "none") return null;
 
@@ -624,53 +621,57 @@ export default function Display() {
                   overflow: "visible",
                   lineHeight: 0,
                 }}>
-                  {train.type_logo ? (
-                    <img
-                      src={fileUrl(train.type_logo)!}
-                      alt={train.type_code || ""}
-                      style={{
-                        maxWidth: "100%",
-                        height: "40%",
-                        width: "auto",
-                        objectFit: "contain",
-                        borderRadius: "0.2em",
-                        display: "block",
-                        margin: 0,
-                      }}
-                    />
-                  ) : train.type_code ? (
-                    <TrainTypeBadge code={train.type_code} color={train.type_color} />
-                  ) : train.operator_logo ? (
-                    <img
-                      src={fileUrl(train.operator_logo)!}
-                      alt={train.operator_name || ""}
-                      style={{
-                        maxWidth: "100%",
-                        height: "1.22em",
-                        width: "auto",
-                        objectFit: "contain",
-                        borderRadius: "0.2em",
-                        display: "block",
-                        margin: 0,
-                        overflow: "visible",
-                        transform: "translateY(0.25em)",
-                      }}
-                    />
-                  ) : train.operator_name ? (
-                    <span style={{
-                      fontSize: "55%",
-                      fontWeight: 700,
-                      fontFamily: "'Roboto Condensed', sans-serif",
-                      color: "#ffffff",
-                      lineHeight: 1,
-                      textTransform: "uppercase",
-                      letterSpacing: "0.04em",
-                      transform: "translateY(0.25em)",
-                      display: "inline-block",
+                  {!(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
+                    <>
+                      {train.type_logo ? (
+                        <img
+                          src={fileUrl(train.type_logo)!}
+                          alt={train.type_code || ""}
+                          style={{
+                            maxWidth: "100%",
+                            height: "40%",
+                            width: "auto",
+                            objectFit: "contain",
+                            borderRadius: "0.2em",
+                            display: "block",
+                            margin: 0,
+                          }}
+                        />
+                      ) : train.type_code ? (
+                        <TrainTypeBadge code={train.type_code} color={train.type_color} />
+                      ) : train.operator_logo ? (
+                        <img
+                          src={fileUrl(train.operator_logo)!}
+                          alt={train.operator_name || ""}
+                          style={{
+                            maxWidth: "100%",
+                            height: "1.22em",
+                            width: "auto",
+                            objectFit: "contain",
+                            borderRadius: "0.2em",
+                            display: "block",
+                            margin: 0,
+                            overflow: "visible",
+                            transform: "translateY(0.25em)",
+                          }}
+                        />
+                      ) : train.operator_name ? (
+                        <span style={{
+                          fontSize: "55%",
+                          fontWeight: 700,
+                          fontFamily: "'Roboto Condensed', sans-serif",
+                          color: "#ffffff",
+                          lineHeight: 1,
+                          textTransform: "uppercase",
+                          letterSpacing: "0.04em",
+                          transform: "translateY(0.25em)",
+                          display: "inline-block",
                     }}>
                       {train.operator_name}
                     </span>
                   ) : null}
+                    </>
+                  )}
                 </div>
                 {/* Margin */}
                 <div style={{ width: "2%" }} />
