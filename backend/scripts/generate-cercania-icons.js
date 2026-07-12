@@ -26,11 +26,11 @@ function generateSVG(code, color) {
   const parts = code.split("-");
   const displayCode = parts.length > 1 ? parts[1] : code;
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
-  <!-- Rounded rectangle background -->
-  <path d="M 15 0 L 85 0 Q 100 0 100 15 L 100 45 Q 100 60 85 60 L 15 60 Q 0 60 0 45 L 0 15 Q 0 0 15 0" fill="${color}" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100.1 54.6">
+  <!-- Oval background (ADIF style) -->
+  <path d="M75.1,0H24.9C11.2,0,0,11.2,0,24.9v4.8c0,13.7,11.2,24.9,24.9,24.9h50.3c13.7,0,24.9-11.2,24.9-24.9v-4.8 C100,11.2,88.8,0,75.1,0" fill="${color}" />
   <!-- Text -->
-  <text x="50" y="42" text-anchor="middle" font-size="32" font-weight="bold" fill="white" font-family="Arial, sans-serif">
+  <text x="50" y="36" text-anchor="middle" font-size="28" font-weight="bold" fill="white" font-family="Arial, sans-serif">
     C${displayCode}
   </text>
 </svg>`;
