@@ -714,16 +714,21 @@ export default function DisplayConfigPage() {
                           {train.number}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
-                          {train.type_color ? (
-                            <span
-                              className="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold text-white"
-                              style={{ backgroundColor: train.type_color, minWidth: "3rem" }}
-                            >
-                              {train.type_code || "—"}
-                            </span>
-                          ) : (
-                            <span className="text-white text-xs">{train.type_code || "—"}</span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
+                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.2em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                            )}
+                            {train.type_color ? (
+                              <span
+                                className="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold text-white"
+                                style={{ backgroundColor: train.type_color, minWidth: "3rem" }}
+                              >
+                                {train.type_code || "—"}
+                              </span>
+                            ) : (
+                              <span className="text-white text-xs">{train.type_code || "—"}</span>
+                            )}
+                          </div>
                         </td>
                         <td className="py-2 px-3 text-slate-200 whitespace-nowrap truncate max-w-[8rem]">
                           {train.operator_name || "—"}
