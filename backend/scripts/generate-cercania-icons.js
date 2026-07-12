@@ -22,13 +22,11 @@ if (!fs.existsSync(uploadsDir)) {
 function generateSVG(code, color) {
   const number = code.split("-")[1];
   return `<?xml version="1.0" encoding="UTF-8"?>
-<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background circle -->
-  <circle cx="50" cy="50" r="48" fill="${color}" />
-  <!-- Inner circle for contrast -->
-  <circle cx="50" cy="50" r="45" fill="${color}" />
+<svg viewBox="0 0 100 60" xmlns="http://www.w3.org/2000/svg">
+  <!-- Rounded rectangle background -->
+  <path d="M 15 0 L 85 0 Q 100 0 100 15 L 100 45 Q 100 60 85 60 L 15 60 Q 0 60 0 45 L 0 15 Q 0 0 15 0" fill="${color}" />
   <!-- Text -->
-  <text x="50" y="65" text-anchor="middle" font-size="48" font-weight="bold" fill="white" font-family="Arial, sans-serif">
+  <text x="50" y="42" text-anchor="middle" font-size="36" font-weight="bold" fill="white" font-family="Arial, sans-serif">
     C${number}
   </text>
 </svg>`;
