@@ -555,6 +555,9 @@ export default function Display() {
                 gap: "0.5em",
               }}>
                 {(() => {
+                  const isCercania = train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías");
+                  if (isCercania) return null;
+
                   const mode = train.icon_mode || (config?.showDestinationIcon !== false ? "destination" : "none");
                   if (mode === "none") return null;
 
