@@ -689,99 +689,90 @@ export default function DisplayConfigPage() {
               <div className="overflow-auto rounded-xl border border-white/10 flex-1 min-h-0">
                 <table className="w-full text-[13px]">
                   <thead className="bg-black/30 border-b border-white/10 sticky top-0 z-10">
-                    <tr className="text-[11px] uppercase tracking-wide text-slate-400">
-                      <th className="text-left py-3 px-3">Hora</th>
-                      <th className="text-left py-3 px-3">Número</th>
-                      <th className="text-left py-3 px-3">Tipo</th>
-                      <th className="text-left py-3 px-3">Operador</th>
-                      <th className="text-left py-3 px-3">Destino</th>
-                      <th className="text-left py-3 px-3">Vía</th>
+                    <tr className="text-xs uppercase tracking-wide text-slate-400">
+                      <th className="text-left py-2 px-3">Hora</th>
+                      <th className="text-left py-2 px-3">Número</th>
+                      <th className="text-left py-2 px-3">Tipo</th>
+                      <th className="text-left py-2 px-3">Operador</th>
+                      <th className="text-left py-2 px-3">Destino</th>
+                      <th className="text-left py-2 px-3">Vía</th>
+                      <th className="text-center py-2 px-3">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-white/5">
+                  <tbody className="divide-y divide-white/5 text-sm">
                     {trains.map((train) => (
                       <tr key={train.id} className="hover:bg-white/5 transition">
-                        <td className="py-2 px-3 font-mono text-slate-200 whitespace-nowrap align-top">
-                          <div className="font-semibold">{train.scheduled_time}</div>
-                          {train.expected_time !== train.scheduled_time && (
-                            <div className="text-xs text-green-300">Est. {train.expected_time}</div>
-                          )}
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span className={`px-2 py-1 rounded text-[11px] font-semibold ${train.status === "Departed" ? "bg-green-900/50 text-green-200" :
-                                train.status === "Boarding" ? "bg-amber-900/50 text-amber-200" :
-                                  train.status === "Delayed" ? "bg-red-900/50 text-red-200" :
-                                    train.status === "Cancelled" ? "bg-gray-900/50 text-gray-200" :
-                                      "bg-slate-900/50 text-slate-200"
-                              }`}>
-                              {train.status}
-                            </span>
-                            <div className="flex flex-wrap gap-1">
-                              <button
-                                onClick={() => openTrainEditor(train)}
-                                disabled={busy || trainSaving}
-                                className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-[11px] font-semibold disabled:opacity-60"
-                              >
-                                Editar
-                              </button>
-                              <button
-                                onClick={() => announceRow(train)}
-                                disabled={announcingId === train.id}
-                                className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-semibold disabled:opacity-60"
-                              >
-                                {announcingId === train.id ? "Anunciando..." : "🔊"}
-                              </button>
-                              <button
-                                onClick={() => deleteTrain(train.id)}
-                                className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[11px] font-semibold text-white"
-                              >
-                                Eliminar
-                              </button>
-                            </div>
+                        <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-200">
+                          <div className="flex flex-col gap-0.5">
+                            <div className="font-semibold text-xs">{train.scheduled_time}</div>
+                            {train.expected_time !== train.scheduled_time && (
+                              <div className="text-xs text-green-300">Est. {train.expected_time}</div>
+                            )}
                           </div>
                         </td>
                         <td className="py-2 px-3 font-mono text-amber-300 font-semibold whitespace-nowrap">
                           {train.number}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            {train.type_color ? (
-                              <span
-                                className="inline-flex min-w-14 items-center justify-center rounded px-2 py-1 text-[11px] font-bold text-white"
-                                style={{ backgroundColor: train.type_color }}
-                              >
-                                {train.type_code || "—"}
-                              </span>
-                            ) : (
-                              <span className="text-white">{train.type_code || "—"}</span>
-                            )}
-                            <span className="text-[11px] text-slate-400 truncate max-w-[10rem]">
-                              {train.type_name || ""}
+                          {train.type_color ? (
+                            <span
+                              className="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold text-white"
+                              style={{ backgroundColor: train.type_color, minWidth: "3rem" }}
+                            >
+                              {train.type_code || "—"}
                             </span>
-                          </div>
+                          ) : (
+                            <span className="text-white text-xs">{train.type_code || "—"}</span>
+                          )}
                         </td>
-                        <td className="py-2 px-3 text-slate-200 whitespace-nowrap">
+                        <td className="py-2 px-3 text-slate-200 whitespace-nowrap truncate max-w-[8rem]">
                           {train.operator_name || "—"}
                         </td>
-                        <td className="py-2 px-3 text-white min-w-[14rem]">
-                          <div className="font-semibold truncate flex items-center gap-2">
+                        <td className="py-2 px-3 text-white">
+                          <div className="flex items-center gap-1.5 truncate">
                             {train.type_destination_icon && (
-                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1.2em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
                             )}
-                            {train.destination}
+                            <span className="truncate">{train.destination}</span>
                           </div>
-                          {train.stops?.length ? (
-                            <div className="text-xs text-slate-400 truncate">{train.stops.join(" · ")}</div>
-                          ) : (
-                            <div className="text-xs text-slate-500">Sin paradas intermedias</div>
-                          )}
-                          {train.observations && (
-                            <div className="text-xs text-emerald-300 truncate">{train.observations}</div>
-                          )}
                         </td>
                         <td className="py-2 px-3 whitespace-nowrap">
-                          <span className="bg-blue-900/50 text-blue-200 px-2 py-1 rounded text-xs font-semibold">
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                            train.status === "Departed" ? "bg-green-900/50 text-green-200" :
+                            train.status === "Boarding" ? "bg-amber-900/50 text-amber-200" :
+                            train.status === "Delayed" ? "bg-red-900/50 text-red-200" :
+                            train.status === "Cancelled" ? "bg-gray-900/50 text-gray-200" :
+                            "bg-blue-900/50 text-blue-200"
+                          }`}>
                             {formatPlatform(train)}
                           </span>
+                        </td>
+                        <td className="py-2 px-3 whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => openTrainEditor(train)}
+                              disabled={busy || trainSaving}
+                              className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold disabled:opacity-60"
+                              title="Editar"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              onClick={() => announceRow(train)}
+                              disabled={announcingId === train.id}
+                              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold disabled:opacity-60"
+                              title="Anunciar"
+                            >
+                              🔊
+                            </button>
+                            <button
+                              onClick={() => deleteTrain(train.id)}
+                              className="px-2 py-1 rounded bg-red-900/50 hover:bg-red-900 text-red-200 text-xs font-semibold"
+                              title="Eliminar"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
