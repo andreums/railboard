@@ -55,12 +55,12 @@ export default function RoutesPanel() {
 
     return (
         <div className="space-y-4">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-xl">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                     <div>
-                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Red / Región</label>
+                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Red / Región</label>
                         <select
-                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-white"
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800"
                             value={regionFilter}
                             onChange={(e) => setRegionFilter(e.target.value)}
                         >
@@ -73,9 +73,9 @@ export default function RoutesPanel() {
                         </select>
                     </div>
                     <div>
-                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Operador</label>
+                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Operador</label>
                         <select
-                            className="w-full rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 text-white"
+                            className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-800"
                             value={operatorFilter}
                             onChange={(e) => setOperatorFilter(e.target.value)}
                         >
@@ -88,8 +88,8 @@ export default function RoutesPanel() {
                         </select>
                     </div>
                     <div>
-                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-400">Rutas encontradas</label>
-                        <div className="rounded-xl border border-white/10 bg-slate-950/70 px-3 py-2 font-semibold text-white">
+                        <label className="mb-1 block text-xs uppercase tracking-wide text-slate-500">Rutas encontradas</label>
+                        <div className="rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 font-semibold text-slate-800">
                             {filtered.length}
                         </div>
                     </div>
@@ -98,21 +98,21 @@ export default function RoutesPanel() {
 
             {loading ? (
                 <div className="text-center py-8">
-                    <p className="text-slate-400">Cargando rutas…</p>
+                    <p className="text-slate-500">Cargando rutas…</p>
                 </div>
             ) : error ? (
                 <div className="text-center py-8">
-                    <p className="text-red-300">{error}</p>
+                    <p className="text-red-600">{error}</p>
                     <button
                         onClick={loadRoutes}
-                        className="mt-4 px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+                        className="mt-4 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
                     >
                         Reintentar
                     </button>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="text-center py-8">
-                    <p className="text-slate-400">No hay rutas con los filtros aplicados</p>
+                    <p className="text-slate-500">No hay rutas con los filtros aplicados</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -121,48 +121,48 @@ export default function RoutesPanel() {
                             key={route.code}
                             onClick={() => setSelectedRoute(route)}
                             className={`cursor-pointer rounded-2xl border p-4 transition-all ${selectedRoute?.code === route.code
-                                    ? "border-amber-400/60 bg-amber-400/10"
-                                    : "border-white/10 bg-slate-950/50 hover:border-white/20 hover:bg-white/5"
+                                    ? "border-amber-500 bg-amber-50"
+                                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                                 }`}
                         >
                             <div className="flex items-start justify-between mb-2">
                                 <div>
-                                    <h3 className="text-lg font-semibold text-white">{route.code}</h3>
-                                    <p className="text-xs text-slate-400">{route.name}</p>
+                                    <h3 className="text-lg font-semibold text-slate-900">{route.code}</h3>
+                                    <p className="text-xs text-slate-500">{route.name}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-1 text-sm mb-3">
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Red:</span>
-                                    <span className="text-white">{route.network}</span>
+                                    <span className="text-slate-500">Red:</span>
+                                    <span className="text-slate-800">{route.network}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Operador:</span>
-                                    <span className="text-white">{route.operator}</span>
+                                    <span className="text-slate-500">Operador:</span>
+                                    <span className="text-slate-800">{route.operator}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Frecuencia:</span>
-                                    <span className="text-white">{route.headwayMin} min</span>
+                                    <span className="text-slate-500">Frecuencia:</span>
+                                    <span className="text-slate-800">{route.headwayMin} min</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Andenes:</span>
-                                    <span className="text-white">{route.platforms.join(", ")}</span>
+                                    <span className="text-slate-500">Andenes:</span>
+                                    <span className="text-slate-800">{route.platforms.join(", ")}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Estaciones:</span>
-                                    <span className="text-white">{route.stations.length}</span>
+                                    <span className="text-slate-500">Estaciones:</span>
+                                    <span className="text-slate-800">{route.stations.length}</span>
                                 </div>
                             </div>
 
                             {selectedRoute?.code === route.code && (
-                                <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                                <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
                                     <div>
-                                        <p className="mb-2 text-xs uppercase tracking-wide text-slate-400">Estaciones de la ruta</p>
+                                        <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Estaciones de la ruta</p>
                                         <div className="max-h-44 space-y-1 overflow-auto pr-1">
                                             {route.stations.map((station, index) => (
-                                                <div key={`${route.code}-${station}-${index}`} className="flex items-center gap-2 rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white">
-                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-amber-500/20 text-xs font-semibold text-amber-200">
+                                                <div key={`${route.code}-${station}-${index}`} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
+                                                    <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-amber-100 text-xs font-semibold text-amber-800">
                                                         {index + 1}
                                                     </span>
                                                     <span className="min-w-0 flex-1 truncate">{station}</span>
@@ -170,16 +170,16 @@ export default function RoutesPanel() {
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="text-xs text-slate-400">
-                                        <p className="mb-1 font-semibold text-slate-300">Números disponibles</p>
+                                    <div className="text-xs text-slate-500">
+                                        <p className="mb-1 font-semibold text-slate-700">Números disponibles</p>
                                         <div className="flex flex-wrap gap-1">
                                             {route.numbers.slice(0, 3).map((n) => (
-                                                <span key={n} className="rounded bg-white/10 px-2 py-1 text-xs text-white">
+                                                <span key={n} className="rounded bg-slate-200 px-2 py-1 text-xs text-slate-700">
                                                     {n}
                                                 </span>
                                             ))}
                                             {route.numbers.length > 3 && (
-                                                <span className="rounded bg-white/10 px-2 py-1 text-xs text-slate-400">
+                                                <span className="rounded bg-slate-200 px-2 py-1 text-xs text-slate-500">
                                                     +{route.numbers.length - 3}
                                                 </span>
                                             )}
@@ -188,9 +188,9 @@ export default function RoutesPanel() {
                                     <button
                                         onClick={handleGenerateTrain}
                                         disabled={generating}
-                                        className="w-full rounded-xl bg-emerald-500 px-4 py-2 font-semibold text-white transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                        className="w-full rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
                                     >
-                                        {generating ? "Generando..." : "✈️ Generar Tren"}
+                                        {generating ? "Generando..." : "Generar Tren"}
                                     </button>
                                 </div>
                             )}
@@ -200,11 +200,11 @@ export default function RoutesPanel() {
             )}
 
             {lastGenerated && (
-                <div className="fixed bottom-6 right-6 bg-green-500/20 border border-green-500 rounded-lg p-4 max-w-sm">
-                    <p className="text-green-300 font-semibold mb-1">
+                <div className="fixed bottom-6 right-6 bg-green-50 border border-green-300 rounded-lg p-4 max-w-sm shadow-lg">
+                    <p className="text-green-800 font-semibold mb-1">
                         ✓ Tren creado: {lastGenerated.number}
                     </p>
-                    <p className="text-xs text-green-200">
+                    <p className="text-xs text-green-600">
                         {lastGenerated.origin} → {lastGenerated.destination}
                     </p>
                 </div>

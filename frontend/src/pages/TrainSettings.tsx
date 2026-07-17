@@ -3,6 +3,7 @@ import {
   api, connectWS, fileUrl, API_URL,
   type Operator, type TrainType,
 } from "../lib/api";
+import { handleImgError } from "../lib/svgPlaceholder";
 import { speak } from "../lib/tts";
 
 export default function TrainSettings() {
@@ -48,7 +49,7 @@ export default function TrainSettings() {
         <section className="bg-board-row rounded-lg p-5">
           <h2 className="font-display text-2xl mb-4">Operadores</h2>
           <Catalog
-            items={operators.map((o) => ({ id: o.id, label: o.name, extra: o.logo_url ? <img src={fileUrl(o.logo_url)!} className="h-6" /> : null }))}
+            items={operators.map((o) => ({ id: o.id, label: o.name, extra: o.logo_url ? <img src={fileUrl(o.logo_url)!} className="h-6" onError={(e) => handleImgError(e, o.name)} /> : null }))}
             onRemove={(id) => api.deleteOperator(id).then(refresh)}
             onEdit={(id) => setEditingOperator(operators.find(o => o.id === id) || null)}
             renderCreate={() => <OperatorCreate onCreated={refresh} />}
@@ -61,7 +62,7 @@ export default function TrainSettings() {
                   <input className="bg-black/40 rounded px-3 py-2" placeholder="Nombre" value={editingOperator.name} onChange={(e) => setEditingOperator({ ...editingOperator, name: e.target.value })} />
                   <div>
                     <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Logo</label>
-                    {editingOperator.logo_url && <img src={fileUrl(editingOperator.logo_url)!} className="h-8 mb-2" alt="Logo" />}
+                    {editingOperator.logo_url && <img src={fileUrl(editingOperator.logo_url)!} className="h-8 mb-2" alt="Logo" onError={(e) => handleImgError(e, editingOperator.name)} />}
                     <input type="file" accept="image/*" onChange={(e) => setOperatorLogo(e.target.files?.[0] ?? null)} />
                   </div>
                   <div>
@@ -99,7 +100,7 @@ export default function TrainSettings() {
             items={trainTypes.map((t) => ({
               id: t.id,
               label: `${t.code} — ${t.name}`,
-              extra: t.logo_url ? <img src={fileUrl(t.logo_url)!} className="h-6" alt={t.code} /> : <span className="inline-block w-4 h-4 rounded" style={{ background: t.color }} />,
+              extra: t.logo_url ? <img src={fileUrl(t.logo_url)!} className="h-6" alt={t.code} onError={(e) => handleImgError(e, t.code)} /> : <span className="inline-block w-4 h-4 rounded" style={{ background: t.color }} />,
             }))}
             onRemove={(id) => api.deleteTrainType(id).then(refresh)}
             onEdit={(id) => setEditingType(trainTypes.find(t => t.id === id) || null)}
@@ -115,7 +116,7 @@ export default function TrainSettings() {
                   <input type="color" value={editingType.color} onChange={(e) => setEditingType({ ...editingType, color: e.target.value })} className="bg-black/40 rounded px-3 py-2 h-10" />
                   <div>
                     <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Logo</label>
-                    {editingType.logo_url && <img src={fileUrl(editingType.logo_url)!} className="h-8 mb-2" alt="Logo" />}
+                    {editingType.logo_url && <img src={fileUrl(editingType.logo_url)!} className="h-8 mb-2" alt="Logo" onError={(e) => handleImgError(e, editingType.code)} />}
                     <input type="file" accept="image/*" onChange={(e) => setTypeLogo(e.target.files?.[0] ?? null)} />
                   </div>
                   <div>

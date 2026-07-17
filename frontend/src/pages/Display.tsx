@@ -5,6 +5,7 @@ import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
 import { resolveDisplayLanguage } from "../lib/tts";
+import { handleImgError } from "../lib/svgPlaceholder";
 
 const SUPPORTED_LANGUAGES = new Set<string>(["es", "ca", "en", "fr", "eu", "gl"]);
 
@@ -36,8 +37,7 @@ if (!document.getElementById("board-fonts")) {
   const link = document.createElement("link");
   link.id = "board-fonts";
   link.rel = "stylesheet";
-  link.href =
-    "https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Roboto+Condensed:wght@300;400;700&family=Roboto+Mono:wght@400;700&display=swap";
+  link.href = "/fonts/fonts.css";
   document.head.appendChild(link);
 }
 
@@ -413,6 +413,7 @@ export default function Display() {
               src={config.logo_url}
               alt="Logo"
               style={{ height: "70%", width: "auto", flexShrink: 0 }}
+              onError={(e) => handleImgError(e, config?.station_name || "Logo")}
             />
           )}
           <span style={{
@@ -576,6 +577,7 @@ export default function Display() {
                         flexShrink: 0,
                         objectFit: "contain",
                       }}
+                      onError={(e) => handleImgError(e, train.destination || "Destino")}
                     />
                   );
                 })()}
@@ -636,6 +638,7 @@ export default function Display() {
                             display: "block",
                             margin: 0,
                           }}
+                          onError={(e) => handleImgError(e, train.type_code || train.type_name || "Tren")}
                         />
                       ) : train.type_code ? (
                         <TrainTypeBadge code={train.type_code} color={train.type_color} />
@@ -654,6 +657,7 @@ export default function Display() {
                             overflow: "visible",
                             transform: "translateY(0.25em)",
                           }}
+                          onError={(e) => handleImgError(e, train.operator_name || "Logo")}
                         />
                       ) : train.operator_name ? (
                         <span style={{
@@ -782,6 +786,7 @@ export default function Display() {
                       src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
                       alt="Cercanías"
                       style={{ height: "1.22em", width: "auto", objectFit: "contain" }}
+                      onError={(e) => handleImgError(e, "Cercanías")}
                     />
                   </div>
                 )}

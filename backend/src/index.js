@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -15,6 +16,12 @@ import { logRouteStats } from "./services/routeService.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+app.set("etag", false);
+
+app.use((req, _res, next) => {
+  req.id = crypto.randomUUID();
+  next();
+});
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
 app.use(cors({

@@ -191,6 +191,7 @@ for (const f of fixtures) {
     number: f.number,
     operator_id: opId(f.op),
     train_type_id: typeId(f.type),
+    station_id: 1,
     origin: "Madrid Puerta de Atocha",
     destination: f.destination,
     stops: f.stops,

@@ -8,6 +8,7 @@ import RoutesPanel from "../components/admin/RoutesPanel";
 import WSLogPanel from "../components/admin/WSLogPanel";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import { speak, loadVoiceSettings, getVoices, defaultTemplate, getAnnouncementTemplate, getVoiceURIForLanguage, renderTemplate, type AnnouncePreset, type VoiceSettings } from "../lib/tts";
+import { handleImgError } from "../lib/svgPlaceholder";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
 type TabType = "dashboard" | "station" | "displays" | "trains" | "routes" | "operators" | "types" | "styles" | "places" | "services" | "locutions" | "voice" | "validation" | "import";
@@ -2094,7 +2095,7 @@ export default function Admin() {
                       <div key={op.id} className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-white">
                         <div className="flex items-center gap-3">
                           {op.logo_url && (
-                            <img src={fileUrl(op.logo_url)!} alt={op.name} className="w-8 h-8 object-contain" />
+                            <img src={fileUrl(op.logo_url)!} alt={op.name} className="w-8 h-8 object-contain" onError={(e) => handleImgError(e, op.name)} />
                           )}
                           <span className="text-slate-900 font-semibold">{op.name}</span>
                         </div>
@@ -2184,7 +2185,7 @@ export default function Admin() {
                             <span className="text-slate-500 text-sm ml-2">{tt.name}</span>
                           </div>
                           {tt.logo_url && (
-                            <img src={fileUrl(tt.logo_url)!} alt={tt.name} className="w-6 h-6 object-contain" />
+                            <img src={fileUrl(tt.logo_url)!} alt={tt.name} className="w-6 h-6 object-contain" onError={(e) => handleImgError(e, tt.name)} />
                           )}
                         </div>
                         <div className="flex gap-2">
@@ -2980,7 +2981,7 @@ export default function Admin() {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Logo</label>
                 {editingOperator.logo_url && (
                   <div className="mb-2">
-                    <img src={fileUrl(editingOperator.logo_url)!} alt="Logo" className="w-16 h-16 object-contain" />
+                    <img src={fileUrl(editingOperator.logo_url)!} alt="Logo" className="w-16 h-16 object-contain" onError={(e) => handleImgError(e, editingOperator.name)} />
                   </div>
                 )}
                 <input
@@ -3055,7 +3056,7 @@ export default function Admin() {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Logo</label>
                 {editingType.logo_url && (
                   <div className="mb-2">
-                    <img src={fileUrl(editingType.logo_url)!} alt="Logo" className="w-12 h-12 object-contain" />
+                    <img src={fileUrl(editingType.logo_url)!} alt="Logo" className="w-12 h-12 object-contain" onError={(e) => handleImgError(e, editingType.name)} />
                   </div>
                 )}
                 <input
@@ -3069,7 +3070,7 @@ export default function Admin() {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Icono para Destino</label>
                 {editingType.destination_icon_url && (
                   <div className="mb-2">
-                    <img src={fileUrl(editingType.destination_icon_url)!} alt="Destination Icon" className="w-12 h-12 object-contain" />
+                    <img src={fileUrl(editingType.destination_icon_url)!} alt="Destination Icon" className="w-12 h-12 object-contain" onError={(e) => handleImgError(e, editingType.name)} />
                   </div>
                 )}
                 <input

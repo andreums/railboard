@@ -1,0 +1,48 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: railboard-backend
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-railboard}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost}
+      - DB_PATH=/app/data/data.db
+      - RATE_LIMIT_MAX=120
+    volumes:
+      - db-data:/app/data
+      - uploads:/app/uploads
+      - ./backups:/app/backups
+    expose:
+      - "4000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    container_name: railboard-frontend
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-80}:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:
+    driver: local
+  uploads:
+    driver: local

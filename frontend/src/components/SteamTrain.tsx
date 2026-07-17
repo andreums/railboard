@@ -51,6 +51,8 @@ export default function SteamTrain() {
 
         .smoke {
           animation: smokePuff 2s ease-out infinite;
+          transform-box: fill-box;
+          transform-origin: center bottom;
         }
 
         .smoke1 {
@@ -67,6 +69,7 @@ export default function SteamTrain() {
 
         .wheel {
           animation: wheelSpin 1s linear infinite;
+          transform-box: fill-box;
           transform-origin: center;
         }
 
@@ -76,7 +79,8 @@ export default function SteamTrain() {
 
         .steam-rod {
           animation: steamRod 1s ease-in-out infinite;
-          transform-origin: left;
+          transform-box: fill-box;
+          transform-origin: left center;
         }
       `}</style>
 

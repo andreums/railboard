@@ -3,6 +3,8 @@ import basicAuth from "express-basic-auth";
 import multer from "multer";
 import path from "path";
 import { fileURLToPath } from "url";
+import { fileTypeFromBuffer } from "file-type";
+import fs from "fs/promises";
 import {
   db,
   getConfig, setConfig,
@@ -34,39 +36,86 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowedMimes = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"];
-    const allowedExts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]);
+const ALLOWED_AUDIO_TYPES = new Set(["audio/ogg", "audio/opus", "audio/mpeg"]);
+const VALID_IMAGE_EXTENSIONS = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"];
+const VALID_AUDIO_EXTENSIONS = [".ogg", ".opus", ".mp3"];
+
+function basicFileFilter(allowedMimes, allowedExts, errorMessage) {
+  return (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (allowedMimes.includes(file.mimetype) && allowedExts.includes(ext)) {
       cb(null, true);
     } else {
-      const err = new Error("Tipo de archivo no permitido. Solo imágenes (PNG, JPG, GIF, WebP, SVG).");
+      const err = new Error(errorMessage);
       err.code = "FILE_TYPE_NOT_ALLOWED";
       cb(err, false);
     }
-  },
+  };
+}
+
+async function validateFileType(filePath, allowedTypes) {
+  try {
+    const buffer = await fs.readFile(filePath, { flag: "r" });
+    const type = await fileTypeFromBuffer(buffer);
+    if (!type || !allowedTypes.has(type.mime)) {
+      await fs.unlink(filePath).catch(() => {});
+      return false;
+    }
+    return true;
+  } catch {
+    await fs.unlink(filePath).catch(() => {});
+    return false;
+  }
+}
+
+function contentTypeValidator(allowedTypes, errorMessage) {
+  return async (req, _res, next) => {
+    const fileList = req.file ? [req.file] : [];
+    if (req.files) {
+      if (Array.isArray(req.files)) {
+        fileList.push(...req.files);
+      } else {
+        for (const key of Object.keys(req.files)) {
+          fileList.push(...req.files[key]);
+        }
+      }
+    }
+    if (fileList.length === 0) return next();
+    for (const f of fileList) {
+      const valid = await validateFileType(f.path, allowedTypes);
+      if (!valid) {
+        const err = new Error(errorMessage);
+        err.code = "FILE_TYPE_NOT_ALLOWED";
+        return next(err);
+      }
+    }
+    next();
+  };
+}
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: basicFileFilter(
+    ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"],
+    [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"],
+    "Tipo de archivo no permitido. Solo imágenes (PNG, JPG, GIF, WebP, SVG)."
+  ),
 });
 
 const uploadAudio = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowedMimes = ["audio/ogg", "audio/opus", "audio/mpeg"];
-    const allowedExts = [".ogg", ".opus", ".mp3"];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedMimes.includes(file.mimetype) || allowedExts.includes(ext)) {
-      cb(null, true);
-    } else {
-      const err = new Error("Tipo de archivo no permitido. Solo OGG / Opus / MP3.");
-      err.code = "FILE_TYPE_NOT_ALLOWED";
-      cb(err, false);
-    }
-  },
+  fileFilter: basicFileFilter(
+    ["audio/ogg", "audio/opus", "audio/mpeg"],
+    [".ogg", ".opus", ".mp3"],
+    "Tipo de archivo no permitido. Solo OGG / Opus / MP3."
+  ),
 });
+
+const validateImageContent = contentTypeValidator(ALLOWED_IMAGE_TYPES, "El contenido del archivo no coincide con una imagen válida.");
+const validateAudioContent = contentTypeValidator(ALLOWED_AUDIO_TYPES, "El contenido del archivo no coincide con un formato de audio válido.");
 
 const r = Router();
 const ping = () => broadcast({ type: "update", at: Date.now() });
@@ -779,7 +828,7 @@ r.put("/trains/reorder", adminAuth, (req, res) => {
   res.json(listTrains());
 });
 
-r.post("/trains", adminAuth, upload.single("custom_icon"), (req, res) => {
+r.post("/trains", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
@@ -788,7 +837,7 @@ r.post("/trains", adminAuth, upload.single("custom_icon"), (req, res) => {
   ping();
   res.status(201).json(t);
 });
-r.put("/trains/:id", adminAuth, upload.single("custom_icon"), (req, res) => {
+r.put("/trains/:id", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
@@ -834,13 +883,13 @@ r.delete("/trains/:id", adminAuth, (req, res) => {
 
 // ----- operators -----
 r.get("/operators", (_req, res) => res.json(operators.list()));
-r.post("/operators", adminAuth, upload.single("logo"), (req, res) => {
+r.post("/operators", adminAuth, upload.single("logo"), validateImageContent, (req, res) => {
   const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
   operators.create({ name: req.body.name, logo_url });
   ping();
   res.status(201).json(operators.list());
 });
-r.put("/operators/:id", adminAuth, upload.single("logo"), (req, res) => {
+r.put("/operators/:id", adminAuth, upload.single("logo"), validateImageContent, (req, res) => {
   const id = Number(req.params.id);
   const logo_url = req.file ? `/uploads/${req.file.filename}` : req.body.logo_url;
   operators.update(id, { name: req.body.name, logo_url });
@@ -852,7 +901,7 @@ r.delete("/operators/:id", adminAuth, (req, res) => {
   ping();
   res.status(204).end();
 });
-r.post("/operators/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+r.post("/operators/:id/pre-announce", adminAuth, uploadAudio.single("file"), validateAudioContent, (req, res) => {
   const id = Number(req.params.id);
   const url = req.file ? `/uploads/${req.file.filename}` : null;
   operators.update(id, { pre_announce_ogg: url });
@@ -877,14 +926,14 @@ r.post("/routes/reload", adminAuth, (_req, res) => res.json(reloadRoutesDataset(
 
 // ----- train icons (library) -----
 r.get("/train-icons", (_req, res) => res.json(trainIcons.list()));
-r.post("/train-icons", adminAuth, upload.single("icon"), (req, res) => {
+r.post("/train-icons", adminAuth, upload.single("icon"), validateImageContent, (req, res) => {
   const icon_url = req.file ? `/uploads/${req.file.filename}` : null;
   if (!icon_url || !req.body.name) return res.status(400).json({ error: "name and icon required" });
   trainIcons.create({ name: req.body.name, icon_url });
   ping();
   res.status(201).json(trainIcons.list());
 });
-r.put("/train-icons/:id", adminAuth, upload.single("icon"), (req, res) => {
+r.put("/train-icons/:id", adminAuth, upload.single("icon"), validateImageContent, (req, res) => {
   const id = Number(req.params.id);
   const icon_url = req.file ? `/uploads/${req.file.filename}` : req.body.icon_url;
   trainIcons.update(id, { name: req.body.name, icon_url });
@@ -905,7 +954,7 @@ const uploadFields = upload.fields([
   { name: "destination_icon", maxCount: 1 },
 ]);
 
-r.post("/train-types", adminAuth, uploadFields, (req, res) => {
+r.post("/train-types", adminAuth, uploadFields, validateImageContent, (req, res) => {
   const logo_url = req.files?.logo?.[0] ? `/uploads/${req.files.logo[0].filename}` : null;
   const destination_icon_url = req.files?.destination_icon?.[0] ? `/uploads/${req.files.destination_icon[0].filename}` : null;
   const code = String(req.body.code || "").trim();
@@ -933,7 +982,7 @@ r.post("/train-types", adminAuth, uploadFields, (req, res) => {
   ping();
   res.status(statusCode).json(trainTypes.list());
 });
-r.put("/train-types/:id", adminAuth, uploadFields, (req, res) => {
+r.put("/train-types/:id", adminAuth, uploadFields, validateImageContent, (req, res) => {
   const id = Number(req.params.id);
   const logo_url = req.files?.logo?.[0] ? `/uploads/${req.files.logo[0].filename}` : req.body.logo_url;
   const destination_icon_url = req.files?.destination_icon?.[0] ? `/uploads/${req.files.destination_icon[0].filename}` : req.body.destination_icon_url;
@@ -952,7 +1001,7 @@ r.delete("/train-types/:id", adminAuth, (req, res) => {
   ping();
   res.status(204).end();
 });
-r.post("/train-types/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+r.post("/train-types/:id/pre-announce", adminAuth, uploadAudio.single("file"), validateAudioContent, (req, res) => {
   const id = Number(req.params.id);
   const url = req.file ? `/uploads/${req.file.filename}` : null;
   trainTypes.update(id, { pre_announce_ogg: url });
@@ -967,13 +1016,13 @@ r.delete("/train-types/:id/pre-announce", adminAuth, (req, res) => {
 
 // ----- places -----
 r.get("/places", (_req, res) => res.json(places.list()));
-r.post("/places", adminAuth, upload.single("logo"), (req, res) => {
+r.post("/places", adminAuth, upload.single("logo"), validateImageContent, (req, res) => {
   const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
   places.create({ name: req.body.name, logo_url });
   ping();
   res.status(201).json(places.list());
 });
-r.put("/places/:id", adminAuth, upload.single("logo"), (req, res) => {
+r.put("/places/:id", adminAuth, upload.single("logo"), validateImageContent, (req, res) => {
   const id = Number(req.params.id);
   const logo_url = req.file ? `/uploads/${req.file.filename}` : req.body.logo_url;
   places.update(id, { name: req.body.name, logo_url });
@@ -1007,7 +1056,7 @@ r.delete("/stations/:id", adminAuth, (req, res) => {
   ping();
   res.status(204).end();
 });
-r.post("/stations/:id/pre-announce", adminAuth, uploadAudio.single("file"), (req, res) => {
+r.post("/stations/:id/pre-announce", adminAuth, uploadAudio.single("file"), validateAudioContent, (req, res) => {
   const id = Number(req.params.id);
   const url = req.file ? `/uploads/${req.file.filename}` : null;
   stations.update(id, { pre_announce_ogg: url });

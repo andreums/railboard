@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import { announceTrain } from "../lib/tts";
+import { handleImgError } from "../lib/svgPlaceholder";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
 
@@ -332,7 +333,7 @@ export default function DisplayConfigPage() {
   if (displayMode === "multiple" && !displayedStation) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white p-6">
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="w-full mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold">Displays</h1>
@@ -360,7 +361,7 @@ export default function DisplayConfigPage() {
                     <p className="text-sm text-slate-400">{display.station.name}</p>
                   </div>
                   {display.station.logo_url && (
-                    <img src={fileUrl(display.station.logo_url)!} alt={display.station.name} className="w-10 h-10 object-contain" />
+                    <img src={fileUrl(display.station.logo_url)!} alt={display.station.name} className="w-10 h-10 object-contain" onError={(e) => handleImgError(e, display.station.name)} />
                   )}
                 </div>
                 <div className="mt-4 text-sm text-slate-300">
@@ -391,11 +392,11 @@ export default function DisplayConfigPage() {
   return (
     <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white">
       <header className="border-b border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+        <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
               {displayedStation.logo_url && (
-                <img src={fileUrl(displayedStation.logo_url)!} alt={displayedStation.name} className="w-10 h-10 object-contain" />
+                <img src={fileUrl(displayedStation.logo_url)!} alt={displayedStation.name} className="w-10 h-10 object-contain" onError={(e) => handleImgError(e, displayedStation.name)} />
               )}
               <div>
                 <h1 className="text-2xl font-bold">{displayName}</h1>
@@ -414,7 +415,7 @@ export default function DisplayConfigPage() {
         </div>
       </header>
 
-      <main className="h-[calc(100vh-81px)] max-w-[1600px] mx-auto px-4 sm:px-6 py-4 space-y-4 overflow-hidden flex flex-col">
+      <main className="h-[calc(100vh-81px)] w-full px-4 sm:px-6 py-4 space-y-4 overflow-hidden flex flex-col">
         <div className="rounded-xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
@@ -716,7 +717,7 @@ export default function DisplayConfigPage() {
                         <td className="py-2 px-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
                             {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.22em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.22em", width: "auto", flexShrink: 0, objectFit: "contain" }} onError={(e) => handleImgError(e, "Cercanías")} />
                             )}
                             {train.type_color ? (
                               <span
@@ -736,7 +737,7 @@ export default function DisplayConfigPage() {
                         <td className="py-2 px-3 text-white">
                           <div className="flex items-center gap-1.5 truncate">
                             {train.type_destination_icon && (
-                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1em", width: "auto", flexShrink: 0, objectFit: "contain" }} />
+                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1em", width: "auto", flexShrink: 0, objectFit: "contain" }} onError={(e) => handleImgError(e, train.destination || "Destino")} />
                             )}
                             <span className="truncate">{train.destination}</span>
                           </div>

@@ -7,15 +7,18 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node src/seed.js",
+    "backup": "sh scripts/backup.sh",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@rolldown/binding-darwin-arm64": "^1.2.0",
     "better-sqlite3": "^11.3.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "express-basic-auth": "^1.2.1",
     "express-rate-limit": "^8.5.2",
+    "file-type": "^22.0.1",
     "helmet": "^8.2.0",
     "multer": "^1.4.5-lts.1",
     "ws": "^8.18.0"
