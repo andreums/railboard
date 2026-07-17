@@ -1,334 +1,334 @@
-# Roadmap tècnic — RailBoard
+# Roadmap técnico — RailBoard
 
-> **Data:** 2026-07-17
-> **Base:** Anàlisi completa del repositori (vegeu ANALYSIS.md)
-> **Propòsit:** Full de ruta per reduir deute tècnic, millorar seguretat i preparar l'arquitectura per a evolucions futures.
+> **Fecha:** 2026-07-17
+> **Base:** Análisis completo del repositorio (véase ANALYSIS.md)
+> **Propósito:** Hoja de ruta para reducir deuda técnica, mejorar seguridad y preparar la arquitectura para evoluciones futuras.
 
 ---
 
-## Índex
+## Índice
 
-- [Deute identificat](#deute-identificat)
-- [Fase 0: Estabilització immediata (setmana 1)](#fase-0-estabilització-immediata-setmana-1)
-- [Fase 1: Visibilitat i control (setmanes 2-3)](#fase-1-visibilitat-i-control-setmanes-2-3)
-- [Fase 2: Reducció de deute (setmanes 4-8)](#fase-2-reducció-de-deute-setmanes-4-8)
-- [Fase 3: Evolució arquitectònica (setmanes 9-12)](#fase-3-evolució-arquitectònica-setmanes-9-12)
-- [Pla 30-60-90 dies](#pla-30-60-90-dies)
+- [Deuda identificada](#deuda-identificada)
+- [Fase 0: Estabilización inmediata (semana 1)](#fase-0-estabilización-inmediata-semana-1)
+- [Fase 1: Visibilidad y control (semanas 2-3)](#fase-1-visibilidad-y-control-semanas-2-3)
+- [Fase 2: Reducción de deuda (semanas 4-8)](#fase-2-reducción-de-deuda-semanas-4-8)
+- [Fase 3: Evolución arquitectónica (semanas 9-12)](#fase-3-evolución-arquitectónica-semanas-9-12)
+- [Plan 30-60-90 días](#plan-30-60-90-días)
 - [Quick wins](#quick-wins)
-- [Registre de riscos](#registre-de-riscos)
+- [Registro de riesgos](#registro-de-riesgos)
 
 ---
 
-## Deute identificat
+## Deuda identificada
 
-| ID | Deute | Categoria | Esforç | Risc | Component |
-|----|-------|-----------|--------|------|-----------|
-| DT-010 | Sense backup DB | Infraestructura | XS | Crític | docker-compose.yml |
-| DT-007 | Auth bàsica HTTP | Seguretat | S | Alt | routes.js |
-| DT-008 | Upload sense validació MIME | Seguretat | XS | Alt | routes.js (multer) |
-| DT-005 | Sense tests frontend | Testing | XL | Mig | Admin, Display, Trains |
-| DT-001 | Admin.tsx monolític (3128 línies) | Arquitectura | L | Mig | Admin.tsx |
-| DT-002 | routes.js massiu (1676 línies) | Arquitectura | M | Mig | routes.js |
-| DT-003 | Migracions inline a db.js | Dades | S | Baix | db.js |
-| DT-009 | Logs no estructurats | Observabilitat | XS | Baix | index.js |
-| DT-006 | Linting absent | DX | XS | Baix | ambdós projectes |
-| DT-011 | Valors màgics (station_id: 1) | Codi | XS | Baix | seed.js |
-| DT-012 | Sense gestor d'estat global | Arquitectura | M | Baix | frontend |
-| DT-013 | routeService.ts mort | Codi | XS | Baix | backend/src/services/ |
-| DT-014 | SW sense versionat | Rendiment | S | Baix | sw.js |
-
----
-
-## Fase 0: Estabilització immediata (setmana 1)
-
-Objectiu: eliminar riscos crítics i alts en 7 dies.
-
-### Backup automàtic de la base de dades
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-010 — Pèrdua total de dades en cas de fallada del volume Docker |
-| **Dependències** | Docker, cron (alpine) |
-| **Esforç** | XS (~2h) |
-| **Risc** | Baix — script de copia simple |
-| **Resultat esperat** | Còpia de `data.db` cada hora al volume host, rotació de 7 dies |
-
-**Implementació:**
-- Script `scripts/backup.sh` que copia `data.db` a `/app/backups/` amb timestamp
-- Cron al contenidor backend via `supercronic` o `crond` alpine
-- Backup disparat també abans de migracions/seed
-
-### Forçar canvi de contrasenya per defecte
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-007 — `ADMIN_PASSWORD=railboard` per defecte |
-| **Dependències** | Cap |
-| **Esforç** | XS (~30min) |
-| **Risc** | Baix |
-| **Resultat esperat** | L'admin ha de canviar la contrasenya al primer inici si és el valor per defecte |
-
-**Implementació:**
-- Middleware que a la primera petició admin amb password per defecte redirigeix a `/admin/change-password`
-- O bé log d'advertència amb instruccions
-
-### Validar MIME dels uploads
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-008 — multer filtra per extensió, no per contingut real |
-| **Dependències** | Llar d'infants `file-type` o similar |
-| **Esforç** | XS (~2h) |
-| **Risc** | Baix |
-| **Resultat esperat** | Els fitxers pujats es validen per magic bytes abans d'emmagatzemar-se |
-
-**Implementació:**
-- Middleware multer que llegeix els primers bytes i comprova MIME real
-- Rebuig de fitxers que no coincideixin amb extensió
+| ID | Deuda | Categoría | Esfuerzo | Riesgo | Componente |
+|----|-------|-----------|----------|--------|------------|
+| DT-010 | Sin backup DB | Infraestructura | XS | Crítico | docker-compose.yml |
+| DT-007 | Auth básica HTTP | Seguridad | S | Alto | routes.js |
+| DT-008 | Upload sin validación MIME | Seguridad | XS | Alto | routes.js (multer) |
+| DT-005 | Sin tests frontend | Testing | XL | Medio | Admin, Display, Trains |
+| DT-001 | Admin.tsx monolítico (3128 líneas) | Arquitectura | L | Medio | Admin.tsx |
+| DT-002 | routes.js masivo (1676 líneas) | Arquitectura | M | Medio | routes.js |
+| DT-003 | Migraciones inline en db.js | Datos | S | Bajo | db.js |
+| DT-009 | Logs no estructurados | Observabilidad | XS | Bajo | index.js |
+| DT-006 | Linting ausente | DX | XS | Bajo | ambos proyectos |
+| DT-011 | Valores mágicos (station_id: 1) | Código | XS | Bajo | seed.js |
+| DT-012 | Sin gestor de estado global | Arquitectura | M | Bajo | frontend |
+| DT-013 | routeService.ts muerto | Código | XS | Bajo | backend/src/services/ |
+| DT-014 | SW sin versionado | Rendimiento | S | Bajo | sw.js |
 
 ---
 
-## Fase 1: Visibilitat i control (setmanes 2-3)
+## Fase 0: Estabilización inmediata (semana 1)
 
-Objectiu: posar fonaments d'observabilitat i qualitat de codi.
+Objetivo: eliminar riesgos críticos y altos en 7 días.
 
-### Logs estructurats
+### Backup automático de la base de datos
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-009 — `console.log` sense nivells ni correlació |
-| **Dependències** | Cap |
-| **Esforç** | S (~4h) |
-| **Risc** | Baix |
-| **Resultat esperat** | Logs JSON amb nivells (info/warn/error), request ID, temps de resposta |
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-010 — Pérdida total de datos en caso de fallo del volumen Docker |
+| **Dependencias** | Docker, cron (alpine) |
+| **Esfuerzo** | XS (~2h) |
+| **Riesgo** | Bajo — script de copia simple |
+| **Resultado esperado** | Copia de `data.db` cada hora en el volumen host, rotación de 7 días |
 
-**Implementació:**
-- Substituir `console.log` per [pino](https://getpino.io/) o [winston](https://github.com/winstonjs/winston)
+**Implementación:**
+- Script `scripts/backup.sh` que copia `data.db` a `/app/backups/` con timestamp
+- Cron en el contenedor backend via `supercronic` o `crond` alpine
+- Backup disparado también antes de migraciones/seed
+
+### Forzar cambio de contraseña por defecto
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-007 — `ADMIN_PASSWORD=railboard` por defecto |
+| **Dependencias** | Ninguna |
+| **Esfuerzo** | XS (~30min) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | El admin debe cambiar la contraseña al primer inicio si es el valor por defecto |
+
+**Implementación:**
+- Middleware que en la primera petición admin con password por defecto redirige a `/admin/change-password`
+- O bien log de advertencia con instrucciones
+
+### Validar MIME de los uploads
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-008 — multer filtra por extensión, no por contenido real |
+| **Dependencias** | Librería `file-type` o similar |
+| **Esfuerzo** | XS (~2h) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | Los archivos subidos se validan por magic bytes antes de almacenarse |
+
+**Implementación:**
+- Middleware multer que lee los primeros bytes y comprueba MIME real
+- Rechazo de archivos que no coincidan con extensión
+
+---
+
+## Fase 1: Visibilidad y control (semanas 2-3)
+
+Objetivo: poner fundamentos de observabilidad y calidad de código.
+
+### Logs estructurados
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-009 — `console.log` sin niveles ni correlación |
+| **Dependencias** | Ninguna |
+| **Esfuerzo** | S (~4h) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | Logs JSON con niveles (info/warn/error), request ID, tiempo de respuesta |
+
+**Implementación:**
+- Sustituir `console.log` por [pino](https://getpino.io/) o [winston](https://github.com/winstonjs/winston)
 - Middleware `X-Request-ID` via `crypto.randomUUID()`
-- Formateig JSON per a producció, pretty-print per a dev
+- Formateo JSON para producción, pretty-print para dev
 
 ### ESLint + Prettier + CI
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-006 — cap eina d'anàlisi estàtica |
-| **Dependències** | Cap |
-| **Esforç** | XS (~2h) |
-| **Risc** | Baix |
-| **Resultat esperat** | `npm run lint` funcional, `npm run format`, CI amb GitHub Actions |
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-006 — ninguna herramienta de análisis estático |
+| **Dependencias** | Ninguna |
+| **Esfuerzo** | XS (~2h) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | `npm run lint` funcional, `npm run format`, CI con GitHub Actions |
 
-**Implementació:**
-- ESLint flat config per a backend (JS) i frontend (TS)
-- Prettier per a format automàtic
-- GitHub Actions workflow: lint + test a cada PR/branch
-- `.vscode/settings.json` recomanat
+**Implementación:**
+- ESLint flat config para backend (JS) y frontend (TS)
+- Prettier para formato automático
+- GitHub Actions workflow: lint + test en cada PR/branch
+- `.vscode/settings.json` recomendado
 
-### Health check ampliat
+### Health check ampliado
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | GET /health només retorna `{ ok: true }` |
-| **Dependències** | Fase 1 (logs) |
-| **Esforç** | XS (~1h) |
-| **Risc** | Baix |
-| **Resultat esperat** | Health check que verifica DB, espai en disc, memòria, uploads accessibles |
-
----
-
-## Fase 2: Reducció de deute (setmanes 4-8)
-
-Objectiu: reduir la complexitat dels fitxers més problemàtics.
-
-### Tests dels components crítics (Display, Trains)
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-005 — cap test de components principals |
-| **Dependències** | Fase 1 (linters, CI) |
-| **Esforç** | M (~20h) |
-| **Risc** | Mig — canvis d'API poden requerir actualització de tests |
-| **Resultat esperat** | 10-15 tests nous: Display (render, poll, WS), Admin (CRUD bàsic), Trains (DnD) |
-
-### Refactor routes.js en serveis
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-002 — 1676 línies amb lògica de negoci, validació, transformació |
-| **Dependències** | Cap (es pot fer incrementalment) |
-| **Esforç** | M (~16h) |
-| **Risc** | Mig — regressió si no hi ha tests de cobertura |
-| **Resultat esperat** | Fitxers separats per domini: `trainService.js`, `operatorService.js`, `stationService.js`, `uploadService.js` |
-
-**Pla de refactor:**
-1. Extreure funcions auxiliars a `helpers.js`
-2. Crear `trainService.js` amb CRUD + generació
-3. Crear `operatorService.js` i `trainTypeService.js`
-4. Crear `uploadService.js` amb validació MIME
-5. Deixar `routes.js` només amb definició de rutes i middleware
-
-### Unificar migracions a SQL
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-003 — migracions inline a db.js + fitxers .sql, dues fonts de veritat |
-| **Dependències** | Cap |
-| **Esforç** | S (~6h) |
-| **Risc** | Baix — les migracions existents són estables |
-| **Resultat esperat** | Totes les migracions en fitxers .sql seqüencials, db.js sense ALTER TABLE inline |
-
-### Eliminar codi mort
-
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-013 — `routeService.ts` duplicat de `routeService.js`, no s'usa |
-| **Dependències** | Cap |
-| **Esforç** | XS (~15min) |
-| **Risc** | Baix |
-| **Resultat esperat** | Fitxer eliminat, cap import trencat |
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | GET /health solo retorna `{ ok: true }` |
+| **Dependencias** | Fase 1 (logs) |
+| **Esfuerzo** | XS (~1h) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | Health check que verifica DB, espacio en disco, memoria, uploads accesibles |
 
 ---
 
-## Fase 3: Evolució arquitectònica (setmanes 9-12)
+## Fase 2: Reducción de deuda (semanas 4-8)
 
-### Refactor Admin.tsx en subcomponents
+Objetivo: reducir la complejidad de los archivos más problemáticos.
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-001 — 3128 línies, component monolític |
-| **Dependències** | Fase 2 (tests, serveis) |
-| **Esforç** | L (~40h) |
-| **Risc** | Mig — cal no trencar funcionalitat existent |
-| **Resultat esperat** | 8-10 fitxers independents, lazy loading per tabs, codi més testeable |
+### Tests de los componentes críticos (Display, Trains)
 
-**Pla de refactor:**
-1. Extreure cada tab a un component independent (ja hi ha alguns: `GenerationPanel`, `RoutesPanel`, etc.)
-2. Separar lògica de sidebar, dashboard, modals
-3. Afegir lazy loading amb `React.lazy()` + `Suspense`
-4. Mantenir compatibilitat d'URLs i estat
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-005 — ningún test de componentes principales |
+| **Dependencias** | Fase 1 (linters, CI) |
+| **Esfuerzo** | M (~20h) |
+| **Riesgo** | Medio — cambios de API pueden requerir actualización de tests |
+| **Resultado esperado** | 10-15 tests nuevos: Display (render, poll, WS), Admin (CRUD básico), Trains (DnD) |
 
-### Gestor d'estat global
+### Refactor routes.js en servicios
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-012 — dades recarregades a cada navegació, renders innecessaris |
-| **Dependències** | Fase 3 (Admin refactor) |
-| **Esforç** | M (~16h) |
-| **Risc** | Baix — es pot afegir gradualment |
-| **Resultat esperat** | Dades compartides entre vistes, menys peticions a l'API, millor experiència d'usuari |
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-002 — 1676 líneas con lógica de negocio, validación, transformación |
+| **Dependencias** | Ninguna (se puede hacer incrementalmente) |
+| **Esfuerzo** | M (~16h) |
+| **Riesgo** | Medio — regresión si no hay tests de cobertura |
+| **Resultado esperado** | Archivos separados por dominio: `trainService.js`, `operatorService.js`, `stationService.js`, `uploadService.js` |
 
-**Recomanació:** [TanStack Query](https://tanstack.com/query/latest) per a dades d'API (caching, refetch, stale-while-revalidate) + [Zustand](https://github.com/pmndrs/zustand) per a estat d'UI (sidebar oberta, tab actiu, etc.)
+**Plan de refactor:**
+1. Extraer funciones auxiliares a `helpers.js`
+2. Crear `trainService.js` con CRUD + generación
+3. Crear `operatorService.js` y `trainTypeService.js`
+4. Crear `uploadService.js` con validación MIME
+5. Dejar `routes.js` solo con definición de rutas y middleware
+
+### Unificar migraciones a SQL
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-003 — migraciones inline en db.js + archivos .sql, dos fuentes de verdad |
+| **Dependencias** | Ninguna |
+| **Esfuerzo** | S (~6h) |
+| **Riesgo** | Bajo — las migraciones existentes son estables |
+| **Resultado esperado** | Todas las migraciones en archivos .sql secuenciales, db.js sin ALTER TABLE inline |
+
+### Eliminar código muerto
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-013 — `routeService.ts` duplicado de `routeService.js`, no se usa |
+| **Dependencias** | Ninguna |
+| **Esfuerzo** | XS (~15min) |
+| **Riesgo** | Bajo |
+| **Resultado esperado** | Archivo eliminado, ningún import roto |
+
+---
+
+## Fase 3: Evolución arquitectónica (semanas 9-12)
+
+### Refactor Admin.tsx en subcomponentes
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-001 — 3128 líneas, componente monolítico |
+| **Dependencias** | Fase 2 (tests, servicios) |
+| **Esfuerzo** | L (~40h) |
+| **Riesgo** | Medio — no debe romperse la funcionalidad existente |
+| **Resultado esperado** | 8-10 archivos independientes, lazy loading por tabs, código más testeable |
+
+**Plan de refactor:**
+1. Extraer cada tab a un componente independiente (ya hay algunos: `GenerationPanel`, `RoutesPanel`, etc.)
+2. Separar lógica de sidebar, dashboard, modals
+3. Añadir lazy loading con `React.lazy()` + `Suspense`
+4. Mantener compatibilidad de URLs y estado
+
+### Gestor de estado global
+
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-012 — datos recargados en cada navegación, renders innecesarios |
+| **Dependencias** | Fase 3 (Admin refactor) |
+| **Esfuerzo** | M (~16h) |
+| **Riesgo** | Bajo — se puede añadir gradualmente |
+| **Resultado esperado** | Datos compartidos entre vistas, menos peticiones a la API, mejor experiencia de usuario |
+
+**Recomendación:** [TanStack Query](https://tanstack.com/query/latest) para datos de API (caching, refetch, stale-while-revalidate) + [Zustand](https://github.com/pmndrs/zustand) para estado de UI (sidebar abierta, tab activo, etc.)
 
 ### Migrar auth a tokens o OAuth2 proxy
 
-| Camp | Detall |
-|------|--------|
-| **Problema** | DT-007 — Basic auth sense HTTPS, sense MFA, sense rotació |
-| **Dependències** | Fase 1 (logs, health) |
-| **Esforç** | M (~20h) |
-| **Risc** | Mig — canvi de paradigma d'autenticació |
-| **Resultat esperat** | Autenticació mitjançant JWT o proxy OAuth2 (Authelia, oauth2-proxy) |
+| Campo | Detalle |
+|-------|---------|
+| **Problema** | DT-007 — Basic auth sin HTTPS, sin MFA, sin rotación |
+| **Dependencias** | Fase 1 (logs, health) |
+| **Esfuerzo** | M (~20h) |
+| **Riesgo** | Medio — cambio de paradigma de autenticación |
+| **Resultado esperado** | Autenticación mediante JWT o proxy OAuth2 (Authelia, oauth2-proxy) |
 
-**Opcions:**
-1. **JWT local** — login POST /admin/login retorna token, middleware de验证
-2. **OAuth2 proxy** — Authelia/oauth2-proxy davant de Nginx, zero canvis al backend
-3. **API keys** — per a integracions automatitzades
+**Opciones:**
+1. **JWT local** — login POST /admin/login retorna token, middleware de validación
+2. **OAuth2 proxy** — Authelia/oauth2-proxy delante de Nginx, cero cambios al backend
+3. **API keys** — para integraciones automatizadas
 
 ---
 
-## Pla 30-60-90 dies
+## Plan 30-60-90 días
 
-### Dies 1-30: Estabilització i fonaments
+### Días 1-30: Estabilización y fundamentos
 
-| Setmana | Acció | Entregable verificable |
-|---------|-------|------------------------|
-| 1 | Backup DB automàtic + forçar canvi password + validar MIME uploads | Script `scripts/backup.sh` funcional, middleware de password per defecte, validació MIME als uploads |
-| 2 | Logs estructurats amb pino/winston + Request-ID | `docker compose logs -f backend` mostra JSON, cada línia té `reqId` |
-| 3 | ESLint + Prettier + GitHub Actions CI | `npm run lint` passa a backend i frontend, CI verd a cada PR |
-| 4 | Tests bàsics de components frontend (Display, Trains) | 10 tests nous que passen a `npm test` del frontend |
+| Semana | Acción | Entregable verificable |
+|--------|--------|------------------------|
+| 1 | Backup DB automático + forzar cambio password + validar MIME uploads | Script `scripts/backup.sh` funcional, middleware de password por defecto, validación MIME en los uploads |
+| 2 | Logs estructurados con pino/winston + Request-ID | `docker compose logs -f backend` muestra JSON, cada línea tiene `reqId` |
+| 3 | ESLint + Prettier + GitHub Actions CI | `npm run lint` pasa en backend y frontend, CI verde en cada PR |
+| 4 | Tests básicos de componentes frontend (Display, Trains) | 10 tests nuevos que pasan en `npm test` del frontend |
 
-**Fites verificables:**
-- [ ] `scripts/backup.sh` existeix i funciona
-- [ ] Engegar amb `ADMIN_PASSWORD=railboard` mostra warning al log
-- [ ] Pujar un `.exe` amb extensió `.png` és rebutjat
-- [ ] Logs tenen format JSON amb `level`, `reqId`, `msg`
-- [ ] `npm run lint` executa sense errors
-- [ ] GitHub Actions mostra check verd
-- [ ] `npm test` frontend reporta ≥31 tests passant
+**Hitos verificables:**
+- [ ] `scripts/backup.sh` existe y funciona
+- [ ] Arrancar con `ADMIN_PASSWORD=railboard` muestra warning en el log
+- [ ] Subir un `.exe` con extensión `.png` es rechazado
+- [ ] Logs tienen formato JSON con `level`, `reqId`, `msg`
+- [ ] `npm run lint` ejecuta sin errores
+- [ ] GitHub Actions muestra check verde
+- [ ] `npm test` frontend reporta ≥31 tests pasando
 
-### Dies 31-60: Reducció de deute tècnic
+### Días 31-60: Reducción de deuda técnica
 
-| Setmana | Acció | Entregable verificable |
-|---------|-------|------------------------|
-| 5-6 | Refactor routes.js en serveis | Fitxers `trainService.js`, `operatorService.js`, `stationService.js`, `uploadService.js` creats; `routes.js` < 500 línies |
-| 7 | Unificar migracions SQL | Totes les migracions en fitxers `.sql` seqüencials, db.js sense ALTER TABLE inline |
-| 8 | Validació d'uploads amb file-type + eliminar routeService.ts | `file-type` comprovant magic bytes; `routeService.ts` eliminat |
+| Semana | Acción | Entregable verificable |
+|--------|--------|------------------------|
+| 5-6 | Refactor routes.js en servicios | Archivos `trainService.js`, `operatorService.js`, `stationService.js`, `uploadService.js` creados; `routes.js` < 500 líneas |
+| 7 | Unificar migraciones SQL | Todas las migraciones en archivos `.sql` secuenciales, db.js sin ALTER TABLE inline |
+| 8 | Validación de uploads con file-type + eliminar routeService.ts | `file-type` comprobando magic bytes; `routeService.ts` eliminado |
 
-**Fites verificables:**
-- [ ] `routes.js` només conté definicions de ruta i middleware
-- [ ] `src/services/trainService.js` existeix amb CRUD
-- [ ] Migracions només a `backend/migrations/*.sql`
-- [ ] `routeService.ts` no existeix al repo
-- [ ] Upload de fitxer amb bytes PNG però extensió .jpg és acceptat (contingut real)
+**Hitos verificables:**
+- [ ] `routes.js` solo contiene definiciones de ruta y middleware
+- [ ] `src/services/trainService.js` existe con CRUD
+- [ ] Migraciones solo en `backend/migrations/*.sql`
+- [ ] `routeService.ts` no existe en el repo
+- [ ] Upload de archivo con bytes PNG pero extensión .jpg es aceptado (contenido real)
 
-### Dies 61-90: Evolució arquitectònica
+### Días 61-90: Evolución arquitectónica
 
-| Setmana | Acció | Entregable verificable |
-|---------|-------|------------------------|
-| 9-10 | Refactor Admin.tsx en subcomponents | 8-10 fitxers independents, lazy loading, sidebar separada |
-| 11 | Gestor d'estat global (TanStack Query / Zustand) | Dades compartides, menys renders, cache activa |
-| 12 | Documentació i tancament | ROADMAP actualitzat, ADRs nous, docs d'arquitectura |
+| Semana | Acción | Entregable verificable |
+|--------|--------|------------------------|
+| 9-10 | Refactor Admin.tsx en subcomponentes | 8-10 archivos independientes, lazy loading, sidebar separada |
+| 11 | Gestor de estado global (TanStack Query / Zustand) | Datos compartidos, menos renders, cache activa |
+| 12 | Documentación y cierre | ROADMAP actualizado, ADRs nuevos, docs de arquitectura |
 
-**Fites verificables:**
-- [ ] Cada tab d'admin és un component independent
-- [ ] Lazy loading actiu (els tabs es carreguen sota demanda)
-- [ ] Navegar de /admin a /trains no recarrega operadors/tipus
-- [ ] Docs d'arquitectura cobreixen decisions preses
+**Hitos verificables:**
+- [ ] Cada tab de admin es un componente independiente
+- [ ] Lazy loading activo (los tabs se cargan bajo demanda)
+- [ ] Navegar de /admin a /trains no recarga operadores/tipos
+- [ ] Docs de arquitectura cubren decisiones tomadas
 
 ---
 
 ## Quick wins
 
-Accions d'esforç XS (≤2h) que es poden implementar en qualsevol moment.
+Acciones de esfuerzo XS (≤2h) que se pueden implementar en cualquier momento.
 
-| Acció | Benefici | Esforç | Risc | Arxils |
-|-------|----------|--------|------|--------|
-| Backup DB automàtic | Pèrdua zero de dades | XS | Baix | `docker-compose.yml`, `scripts/backup.sh` |
-| Forçar canvi password per defecte | Seguretat millorada | XS | Baix | `.env.docker`, `index.js` |
-| Validar MIME real dels uploads | Evita RCE via fitxer maliciós | XS | Baix | `routes.js` (multer) |
-| Eliminar `routeService.ts` | Codi net, menys confusió | XS | Baix | `backend/src/services/` |
-| Afegir `.nvmrc` | Experiència desenvolupador consistent | XS | Baix | `.nvmrc` (contingut: `20`) |
-| Afegir `X-Request-ID` middleware | Depuració i correlació de logs | XS | Baix | `index.js` |
-| Afegir `.editorconfig` | Format consistent entre editors | XS | Baix | `.editorconfig` |
-| Reemplaçar `@rolldown/binding-darwin-arm64` per devDependency opcional | Evita errors d'instal·lació | XS | Baix | `package.json` ambdós |
-
----
-
-## Registre de riscos
-
-| ID | Risc | Causa | Probabilitat | Impacte | Mitigació | Contingència |
-|----|------|-------|:------------:|:-------:|-----------|--------------|
-| R-01 | Pèrdua de dades | Fallada volume Docker, corrupció SQLite | Baixa | Crític | Backup automàtic (cron + script) a volume separat | Restaurar des de backup, verificar integritat |
-| R-02 | Accés no autoritzat | Contrasenya per defecte, Basic auth sense HTTPS | Mitjana | Alt | Forçar canvi de password al primer inici, migrar a tokens | Revocar accés, canviar password, rotar secrets |
-| R-03 | RCE via upload | Fitxer maliciós amb extensió vàlida (ex: .png amb shell script) | Baixa | Crític | Validar MIME real amb `file-type`, límit de mida, escaneig | Revisar logs, eliminar fitxer sospitós, audit trail |
-| R-04 | Bloqueig per mantenibilitat | Admin.tsx + routes.js massius (4804 línies combinades) | Alta | Mig | Refactor progressiu per fases | Congelar noves features fins a completar refactor |
-| R-05 | Pèrdua de coneixement | Cap documentació de decisions arquitectòniques, onboarding inexistent | Mitjana | Alt | ADRs per a decisions importants, ONBOARDING.md, diagrames d'arquitectura | Mantenir almenys ANALYSIS.md actualitzat |
-| R-06 | Incompatibilitat Node 22+ | Dependències natives (better-sqlite3) poden no compilar en versions futures | Mitjana | Mig | Testjar amb Node 22 a CI, pin Node 20 al Dockerfile | Actualitzar better-sqlite3, o usar versió LTS al contenidor |
-| R-07 | Regressió per refactors | Canvis a routes.js o Admin.tsx sense tests de cobertura | Mitjana | Alt | Tests abans de refactor (Fase 2 abans de Fase 3), CI amb coverage gate | Feature flags per a refactors grans, rollback plan |
+| Acción | Beneficio | Esfuerzo | Riesgo | Archivos |
+|--------|-----------|----------|--------|----------|
+| Backup DB automático | Pérdida cero de datos | XS | Bajo | `docker-compose.yml`, `scripts/backup.sh` |
+| Forzar cambio password por defecto | Seguridad mejorada | XS | Bajo | `.env.docker`, `index.js` |
+| Validar MIME real de los uploads | Evita RCE via archivo malicioso | XS | Bajo | `routes.js` (multer) |
+| Eliminar `routeService.ts` | Código limpio, menos confusión | XS | Bajo | `backend/src/services/` |
+| Añadir `.nvmrc` | Experiencia desarrollador consistente | XS | Bajo | `.nvmrc` (contenido: `20`) |
+| Añadir `X-Request-ID` middleware | Depuración y correlación de logs | XS | Bajo | `index.js` |
+| Añadir `.editorconfig` | Formato consistente entre editores | XS | Bajo | `.editorconfig` |
+| Reemplazar `@rolldown/binding-darwin-arm64` por devDependency opcional | Evita errores de instalación | XS | Bajo | `package.json` ambos |
 
 ---
 
-## Resum visual
+## Registro de riesgos
+
+| ID | Riesgo | Causa | Probabilidad | Impacto | Mitigación | Contingencia |
+|----|--------|-------|:------------:|:-------:|------------|--------------|
+| R-01 | Pérdida de datos | Fallo volumen Docker, corrupción SQLite | Baja | Crítico | Backup automático (cron + script) en volumen separado | Restaurar desde backup, verificar integridad |
+| R-02 | Acceso no autorizado | Contraseña por defecto, Basic auth sin HTTPS | Media | Alto | Forzar cambio de password al primer inicio, migrar a tokens | Revocar acceso, cambiar password, rotar secrets |
+| R-03 | RCE via upload | Archivo malicioso con extensión válida (ej: .png con shell script) | Baja | Crítico | Validar MIME real con `file-type`, límite de tamaño, escaneo | Revisar logs, eliminar archivo sospechoso, audit trail |
+| R-04 | Bloqueo por mantenibilidad | Admin.tsx + routes.js masivos (4804 líneas combinadas) | Alta | Medio | Refactor progresivo por fases | Congelar nuevas features hasta completar refactor |
+| R-05 | Pérdida de conocimiento | Sin documentación de decisiones arquitectónicas, onboarding inexistente | Media | Alto | ADRs para decisiones importantes, ONBOARDING.md, diagramas de arquitectura | Mantener al menos ANALYSIS.md actualizado |
+| R-06 | Incompatibilidad Node 22+ | Dependencias nativas (better-sqlite3) pueden no compilar en versiones futuras | Media | Medio | Testear con Node 22 en CI, pin Node 20 en el Dockerfile | Actualizar better-sqlite3, o usar versión LTS en el contenedor |
+| R-07 | Regresión por refactors | Cambios en routes.js o Admin.tsx sin tests de cobertura | Media | Alto | Tests antes de refactor (Fase 2 antes de Fase 3), CI con coverage gate | Feature flags para refactors grandes, rollback plan |
+
+---
+
+## Resumen visual
 
 ```
-Setmana 1          Setmana 2-3         Setmana 4-8          Setmana 9-12
+Semana 1          Semana 2-3         Semana 4-8          Semana 9-12
 ─────────────────  ─────────────────  ───────────────────  ───────────────────
 ┌────────────────┐ ┌────────────────┐ ┌──────────────────┐ ┌──────────────────┐
 │ Backup DB      │ │ Logs (pino)    │ │ Tests frontend   │ │ Refactor Admin   │
-│ Forçar pwd     │ │ ESLint+CI      │ │ Refactor routes  │ │ Gestor estat     │
+│ Forzar pwd     │ │ ESLint+CI      │ │ Refactor routes  │ │ Gestor estado    │
 │ Validar MIME   │ │ Health check   │ │ Unificar migr.   │ │ Auth tokens      │
 └────────────────┘ └────────────────┘ └──────────────────┘ └──────────────────┘
-     Riscos crítics    Qualitat i         Reducció            Evolució
-     eliminats         observabilitat     de deute            arquitectònica
+     Riesgos críticos    Calidad y          Reducción           Evolución
+     eliminados          observabilidad     de deuda            arquitectónica
 ```
 
-> **Nota:** Aquest roadmap és un document viu. Les prioritats i l'abast de cada fase s'han de revisar periòdicament basant-se en el context del projecte i les necessitats canviants.
+> **Nota:** Este roadmap es un documento vivo. Las prioridades y el alcance de cada fase se deben revisar periódicamente basándose en el contexto del proyecto y las necesidades cambiantes.

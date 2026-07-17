@@ -1,68 +1,68 @@
-# Anàlisi Tècnica del Projecte RailBoard
+# Análisis Técnica del Proyecto RailBoard
 
-> **Data:** 2026-07-17
-> **Abast:** Anàlisi completa del repositori `/Users/andreu/Documents/Treball/railboard`
-> **Analista:** Auditor tècnic automatitzat
-> **Commint analitzat:** Vegeu `git log --oneline -1`
+> **Fecha:** 2026-07-17
+> **Alcance:** Análisis completo del repositorio `/Users/andreu/Documents/Treball/railboard`
+> **Analista:** Auditor técnico automatizado
+> **Commit analizado:** Véase `git log --oneline -1`
 
-## Índex
+## Índice
 
-- [1. Resum executiu](#1-resum-executiu)
-- [2. Inventari tècnic](#2-inventari-tècnic)
+- [1. Resumen ejecutivo](#1-resumen-ejecutivo)
+- [2. Inventario técnico](#2-inventario-técnico)
 - [3. Arquitectura actual](#3-arquitectura-actual)
-- [4. Documentació funcional](#4-documentació-funcional)
-- [5. Model de domini](#5-model-de-domini)
-- [6. Anàlisi de qualitat del codi](#6-anàlisi-de-qualitat-del-codi)
-- [7. Anàlisi de deuda tècnica](#7-anàlisi-de-deuda-tècnica)
-- [8. Matriu de priorització](#8-matriu-de-priorització)
-- [9. Seguretat](#9-seguretat)
-- [10. Testing i qualitat](#10-testing-i-qualitat)
-- [11. Rendiment i escalabilitat](#11-rendiment-i-escalabilitat)
-- [12. Observabilitat i operació](#12-observabilitat-i-operació)
-- [13. Dependències i obsolescència](#13-dependències-i-obsolescència)
-- [14. Experiència de desenvolupament](#14-experiència-de-desenvolupament)
-- [15. Documentació que cal crear](#15-documentació-que-cal-crear)
-- [16. ADR: decisions arquitectòniques](#16-adr-decisions-arquitectòniques)
-- [17. Roadmap de millora](#17-roadmap-de-millora)
-- [18. Pla 30-60-90 dies](#18-pla-30-60-90-dies)
+- [4. Documentación funcional](#4-documentación-funcional)
+- [5. Modelo de dominio](#5-modelo-de-dominio)
+- [6. Análisis de calidad del código](#6-análisis-de-calidad-del-código)
+- [7. Análisis de deuda técnica](#7-análisis-de-deuda-técnica)
+- [8. Matriz de priorización](#8-matriz-de-priorización)
+- [9. Seguridad](#9-seguridad)
+- [10. Testing y calidad](#10-testing-y-calidad)
+- [11. Rendimiento y escalabilidad](#11-rendimiento-y-escalabilidad)
+- [12. Observabilidad y operación](#12-observabilidad-y-operación)
+- [13. Dependencias y obsolescencia](#13-dependencias-y-obsolescencia)
+- [14. Experiencia de desarrollo](#14-experiencia-de-desarrollo)
+- [15. Documentación que crear](#15-documentación-que-crear)
+- [16. ADR: decisiones arquitectónicas](#16-adr-decisiones-arquitectónicas)
+- [17. Roadmap de mejora](#17-roadmap-de-mejora)
+- [18. Plan 30-60-90 días](#18-plan-30-60-90-días)
 - [19. Quick wins](#19-quick-wins)
-- [20. Riscos](#20-riscos)
-- [21. Preguntes pendents](#21-preguntes-pendents)
+- [20. Riesgos](#20-riesgos)
+- [21. Preguntas pendientes](#21-preguntas-pendientes)
 
 ---
 
-## 1. Resum executiu
+## 1. Resumen ejecutivo
 
-### Propòsit del sistema
+### Propósito del sistema
 
-**RailBoard** és un simulador de panells informatius de sortides/arribades de trens d'estació, inspirat en els panells de la xarxa ferroviària espanyola (estil Gravita/ADIF). El sistema genera dades sintètiques de trens, les presenta en un panell visual tipus "board" optimitzat per pantalles grans, i ofereix una interfície d'administració per configurar estacions, operadors, tipus de tren i locucions.
+**RailBoard** es un simulador de paneles informativos de salidas/llegadas de trenes de estación, inspirado en los paneles de la red ferroviaria española (estilo Gravita/ADIF). El sistema genera datos sintéticos de trenes, los presenta en un panel visual tipo "board" optimizado para pantallas grandes, y ofrece una interfaz de administración para configurar estaciones, operadores, tipos de tren y locuciones.
 
-### Usuaris principals
+### Usuarios principales
 
-1. **Operadors de maquetes ferroviàries** — usen el panell com a decoració/ambientació
-2. **Administradors** — configuren estacions, generen trens, gestionen operadors i tipus
-3. **Visitants d'exposicions** — veuen el panell en pantalles en esdeveniments
+1. **Operadores de maquetas ferroviarias** — usan el panel como decoración/ambientación
+2. **Administradores** — configuran estaciones, generan trenes, gestionan operadores y tipos
+3. **Visitantes de exposiciones** — ven el panel en pantallas en eventos
 
-### Funcionalitats essencials
+### Funcionalidades esenciales
 
-- **Panell de sortides/arribades** en temps real amb estil Renfe/ADIF
-- **Administració completa** d'operadors, tipus de tren, estacions, places
-- **Generació automàtica** de trens sintètics basats en rutes reals
-- **Suport multiestació** — múltiples pantalles per a diferents estacions
-- **Multilingüe** — castellà, català, anglès, francès, basc, gallec
-- **Locucions/TTS** — anuncis sonors amb plantilles i veus per idioma
-- **Serveis multi-parada** — gestió de serveis amb múltiples parades i propagació de retards
-- **PWA** — instal·lable offline amb Service Worker
+- **Panel de salidas/llegadas** en tiempo real con estilo Renfe/ADIF
+- **Administración completa** de operadores, tipos de tren, estaciones, lugares
+- **Generación automática** de trenes sintéticos basados en rutas reales
+- **Soporte multiestación** — múltiples pantallas para diferentes estaciones
+- **Multilingüe** — español, catalán, inglés, francés, vasco, gallego
+- **Locuciones/TTS** — anuncios sonoros con plantillas y voces por idioma
+- **Servicios multi-parada** — gestión de servicios con múltiples paradas y propagación de retrasos
+- **PWA** — instalable offline con Service Worker
 
-### Stack tecnològic
+### Stack tecnológico
 
-| Capa | Tecnologia | Versió |
+| Capa | Tecnología | Versión |
 |------|-----------|--------|
 | Frontend | React 18 + TypeScript | 18.3.x |
 | Bundler | Vite | 5.4.x |
-| Estils | Tailwind CSS 3 | 3.4.x |
+| Estilos | Tailwind CSS 3 | 3.4.x |
 | Backend | Node.js + Express | 20 LTS / 4.21.x |
-| Base de dades | SQLite (better-sqlite3) | 11.3.x |
+| Base de datos | SQLite (better-sqlite3) | 11.3.x |
 | Realtime | WebSocket (ws) | 8.18.x |
 | Auth | HTTP Basic Auth (express-basic-auth) | 1.2.x |
 | Testing | Vitest | 4.1.x |
@@ -77,121 +77,121 @@
                                    [railboard_routes.json]
 ```
 
-Aplicació monolítica amb frontend React SPA servit per nginx i backend Express amb SQLite. Comunicació via REST + WebSocket per a actualitzacions en temps real.
+Aplicación monolítica con frontend React SPA servido por nginx y backend Express con SQLite. Comunicación vía REST + WebSocket para actualizaciones en tiempo real.
 
-### Estat tècnic actual
+### Estado técnico actual
 
-El projecte es troba en un estat **madur però actiu** — té funcionalitats completes, tests que passen, Docker Compose per producció, i PWA. No obstant, acumula **deute tècnic significatiu** en forma de fitxers massius (>3000 línies), lògica duplicada, i un model de dades que ha evolucionat per acumulació.
+El proyecto se encuentra en un estado **maduro pero activo** — tiene funcionalidades completas, tests que pasan, Docker Compose para producción, y PWA. No obstante, acumula **deuda técnica significativa** en forma de archivos masivos (>3000 líneas), lógica duplicada, y un modelo de datos que ha evolucionado por acumulación.
 
-### Principals fortaleses
+### Principales fortalezas
 
-1. **Qualitat visual del panell** — molt realista, estil Gravita/ADIF
-2. **Testing sòlid** — 72 tests al backend, cobertura de casos crítics
-3. **Infraestructura en Docker** — desplegament senzill amb Docker Compose
-4. **PWA + fonts offline** — funciona sense connexió un cop carregat
-5. **Generació intel·ligent de trens** — basada en dades reals de rutes
+1. **Calidad visual del panel** — muy realista, estilo Gravita/ADIF
+2. **Testing sólido** — 72 tests en el backend, cobertura de casos críticos
+3. **Infraestructura en Docker** — despliegue sencillo con Docker Compose
+4. **PWA + fuentes offline** — funciona sin conexión una vez cargado
+5. **Generación inteligente de trenes** — basada en datos reales de rutas
 
-### Riscos més rellevants
+### Riesgos más relevantes
 
-1. **SQLite sense backups automàtics** — pèrdua potencial de dades
-2. **Admin panel monolític** (`Admin.tsx` > 3100 línies) — difícils de mantenir
-3. **Auth bàsica HTTP** — credencials en text pla, sense MFA, sense rotació
-4. **No hi ha tests de frontend** — error de configuració impedia executar-los, ara s'han resolt però no hi ha tests reals
-5. **Pujada d'arxius sense validació de contingut** — risc d'execució de fitxers maliciosos
-6. **Dependències creuades entre backend i frontend** — tipus duplicats en TypeScript i JS
+1. **SQLite sin backups automáticos** — pérdida potencial de datos
+2. **Admin panel monolítico** (`Admin.tsx` > 3100 líneas) — difícil de mantener
+3. **Auth básica HTTP** — credenciales en texto plano, sin MFA, sin rotación
+4. **No hay tests de frontend** — error de configuración impedía ejecutarlos, ahora se han resuelto pero no hay tests reales
+5. **Subida de archivos sin validación de contenido** — riesgo de ejecución de archivos maliciosos
+6. **Dependencias cruzadas entre backend y frontend** — tipos duplicados en TypeScript y JS
 
-### Valoracions
+### Valoraciones
 
-| Àrea | Puntuació (1-10) | Justificació |
+| Área | Puntuación (1-10) | Justificación |
 |------|:-----------------:|--------------|
-| **Salut tècnica** | 7 | Funciona correctament, tests passen, però amb deute tècnic moderat |
-| **Mantenibilitat** | 5 | Fitxers molt grans, lògica duplicada, manca de separació en mòduls |
-| **Seguretat** | 5 | Auth bàsica sense HTTPS forçat, pujada d'arxius sensible, secrets per defecte |
-| **Escalabilitat** | 4 | SQLite no escala a múltiples lectors/escriptors, tot en un sol procés |
-| **Observabilitat** | 3 | Logs sense estructura, sense mètriques, sense tracing, sense alertes |
-| **Documentació** | 6 | `docs/` amb 11 fitxers, però desactualitzats i incomplets |
-| **Facilitat d'incorporació** | 7 | Docker facilita l'inici, però manca de onboarding estructurat |
+| **Salud técnica** | 7 | Funciona correctamente, tests pasan, pero con deuda técnica moderada |
+| **Mantenibilidad** | 5 | Archivos muy grandes, lógica duplicada, falta de separación en módulos |
+| **Seguridad** | 5 | Auth básica sin HTTPS forzado, subida de archivos sensible, secrets por defecto |
+| **Escalabilidad** | 4 | SQLite no escala a múltiples lectores/escritores, todo en un solo proceso |
+| **Observabilidad** | 3 | Logs sin estructura, sin métricas, sin tracing, sin alertas |
+| **Documentación** | 6 | `docs/` con 11 archivos, pero desactualizados e incompletos |
+| **Facilidad de incorporación** | 7 | Docker facilita el inicio, pero falta de onboarding estructurado |
 
 ---
 
-## 2. Inventari tècnic
+## 2. Inventario técnico
 
-### Aplicació — stack complet
+### Aplicación — stack completo
 
-| Element | Tecnologia | Versió | Ús | Evidència | Estat |
+| Elemento | Tecnología | Versión | Uso | Evidencia | Estado |
 |---------|-----------|--------|----|-----------|-------|
-| **Lenguatge backend** | JavaScript (ESM) | ES2022 | API i lògica de negoci | `backend/src/*.js` "type": "module" a package.json | ✅ Actiu |
-| **Lenguatge frontend** | TypeScript | 5.x | UI i lògica de client | `frontend/src/*.tsx` / `.ts` | ✅ Actiu |
-| **Framework backend** | Express | 4.21.0 | Servidor HTTP | `backend/src/index.js` | ✅ Actiu |
-| **Framework frontend** | React | 18.3.x | UI reactiva | `frontend/src/main.tsx` | ✅ Actiu |
-| **Bundler** | Vite | 5.4.21 | Build i dev server | `frontend/vite.config.ts` | ✅ Actiu |
-| **Estils** | Tailwind CSS 3 | 3.4.x | CSS utilitari | `frontend/src/styles/index.css`, `tailwind.config.js` | ✅ Actiu |
-| **Base de dades** | SQLite (better-sqlite3) | 11.3.0 | Persistència | `backend/src/db.js` | ✅ Actiu |
-| **Realtime** | ws | 8.18.0 | WebSocket | `backend/src/ws.js` | ✅ Actiu |
-| **Auth** | express-basic-auth | 1.2.1 | HTTP Basic Auth | `backend/src/routes.js` | ⚠️ Sense manteniment |
-| **Rate limiting** | express-rate-limit | 8.5.2 | Protecció abús | `backend/src/index.js` | ✅ Actiu |
-| **Seguretat HTTP** | helmet | 8.2.0 | Headers seguretat | `backend/src/index.js` | ✅ Actiu |
-| **Pujada fitxers** | multer | 1.4.5-lts.1 | Upload imatges/àudio | `backend/src/routes.js` | ⚠️ LTS antiga |
-| **Test runner** | Vitest | 4.1.7 | Tests unitaris i integració | Ambdós `vitest.config.*` | ✅ Actiu |
-| **HTTP testing** | supertest | 7.2.2 | Tests d'API | `backend/src/__tests__/` | ✅ Actiu |
+| **Lenguaje backend** | JavaScript (ESM) | ES2022 | API y lógica de negocio | `backend/src/*.js` "type": "module" a package.json | ✅ Activo |
+| **Lenguaje frontend** | TypeScript | 5.x | UI y lógica de cliente | `frontend/src/*.tsx` / `.ts` | ✅ Activo |
+| **Framework backend** | Express | 4.21.0 | Servidor HTTP | `backend/src/index.js` | ✅ Activo |
+| **Framework frontend** | React | 18.3.x | UI reactiva | `frontend/src/main.tsx` | ✅ Activo |
+| **Bundler** | Vite | 5.4.21 | Build y dev server | `frontend/vite.config.ts` | ✅ Activo |
+| **Estilos** | Tailwind CSS 3 | 3.4.x | CSS utilitario | `frontend/src/styles/index.css`, `tailwind.config.js` | ✅ Activo |
+| **Base de datos** | SQLite (better-sqlite3) | 11.3.0 | Persistencia | `backend/src/db.js` | ✅ Activo |
+| **Realtime** | ws | 8.18.0 | WebSocket | `backend/src/ws.js` | ✅ Activo |
+| **Auth** | express-basic-auth | 1.2.1 | HTTP Basic Auth | `backend/src/routes.js` | ⚠️ Sin mantenimiento |
+| **Rate limiting** | express-rate-limit | 8.5.2 | Protección abuso | `backend/src/index.js` | ✅ Activo |
+| **Seguridad HTTP** | helmet | 8.2.0 | Headers seguridad | `backend/src/index.js` | ✅ Activo |
+| **Subida archivos** | multer | 1.4.5-lts.1 | Upload imágenes/audio | `backend/src/routes.js` | ⚠️ LTS antigua |
+| **Test runner** | Vitest | 4.1.7 | Tests unitarios e integración | Ambos `vitest.config.*` | ✅ Activo |
+| **HTTP testing** | supertest | 7.2.2 | Tests de API | `backend/src/__tests__/` | ✅ Activo |
 
-### Frontend — detall
+### Frontend — detalle
 
-| Element | Tecnologia | Evidència |
+| Elemento | Tecnología | Evidencia |
 |---------|-----------|-----------|
 | **Router** | react-router-dom | `Display.tsx` `useParams`, `Admin.tsx` `Link` |
-| **Icons** | lucide-react | `Admin.tsx` línia 2 |
+| **Icons** | lucide-react | `Admin.tsx` línea 2 |
 | **DnD** | @dnd-kit/core + @dnd-kit/sortable | `Trains.tsx` |
-| **I18n** | Propi (fitxer `i18n.ts`) | `frontend/src/lib/i18n.ts` |
+| **I18n** | Propio (archivo `i18n.ts`) | `frontend/src/lib/i18n.ts` |
 | **TTS** | Web Speech API | `frontend/src/lib/tts.ts` |
 | **SW** | Service Worker manual | `frontend/public/sw.js` |
-| **Tipografies** | Local (Bebas Neue, Inter, JetBrains Mono, Oswald, Roboto Condensed, Roboto Mono) | `frontend/public/fonts/` |
-| **Gestor estats** | React hooks (useState, useEffect, useMemo, useRef) | No hi ha estat global (Redux, Zustand, etc.) |
+| **Tipografías** | Local (Bebas Neue, Inter, JetBrains Mono, Oswald, Roboto Condensed, Roboto Mono) | `frontend/public/fonts/` |
+| **Gestor estados** | React hooks (useState, useEffect, useMemo, useRef) | No hay estado global (Redux, Zustand, etc.) |
 
-### Backend — detall
+### Backend — detalle
 
-| Element | Tecnologia | Evidència |
+| Elemento | Tecnología | Evidencia |
 |---------|-----------|-----------|
-| **Controladors** | Inline a `routes.js` | 1676 línies al fitxer amb totes les rutes |
-| **Capes** | DB directa (db.js) + rutes (routes.js) | Sense capa de servei ni repositori |
-| **Migracions** | SQL migrator propi (`migrations.js`) | Llegeix fitxers .sql de `backend/migrations/` |
-| **Seed** | Script `seed.js` | Crea operadors, tipus, places i trens de demostració |
-| **Rutes** | JSON estàtic (`railboard_routes.json`) | 30+ rutes reals de xarxa ferroviària espanyola |
+| **Controladores** | Inline a `routes.js` | 1676 líneas en el archivo con todas las rutas |
+| **Capas** | DB directa (db.js) + rutas (routes.js) | Sin capa de servicio ni repositorio |
+| **Migraciones** | SQL migrator propio (`migrations.js`) | Lee archivos .sql de `backend/migrations/` |
+| **Seed** | Script `seed.js` | Crea operadores, tipos, lugares y trenes de demostración |
+| **Rutas** | JSON estático (`railboard_routes.json`) | 30+ rutas reales de red ferroviaria española |
 
-### Persistència
+### Persistencia
 
-| Element | Detall | Evidència |
+| Elemento | Detalle | Evidencia |
 |---------|--------|-----------|
 | **Motor** | SQLite (better-sqlite3) | `backend/src/db.js` |
-| **Mode WAL** | Activat | `db.pragma("journal_mode=WAL")` a db.js |
-| **Migracions** | SQL progressiu + ALTER TABLE en db.js | `backend/migrations/*.sql` + lògica de detecció a db.js |
-| **Taules principals** | config, operators, train_types, places, stations, station_display_configs, trains, train_icons, services, service_stops, service_events | db.js línies 25-130 |
-| **Backup** | Cap mecanisme implementat | — |
+| **Modo WAL** | Activado | `db.pragma("journal_mode=WAL")` a db.js |
+| **Migraciones** | SQL progresivo + ALTER TABLE en db.js | `backend/migrations/*.sql` + lógica de detección en db.js |
+| **Tablas principales** | config, operators, train_types, places, stations, station_display_configs, trains, train_icons, services, service_stops, service_events | db.js líneas 25-130 |
+| **Backup** | Ningún mecanismo implementado | — |
 
 ### Infraestructura
 
-| Element | Tecnologia | Evidència |
+| Elemento | Tecnología | Evidencia |
 |---------|-----------|-----------|
-| **Contenidors** | Docker + Docker Compose | `docker-compose.yml` |
+| **Contenedores** | Docker + Docker Compose | `docker-compose.yml` |
 | **Proxy** | Nginx (alpine) | `docker/nginx.conf` |
-| **Volums** | db-data (SQLite), uploads (imatges/àudio) | `docker-compose.yml` |
-| **Entorns** | Un sol entorn (producció per defecte) | `NODE_ENV=production` al compose |
-| **CI/CD** | Cap | — |
-| **Monitorització** | Cap | — |
+| **Volúmenes** | db-data (SQLite), uploads (imágenes/audio) | `docker-compose.yml` |
+| **Entornos** | Un solo entorno (producción por defecto) | `NODE_ENV=production` en compose |
+| **CI/CD** | Ninguno | — |
+| **Monitorización** | Ninguna | — |
 
-### Eines de desenvolupament
+### Herramientas de desarrollo
 
-| Element | Tecnologia | Evidència |
+| Elemento | Tecnología | Evidencia |
 |---------|-----------|-----------|
-| **Control versions** | Git | `.git` |
+| **Control versiones** | Git | `.git` |
 | **Testing** | Vitest | `vitest.config.*` |
-| **Linting** | Cap configurat | No hi ha `.eslintrc*` ni `.prettierrc*` |
+| **Linting** | Ninguno configurado | No hay `.eslintrc*` ni `.prettierrc*` |
 
 ---
 
 ## 3. Arquitectura actual
 
-### Diagrama de context
+### Diagrama de contexto
 
 ```mermaid
 graph TD
@@ -223,7 +223,7 @@ graph TD
     WS -->|broadcast| SPA
 ```
 
-### Diagrama de contenidors
+### Diagrama de contenedores
 
 ```mermaid
 graph TD
@@ -256,7 +256,7 @@ graph TD
     EX -->|lectura| RS[(railboard_routes.json)]
 ```
 
-### Diagrama de flux principal — Panell de sortides
+### Diagrama de flujo principal — Panel de salidas
 
 ```mermaid
 sequenceDiagram
@@ -293,197 +293,197 @@ sequenceDiagram
     API-->>B: Dades actualitzades
 ```
 
-### Mapa de mòduls
+### Mapa de módulos
 
-| Mòdul | Responsabilitat | Entrades | Sortides | Dependències | Riscos |
+| Módulo | Responsabilidad | Entradas | Salidas | Dependencias | Riesgos |
 |-------|-----------------|----------|----------|--------------|--------|
-| **index.js** | Configuració Express, middleware, muntatge rutes | Env vars | Servidor HTTP | express, helmet, cors, ws | Configuració dispersa |
-| **db.js** | Capa de persistència, CRUD, migracions inline | CRUD calls | Dades SQL | better-sqlite3 | 882 línies, barreja migracions amb CRUD |
-| **routes.js** | Totes les rutes admin, lògica de negoci inline | Peticions /admin | Respostes JSON | db.js, multer, express-basic-auth | 1676 línies, acoblament alt |
-| **railRoutesApi.js** | API pública /api, lògica del panell | Peticions /api | Board data | db.js | Duplica part de routes.js |
-| **ws.js** | WebSocket, broadcast | Servidor HTTP | Missatges WS | ws | 18 línies, responsabilitat mínima |
-| **migrations.js** | Execució de migracions SQL | Fitxers .sql | Esquema DB | db.js, fs | Rollback hardcoded |
-| **seed.js** | Dades de demostració | — | DB poblada | db.js, fs | Esborra dades existents |
-| **routeService.js** | Càrrega i consulta de rutes JSON | JSON estàtic | Array de rutes | fs | Dades en memòria, sense refresh automàtic |
-| **Admin.tsx** | Panell d'administració complet | — | UI admin | Totes les API | 3128 línies, component monolític |
-| **Display.tsx** | Panell de sortides/arribades | stationId | UI panell | API /api | 841 línies, lògica complexa |
+| **index.js** | Configuración Express, middleware, montaje rutas | Env vars | Servidor HTTP | express, helmet, cors, ws | Configuración dispersa |
+| **db.js** | Capa de persistencia, CRUD, migraciones inline | CRUD calls | Datos SQL | better-sqlite3 | 882 líneas, mezcla migraciones con CRUD |
+| **routes.js** | Todas las rutas admin, lógica de negocio inline | Peticiones /admin | Respuestas JSON | db.js, multer, express-basic-auth | 1676 líneas, acoplamiento alto |
+| **railRoutesApi.js** | API pública /api, lógica del panel | Peticiones /api | Board data | db.js | Duplica parte de routes.js |
+| **ws.js** | WebSocket, broadcast | Servidor HTTP | Mensajes WS | ws | 18 líneas, responsabilidad mínima |
+| **migrations.js** | Ejecución de migraciones SQL | Archivos .sql | Esquema DB | db.js, fs | Rollback hardcoded |
+| **seed.js** | Datos de demostración | — | DB poblada | db.js, fs | Borra datos existentes |
+| **routeService.js** | Carga y consulta de rutas JSON | JSON estático | Array de rutas | fs | Datos en memoria, sin refresh automático |
+| **Admin.tsx** | Panel de administración completo | — | UI admin | Todas las API | 3128 líneas, componente monolítico |
+| **Display.tsx** | Panel de salidas/llegadas | stationId | UI panel | API /api | 841 líneas, lógica compleja |
 
-### Comunicacions
+### Comunicaciones
 
-| Tipus | Origen | Destí | Protocol | Freqüència |
+| Tipo | Origen | Destino | Protocolo | Frecuencia |
 |-------|--------|-------|----------|------------|
-| Consulta panell | Frontend | /api/stations/:id/board | REST (GET) | Cada 5s (polling) + WebSocket |
-| Admin CRUD | Frontend | /admin/* | REST (GET/POST/PUT/PATCH/DELETE) | Sota demanda |
-| Actualitzacions | Backend | Frontend (WS) | WebSocket | Després de cada mutació |
-| Fitxers estàtics | Nginx | Navegador | HTTP | Una vegada (cache 30d) |
-| Pujada fitxers | Frontend | /admin/* | REST multipart | Ocasional |
+| Consulta panel | Frontend | /api/stations/:id/board | REST (GET) | Cada 5s (polling) + WebSocket |
+| Admin CRUD | Frontend | /admin/* | REST (GET/POST/PUT/PATCH/DELETE) | Bajo demanda |
+| Actualizaciones | Backend | Frontend (WS) | WebSocket | Después de cada mutación |
+| Archivos estáticos | Nginx | Navegador | HTTP | Una vez (cache 30d) |
+| Subida archivos | Frontend | /admin/* | REST multipart | Ocasional |
 
 ---
 
-## 4. Documentació funcional
+## 4. Documentación funcional
 
-### Funcionalitat: Panell de sortides/arribades
+### Funcionalidad: Panel de salidas/llegadas
 
-**Objectiu:** Mostrar en temps real un panell informatiu de trens amb estil Renfe/ADIF.
+**Objetivo:** Mostrar en tiempo real un panel informativo de trenes con estilo Renfe/ADIF.
 
-**Actors:** Visitant, Pantalla d'estació.
+**Actores:** Visitante, Pantalla de estación.
 
-**Precondicions:** L'estació té trens assignats (taula `trains`) o serveis (`services`/`service_stops`).
+**Precondiciones:** La estación tiene trenes asignados (tabla `trains`) o servicios (`services`/`service_stops`).
 
-**Flux principal:**
-1. L'usuari accedeix a `/display/:stationId` (o `/display` si displayMode="single")
-2. El frontend carrega configuració, estacions i places
-3. Fa GET `/api/stations/:id/board?mode=departures|arrivals`
-4. El backend consulta `trains` (i fallback a `services`)
-5. Retorna dades normalitzades: número, operador, tipus, destí/origen, parades, hora, andana, estat
-6. El frontend renderitza el panell amb columnes: HORA, DESTÍ, PRODUCTE, ANDANA
-7. Cada 5 segons re-polla; també rep WebSockets
-8. Cada 30 segons actualitza el rellotge
+**Flujo principal:**
+1. El usuario accede a `/display/:stationId` (o `/display` si displayMode="single")
+2. El frontend carga configuración, estaciones y lugares
+3. Hace GET `/api/stations/:id/board?mode=departures|arrivals`
+4. El backend consulta `trains` (y fallback a `services`)
+5. Retorna datos normalizados: número, operador, tipo, destino/origen, paradas, hora, andén, estado
+6. El frontend renderiza el panel con columnas: HORA, DESTINO, PRODUCTO, ANDÉN
+7. Cada 5 segundos re-polla; también recibe WebSockets
+8. Cada 30 segundos actualiza el reloj
 
-**Variants:**
-- Mode "arrivals" — mostra l'origen en lloc del destí
-- Mode "single" — ignora `stationId` de la URL, usa l'estació de config global
-- Mode "multiple" — cada display mostra una estació diferent
-- Canvi d'idioma cada 5 segons si múltiples idiomes configurats
+**Variantes:**
+- Modo "arrivals" — muestra el origen en lugar del destino
+- Modo "single" — ignora `stationId` de la URL, usa la estación de config global
+- Modo "multiple" — cada display muestra una estación diferente
+- Cambio de idioma cada 5 segundos si múltiples idiomas configurados
 
-**Errors esperables:**
-- 404 si stationId no existeix
-- Llista buida si no hi ha trens
-- Error 500 de base de dades
+**Errores esperables:**
+- 404 si stationId no existe
+- Lista vacía si no hay trenes
+- Error 500 de base de datos
 
-**Permisos:** Públic, no requereix autenticació.
+**Permisos:** Público, no requiere autenticación.
 
-**Dades implicades:** `trains`, `operators`, `train_types`, `stations`, `config/station_display_configs`.
+**Datos implicados:** `trains`, `operators`, `train_types`, `stations`, `config/station_display_configs`.
 
-**Arxius principals:**
-- `frontend/src/pages/Display.tsx` (841 línies)
-- `backend/src/railRoutesApi.js` (209 línies)
+**Archivos principales:**
+- `frontend/src/pages/Display.tsx` (841 líneas)
+- `backend/src/railRoutesApi.js` (209 líneas)
 - `backend/src/routes.js` (endpoint `/admin/stations/:stationId/board`)
-- `backend/src/db.js` (funcions `listTrains`, `getStationDisplayConfig`)
+- `backend/src/db.js` (funciones `listTrains`, `getStationDisplayConfig`)
 - `docker/nginx.conf` (proxy pass /api/)
 
-### Funcionalitat: Administració de trens
+### Funcionalidad: Administración de trenes
 
-**Objectiu:** Gestionar el catàleg de trens (crear, editar, eliminar, reordenar, importar, generar automàticament).
+**Objetivo:** Gestionar el catálogo de trenes (crear, editar, eliminar, reordenar, importar, generar automáticamente).
 
-**Actors:** Administrador.
+**Actores:** Administrador.
 
-**Flux principal:**
-1. L'admin accedeix a `/admin` (qualsevol ruta sota `/admin`)
-2. Nginx serveix l'SPA React; el frontend fa routing intern
-3. L'admin pot:
-   - Veure llista de trens amb detalls
-   - Crear tren manualment (formulari)
+**Flujo principal:**
+1. El admin accede a `/admin` (cualquier ruta bajo `/admin`)
+2. Nginx sirve el SPA React; el frontend hace routing interno
+3. El admin puede:
+   - Ver lista de trenes con detalles
+   - Crear tren manualmente (formulario)
    - Editar tren (modal)
-   - Eliminar tren (amb confirmació)
-   - Reordenar trens (drag & drop)
-   - Generar 1 tren aleatori (basat en rutes reals)
-   - Generar tota la graella
-   - Carregar trens ficticis de demostració
-   - Auto-generar amb interval configurable
+   - Eliminar tren (con confirmación)
+   - Reordenar trenes (drag & drop)
+   - Generar 1 tren aleatorio (basado en rutas reales)
+   - Generar toda la parrilla
+   - Cargar trenes ficticios de demostración
+   - Auto-generar con intervalo configurable
    - Importar/exportar JSON
 
-**Riscos:**
-- `clearTrains()` NO demana confirmació en totes les vies
-- `seedTrains()` esborra TOTES les dades existents
+**Riesgos:**
+- `clearTrains()` NO pide confirmación en todas las vías
+- `seedTrains()` borra TODOS los datos existentes
 
-### Funcionalitat: Gestió multiestació i serveis
+### Funcionalidad: Gestión multiestación y servicios
 
-**Objectiu:** Suportar múltiples estacions amb configuracions independents i serveis multi-parada.
+**Objetivo:** Soportar múltiples estaciones con configuraciones independientes y servicios multi-parada.
 
-**Flux principal:**
-1. L'admin crea estacions des del panell d'admin
-2. Cada estació té: nom, short, logo, color, pre-announce audio, sort_order
-3. Cada estació pot tenir config independent (mode, idiomes, colors)
-4. Els trens s'assignen a una estació (`station_id`)
-5. El panell de display mostra els trens de l'estació corresponent
-6. Els serveis (`services`) són trens multi-parada amb:
-   - Origen i destí (referència a `places`)
-   - Parades intermèdies (`service_stops`)
-   - Propagació de retards entre parades
-   - Estats: Scheduled → Arrived → Departed → Completed
-   - Au dittrail d'events (`service_events`)
+**Flujo principal:**
+1. El admin crea estaciones desde el panel de admin
+2. Cada estación tiene: nombre, short, logo, color, pre-announce audio, sort_order
+3. Cada estación puede tener config independiente (modo, idiomas, colores)
+4. Los trenes se asignan a una estación (`station_id`)
+5. El panel de display muestra los trenes de la estación correspondiente
+6. Los servicios (`services`) son trenes multi-parada con:
+   - Origen y destino (referencia a `places`)
+   - Paradas intermedias (`service_stops`)
+   - Propagación de retrasos entre paradas
+   - Estados: Scheduled → Arrived → Departed → Completed
+   - Audit trail de eventos (`service_events`)
 
-**Arxius principals:**
-- `backend/src/db.js` (funcions services/serviceStops/serviceEvents)
+**Archivos principales:**
+- `backend/src/db.js` (funciones services/serviceStops/serviceEvents)
 - `backend/src/routes.js` (endpoints /admin/services/*, /admin/stops/*)
 - `backend/migrations/001-services.sql`, `002-service-events.sql`, `003-trains-compatibility.sql`
 
-### Funcionalitat: Locucions i TTS
+### Funcionalidad: Locuciones y TTS
 
-**Objectiu:** Generar anuncis sonors automàtics per a les sortides/arribades de trens.
+**Objetivo:** Generar anuncios sonoros automáticos para las salidas/llegadas de trenes.
 
-**Flux principal:**
-1. L'admin configura plantilles d'anunci per idioma
-2. Configura veus TTS (per idioma) via Web Speech API
-3. Configura presets d'anunci (benvinguda, tancament, retards, etc.)
-4. L'admin pot disparar anuncis manualment des del panell
-5. El sistema reprodueix l'anunci amb la veu configurada
+**Flujo principal:**
+1. El admin configura plantillas de anuncio por idioma
+2. Configura voces TTS (por idioma) vía Web Speech API
+3. Configura presets de anuncio (bienvenida, cierre, retrasos, etc.)
+4. El admin puede disparar anuncios manualmente desde el panel
+5. El sistema reproduce el anuncio con la voz configurada
 
-**Arxius principals:**
-- `frontend/src/lib/tts.ts` (lògica TTS + plantilles)
+**Archivos principales:**
+- `frontend/src/lib/tts.ts` (lógica TTS + plantillas)
 - `frontend/src/components/admin/LocutionsPanel.tsx`
-- `frontend/src/pages/Admin.tsx` (secció Locutions / Voice)
+- `frontend/src/pages/Admin.tsx` (sección Locutions / Voice)
 
 ---
 
-## 5. Model de domini
+## 5. Modelo de dominio
 
-### Glossari de domini
+### Glosario de dominio
 
-| Terme | Significat |
+| Término | Significado |
 |-------|-----------|
-| **Train** | Un servei/tren individual amb horari, andana, estat |
-| **Operator** | Companyia operadora (Renfe, Avlo, Iryo, Ouigo) |
-| **Train Type** | Categoria de tren (AVE, AVLO, ALVIA, Cercanías, etc.) |
-| **Station** | Estació física amb nom i display config |
-| **Place** | Destí/Origen genèric (ciutat) |
-| **Service** | Servei multi-parada amb recorregut complet |
-| **Service Stop** | Parada individual dins d'un servei |
-| **Route** | Ruta ferroviària amb estacions, operador i horari tipus |
-| **Display Config** | Configuració per pantalla (idioma, colors, mode) |
-| **Icon** | Icona personalitzada per a tren o tipus |
-| **Pre-announce** | Àudio pre-gravat per a anuncis |
+| **Train** | Un servicio/tren individual con horario, andén, estado |
+| **Operator** | Compañía operadora (Renfe, Avlo, Iryo, Ouigo) |
+| **Train Type** | Categoría de tren (AVE, AVLO, ALVIA, Cercanías, etc.) |
+| **Station** | Estación física con nombre y display config |
+| **Place** | Destino/Origen genérico (ciudad) |
+| **Service** | Servicio multi-parada con recorrido completo |
+| **Service Stop** | Parada individual dentro de un servicio |
+| **Route** | Ruta ferroviaria con estaciones, operador y horario tipo |
+| **Display Config** | Configuración por pantalla (idioma, colores, modo) |
+| **Icon** | Icono personalizado para tren o tipo |
+| **Pre-announce** | Audio pre-grabado para anuncios |
 
-### Entitats principals
+### Entidades principales
 
 #### Train
-- **Atributs:** id, number, operator_id (FK), train_type_id (FK), origin, destination, stops (JSON), scheduled_time, expected_time, platform, sector, status, station_id (FK), sort_order, custom_icon_url, icon_mode, observations
-- **Estats:** Scheduled → Boarding → Departed / Arrived → Cancelled (qualsevol estadi)
-- **Regles:** Si expected_time != scheduled_time → Delayed; Si status = "Delayed" → expected_time > scheduled_time
-- **Operacions:** CRUD, reorder, delay add, status change, platform change
-- **Evidència:** `backend/src/db.js` funcions `createTrain`, `updateTrain`, `rowToTrain`
+- **Atributos:** id, number, operator_id (FK), train_type_id (FK), origin, destination, stops (JSON), scheduled_time, expected_time, platform, sector, status, station_id (FK), sort_order, custom_icon_url, icon_mode, observations
+- **Estados:** Scheduled → Boarding → Departed / Arrived → Cancelled (cualquier estadio)
+- **Reglas:** Si expected_time != scheduled_time → Delayed; Si status = "Delayed" → expected_time > scheduled_time
+- **Operaciones:** CRUD, reorder, delay add, status change, platform change
+- **Evidencia:** `backend/src/db.js` funciones `createTrain`, `updateTrain`, `rowToTrain`
 
 #### Operator
-- **Atributs:** id, name, logo_url, pre_announce_ogg
-- **Regles:** name és UNIQUE
-- **Operacions:** CRUD, logo upload, pre-announce upload/delete
-- **Evidència:** `backend/src/db.js` objecte `operators`
+- **Atributos:** id, name, logo_url, pre_announce_ogg
+- **Reglas:** name es UNIQUE
+- **Operaciones:** CRUD, logo upload, pre-announce upload/delete
+- **Evidencia:** `backend/src/db.js` objeto `operators`
 
 #### TrainType
-- **Atributs:** id, code (UNIQUE), name, color, logo_url, destination_icon_url, pre_announce_ogg
-- **Regles:** code és clau natural (s'usa per upsert)
-- **Operacions:** CRUD, logo upload, destination icon upload
+- **Atributos:** id, code (UNIQUE), name, color, logo_url, destination_icon_url, pre_announce_ogg
+- **Reglas:** code es clave natural (se usa para upsert)
+- **Operaciones:** CRUD, logo upload, destination icon upload
 
 #### Station
-- **Atributs:** id, name, short, logo_url, pre_announce_ogg, color, sort_order
-- **Regles:** NO es pot eliminar l'última estació; les estacions tenen configs per display
-- **Operacions:** CRUD, display config get/set
+- **Atributos:** id, name, short, logo_url, pre_announce_ogg, color, sort_order
+- **Reglas:** NO se puede eliminar la última estación; las estaciones tienen configs por display
+- **Operaciones:** CRUD, display config get/set
 
 #### Service
-- **Atributs:** id, number, operator_id, train_type_id, origin_place_id, destination_place_id, status, notes, started_at, completed_at, cancelled_at
-- **Estats:** Scheduled → In Progress → Completed; pot anar a Cancelled des de qualsevol estat
-- **Regles:** En marcar l'última parada com Departed, el servei passa a Completed
+- **Atributos:** id, number, operator_id, train_type_id, origin_place_id, destination_place_id, status, notes, started_at, completed_at, cancelled_at
+- **Estados:** Scheduled → In Progress → Completed; puede ir a Cancelled desde cualquier estado
+- **Reglas:** Al marcar la última parada como Departed, el servicio pasa a Completed
 
 #### ServiceStop
-- **Atributs:** id, service_id, station_id, stop_number, stop_type (Origin/Stop/Pass/Destination), arrival_scheduled, departure_scheduled, arrival_expected, departure_expected, arrival_actual, departure_actual, state (Scheduled/Arrived/Departed/Passed/Cancelled/Skipped), platform, sector, delay_minutes, delay_locked
-- **Regles de negoci crítiques:**
-  - Quan s'arriba a una parada, es calcula el retard i es PROPAGA a les següents
-  - Si delay_locked=1, NO hereta retards de parades anteriors
-  - Quan es marxa de l'última parada → servei "Completed"
-  - L'ordre de parades es manté per stop_number i es pot reordenar
+- **Atributos:** id, service_id, station_id, stop_number, stop_type (Origin/Stop/Pass/Destination), arrival_scheduled, departure_scheduled, arrival_expected, departure_expected, arrival_actual, departure_actual, state (Scheduled/Arrived/Departed/Passed/Cancelled/Skipped), platform, sector, delay_minutes, delay_locked
+- **Reglas de negocio críticas:**
+  - Cuando se llega a una parada, se calcula el retraso y se PROPAGA a las siguientes
+  - Si delay_locked=1, NO hereda retrasos de paradas anteriores
+  - Cuando se sale de la última parada → servicio "Completed"
+  - El orden de paradas se mantiene por stop_number y se puede reordenar
 
-### Diagrama d'entitats
+### Diagrama de entidades
 
 ```mermaid
 erDiagram
@@ -566,262 +566,262 @@ erDiagram
     }
 ```
 
-### Regles de negoci detectades
+### Reglas de negocio detectadas
 
-| Regla | On està implementada | Problema |
+| Regla | Dónde está implementada | Problema |
 |-------|---------------------|----------|
-| No es pot eliminar l'última estació | `routes.js:1200` (aprox) | ✅ Centralitzada |
-| `delay_locked` evita propagació de retards | `db.js:serviceStops.markArrival()` | ✅ Documentada |
-| En marcar última parada Departed → Completed | `db.js:serviceStops.markDeparture()` | ✅ |
-| `seedTrains()` esborra totes les dades | `routes.js` endpoint POST `/admin/seed-trains` | ⚠️ No demana confirmació |
-| `clearTrains()` requereix `X-Confirm: yes` | `routes.js` DELETE `/admin/trains` | ✅ |
-| `station_id` per defecte 1 a seed | `seed.js` | ⚠️ Valor mágic |
-| Probabilitats de retard per tipus de tren | `routes.js:profileForType()` | ✅ |
-| Les rutes han de tenir camps obligatoris | `routeService.js` | ✅ |
-| Totes les claus i18n han d'existir a tots els idiomes | `i18n.test.ts` | ✅ Testejat |
+| No se puede eliminar la última estación | `routes.js:1200` (aprox) | ✅ Centralizada |
+| `delay_locked` evita propagación de retrasos | `db.js:serviceStops.markArrival()` | ✅ Documentada |
+| Al marcar última parada Departed → Completed | `db.js:serviceStops.markDeparture()` | ✅ |
+| `seedTrains()` borra todos los datos | `routes.js` endpoint POST `/admin/seed-trains` | ⚠️ No pide confirmación |
+| `clearTrains()` requiere `X-Confirm: yes` | `routes.js` DELETE `/admin/trains` | ✅ |
+| `station_id` por defecto 1 en seed | `seed.js` | ⚠️ Valor mágico |
+| Probabilidades de retraso por tipo de tren | `routes.js:profileForType()` | ✅ |
+| Las rutas deben tener campos obligatorios | `routeService.js` | ✅ |
+| Todas las claves i18n deben existir en todos los idiomas | `i18n.test.ts` | ✅ Probado |
 
 ---
 
-## 6. Anàlisi de qualitat del codi
+## 6. Análisis de calidad del código
 
-### Disseny
+### Diseño
 
-| Hallazgo | Evidència | Impacte | Probabilitat | Severitat | Recomanació |
+| Hallazgo | Evidencia | Impacto | Probabilidad | Severidad | Recomendación |
 |----------|-----------|---------|-------------|-----------|-------------|
-| **Manca de separació de responsabilitats** a `routes.js` | 1676 línies amb lògica de negoci, validació, transformació | Alt | Alta | Alta | Extreure serveis a fitxers separats |
-| **Admin.tsx monolític** | 3128 línies, mescla sidebar + taules + modals | Alt | Alta | Alta | Dividir en subcomponents |
-| **Duplicació de lògica d'helper** | `normalizeStation` a routes.js i helpers.unit.test.js | Mig | Alta | Mig | Consolidar en un mòdul compartit |
-| **Acoblament db.js ↔ routes.js** | routes.js depèn de l'estructura interna de db.js | Mig | Alta | Alt | Introduir repositori/servei |
-| **Barreja migracions SQL + ALTER TABLE inline** | db.js: migracions inline via `PRAGMA table_info` + `ALTER TABLE` | Mig | Alta | Mig | Unificar a SQL migrator |
+| **Falta de separación de responsabilidades** en `routes.js` | 1676 líneas con lógica de negocio, validación, transformación | Alto | Alta | Alta | Extraer servicios a archivos separados |
+| **Admin.tsx monolítico** | 3128 líneas, mezcla sidebar + tablas + modales | Alto | Alta | Alta | Dividir en subcomponentes |
+| **Duplicación de lógica de helper** | `normalizeStation` en routes.js y helpers.unit.test.js | Medio | Alta | Medio | Consolidar en un módulo compartido |
+| **Acoplamiento db.js ↔ routes.js** | routes.js depende de la estructura interna de db.js | Medio | Alta | Alto | Introducir repositorio/servicio |
+| **Mezcla migraciones SQL + ALTER TABLE inline** | db.js: migraciones inline vía `PRAGMA table_info` + `ALTER TABLE` | Medio | Alta | Medio | Unificar en SQL migrator |
 
-### Complexitat
+### Complejidad
 
-| Hallazgo | Evidència |
+| Hallazgo | Evidencia |
 |----------|-----------|
-| `Admin.tsx` — 3128 línies, múltiples components inline | `frontend/src/pages/Admin.tsx` |
-| `routes.js` — 1676 línies, responsable de totes les rutes admin | `backend/src/routes.js` |
-| `db.js` — 882 línies, barreja creació de taules, migracions i CRUD | `backend/src/db.js` |
-| `Display.tsx` — 841 línies, lògica de render + polling + WS | `frontend/src/pages/Display.tsx` |
-| `DisplayConfig.tsx` — 1001 línies | `frontend/src/pages/DisplayConfig.tsx` |
+| `Admin.tsx` — 3128 líneas, múltiples componentes inline | `frontend/src/pages/Admin.tsx` |
+| `routes.js` — 1676 líneas, responsable de todas las rutas admin | `backend/src/routes.js` |
+| `db.js` — 882 líneas, mezcla creación de tablas, migraciones y CRUD | `backend/src/db.js` |
+| `Display.tsx` — 841 líneas, lógica de render + polling + WS | `frontend/src/pages/Display.tsx` |
+| `DisplayConfig.tsx` — 1001 líneas | `frontend/src/pages/DisplayConfig.tsx` |
 
-### Legibilitat
+### Legibilidad
 
-| Aspecte | Valoració |
+| Aspecto | Valoración |
 |---------|-----------|
-| Noms de variables | ✅ Generalment clars (ex: `train.destination`, `scheduled_time`) |
-| Convencions | ⚠️ Barreja camelCase (JS) amb snake_case (SQL/JSON API) |
-| Valors màgics | ⚠️ `station_id: 1` a seed.js |
-| Codi mort | ✅ `Admin.tsx.bak` (backup), `routeService.ts` (duplicat de .js) |
-| Comentaris | ⚠️ Pocs comentaris, cap JSDoc |
+| Nombres de variables | ✅ Generalmente claros (ej: `train.destination`, `scheduled_time`) |
+| Convenciones | ⚠️ Mezcla camelCase (JS) con snake_case (SQL/JSON API) |
+| Valores mágicos | ⚠️ `station_id: 1` en seed.js |
+| Código muerto | ✅ `Admin.tsx.bak` (backup), `routeService.ts` (duplicado de .js) |
+| Comentarios | ⚠️ Pocos comentarios, ningún JSDoc |
 
 ---
 
-## 7. Anàlisi de deuda tècnica
+## 7. Análisis de deuda técnica
 
-### DT-001: Component admin monolític
+### DT-001: Componente admin monolítico
 
-**Categoria:** Deuda de codi / Deuda d'arquitectura
-**Component:** `frontend/src/pages/Admin.tsx` (3128 línies)
-**Descripció:** L'únic component d'admin conté sidebar, dashboard, taules de trens, modals d'edició, gestió d'operadors, tipus, places, estacions, serveis, locucions, veus, estils, i més. No hi ha separació en fitxers ni lazy loading.
-**Origen:** Creixement incremental sense refactorització.
-**Impacte actual:** Dificulta el manteniment, les revisions de codi i l'addició de noves funcionalitats. Un sol canvi pot afectar múltiples àrees no relacionades.
-**Risc futur:** Bloquejarà l'evolució del producte. Alta probabilitat d'introduir regressions.
-**Probabilitat:** Alta | **Severitat:** Alta | **Esforç:** L
-**Natura:** Accidental e imprudent
-**Tipus:** Deuda estructural
+**Categoría:** Deuda de código / Deuda de arquitectura
+**Componente:** `frontend/src/pages/Admin.tsx` (3128 líneas)
+**Descripción:** El único componente de admin contiene sidebar, dashboard, tablas de trenes, modales de edición, gestión de operadores, tipos, lugares, estaciones, servicios, locuciones, voces, estilos, y más. No hay separación en archivos ni lazy loading.
+**Origen:** Crecimiento incremental sin refactorización.
+**Impacto actual:** Dificulta el mantenimiento, las revisiones de código y la adición de nuevas funcionalidades. Un solo cambio puede afectar múltiples áreas no relacionadas.
+**Riesgo futuro:** Bloqueará la evolución del producto. Alta probabilidad de introducir regresiones.
+**Probabilidad:** Alta | **Severidad:** Alta | **Esfuerzo:** L
+**Naturaleza:** Accidental e imprudente
+**Tipo:** Deuda estructural
 
-### DT-002: Routes.js amb responsabilitats múltiples
+### DT-002: Routes.js con responsabilidades múltiples
 
-**Categoria:** Deuda de codi / Deuda d'arquitectura
-**Component:** `backend/src/routes.js` (1676 línies)
-**Descripció:** Conté definició de rutes, lògica de negoci, validació, transformació de dades, generació de trens aleatoris, i observacions multilingües.
+**Categoría:** Deuda de código / Deuda de arquitectura
+**Componente:** `backend/src/routes.js` (1676 líneas)
+**Descripción:** Contiene definición de rutas, lógica de negocio, validación, transformación de datos, generación de trenes aleatorios, y observaciones multilingües.
 **Origen:** Arquitectura plana Express.
-**Impacte actual:** Difícil de testejar per unitats i de modificar sense risc.
-**Esforç:** M
-**Natura:** Accidental e imprudent
+**Impacto actual:** Difícil de testear por unidades y de modificar sin riesgo.
+**Esfuerzo:** M
+**Naturaleza:** Accidental e imprudente
 
-### DT-003: db.js amb migracions inline
+### DT-003: db.js con migraciones inline
 
-**Categoria:** Deuda de dades / Deuda de codi
-**Component:** `backend/src/db.js`
-**Descripció:** Les migracions d'esquema es fan tant via fitxers .sql (migrations.js) com via codi inline a db.js (detectant columnes que falten amb `PRAGMA table_info` i fent `ALTER TABLE`).
-**Origen:** Necessitat d'afegir columnes sense crear fitxers de migració.
-**Impacte actual:** Dues fonts de veritat per a l'esquema. Difícil de saber si una columna existeix o no.
-**Esforç:** S
-**Natura:** Accidental i prudent
-**Tipus:** Deuta localitzada
+**Categoría:** Deuda de datos / Deuda de código
+**Componente:** `backend/src/db.js`
+**Descripción:** Las migraciones de esquema se hacen tanto vía archivos .sql (migrations.js) como vía código inline en db.js (detectando columnas que faltan con `PRAGMA table_info` y haciendo `ALTER TABLE`).
+**Origen:** Necesidad de añadir columnas sin crear archivos de migración.
+**Impacto actual:** Dos fuentes de verdad para el esquema. Difícil de saber si una columna existe o no.
+**Esfuerzo:** S
+**Naturaleza:** Accidental y prudente
+**Tipo:** Deuda localizada
 
-### DT-004: Duplicació de tipus entre backend i frontend
+### DT-004: Duplicación de tipos entre backend y frontend
 
-**Categoria:** Deuda de dades
-**Component:** `backend/src/types/railRoute.ts`, `frontend/src/types/railRoute.ts`
-**Descripció:** La interfície `RailRoute` està definida tant al backend (TypeScript però no s'usa en JS) com al frontend. No hi ha un package compartit.
-**Origen:** Dos repositoris separats originalment.
-**Impacte actual:** Les definicions poden divergir.
-**Esforç:** XS
+**Categoría:** Deuda de datos
+**Componente:** `backend/src/types/railRoute.ts`, `frontend/src/types/railRoute.ts`
+**Descripción:** La interfaz `RailRoute` está definida tanto en el backend (TypeScript pero no se usa en JS) como en el frontend. No hay un package compartido.
+**Origen:** Dos repositorios separados originalmente.
+**Impacto actual:** Las definiciones pueden divergir.
+**Esfuerzo:** XS
 
-### DT-005: Manca de tests de frontend
+### DT-005: Falta de tests de frontend
 
-**Categoria:** Deuda de testing
-**Component:** Frontend complet
-**Descripció:** Els 3 tests existents (StatusPill, Clock, i18n) són molt bàsics. No hi ha tests de components complexos (Display, Admin, DisplayConfig, Trains). No hi ha tests d'integració ni E2E.
-**Origen:** No prioritzat.
-**Impacte actual:** Canvis al frontend no tenen xarxa de seguretat.
-**Esforç:** XL
-**Natura:** Deliberada e imprudent
+**Categoría:** Deuda de testing
+**Componente:** Frontend completo
+**Descripción:** Los 3 tests existentes (StatusPill, Clock, i18n) son muy básicos. No hay tests de componentes complejos (Display, Admin, DisplayConfig, Trains). No hay tests de integración ni E2E.
+**Origen:** No priorizado.
+**Impacto actual:** Cambios en el frontend no tienen red de seguridad.
+**Esfuerzo:** XL
+**Naturaleza:** Deliberada e imprudente
 
-### DT-006: Manca de linting i format
+### DT-006: Falta de linting y formato
 
-**Categoria:** Deuda d'experiència de desenvolupament
-**Component:** Ambdós projectes
-**Descripció:** No hi ha ESLint, Prettier, ni cap eina d'anàlisi estàtica configurada.
-**Origen:** No prioritzat.
-**Impacte actual:** Inconsistències d'estil, no es poden automatitzar correccions.
-**Esforç:** XS
+**Categoría:** Deuda de experiencia de desarrollo
+**Componente:** Ambos proyectos
+**Descripción:** No hay ESLint, Prettier, ni ninguna herramienta de análisis estática configurada.
+**Origen:** No priorizado.
+**Impacto actual:** Inconsistencias de estilo, no se pueden automatizar correcciones.
+**Esfuerzo:** XS
 
-### DT-007: Auth bàsica per a admin
+### DT-007: Auth básica para admin
 
-**Categoria:** Deuda de seguretat
-**Component:** `backend/src/routes.js`
-**Descripció:** L'autenticació admin és HTTP Basic Auth amb contrasenya en text pla. No hi ha MFA, tokens, sessions, ni rotació de credencials. La contrasenya per defecte ("railboard") es documentada al codi.
-**Origen:** Simplicitat inicial.
-**Impacte actual:** Vulnerable a atacs de credencials per defecte i escolta de xarxa si no s'usa HTTPS.
-**Esforç:** S
+**Categoría:** Deuda de seguridad
+**Componente:** `backend/src/routes.js`
+**Descripción:** La autenticación admin es HTTP Basic Auth con contraseña en texto plano. No hay MFA, tokens, sesiones, ni rotación de credenciales. La contraseña por defecto ("railboard") está documentada en el código.
+**Origen:** Simplicidad inicial.
+**Impacto actual:** Vulnerable a ataques de credenciales por defecto y escucha de red si no se usa HTTPS.
+**Esfuerzo:** S
 
-### DT-008: Pujada d'arxius sense validació de contingut
+### DT-008: Subida de archivos sin validación de contenido
 
-**Categoria:** Deuda de seguretat
-**Component:** `backend/src/routes.js` (multer)
-**Descripció:** Multer filtra per extensió però no valida el contingut real del fitxer. Un fitxer .png amb contingut maliciós passaria el filtre.
-**Origen:** Mínim necessari per funcionar.
-**Impacte actual:** Risc de RCE o emmagatzematge de fitxers no permesos.
-**Esforç:** S
+**Categoría:** Deuda de seguridad
+**Componente:** `backend/src/routes.js` (multer)
+**Descripción:** Multer filtra por extensión pero no valida el contenido real del archivo. Un archivo .png con contenido malicioso pasaría el filtro.
+**Origen:** Mínimo necesario para funcionar.
+**Impacto actual:** Riesgo de RCE o almacenamiento de archivos no permitidos.
+**Esfuerzo:** S
 
-### DT-009: Logs no estructurats
+### DT-009: Logs no estructurados
 
-**Categoria:** Deuda d'observabilitat
-**Component:** Backend complet
-**Descripció:** Tota la sortida de log és via `console.log`. No hi ha nivells de log (`info`, `warn`, `error`), ni JSON, ni correlació de peticions, ni request IDs.
-**Origen:** Mínim necessari.
-**Impacte actual:** Difícil depurar incidents en producció.
-**Esforç:** S
+**Categoría:** Deuda de observabilidad
+**Componente:** Backend completo
+**Descripción:** Toda la salida de log es vía `console.log`. No hay niveles de log (`info`, `warn`, `error`), ni JSON, ni correlación de peticiones, ni request IDs.
+**Origen:** Mínimo necesario.
+**Impacto actual:** Difícil depurar incidentes en producción.
+**Esfuerzo:** S
 
-### DT-010: Sense backup de base de dades
+### DT-010: Sin backup de base de datos
 
-**Categoria:** Deuda d'infraestructura / Deuda de processos
-**Descripció:** No hi ha cap mecanisme de backup automàtic per a la base de dades SQLite ni per als fitxers pujats.
-**Origen:** No implementat.
-**Impacte actual:** Pèrdua total de dades en cas de fallada del volume Docker.
-**Risc:** Crític
-**Esforç:** XS
+**Categoría:** Deuda de infraestructura / Deuda de procesos
+**Descripción:** No hay ningún mecanismo de backup automático para la base de datos SQLite ni para los archivos subidos.
+**Origen:** No implementado.
+**Impacto actual:** Pérdida total de datos en caso de fallo del volume Docker.
+**Riesgo:** Crítico
+**Esfuerzo:** XS
 
-### DT-011: Valors màgics
+### DT-011: Valores mágicos
 
-**Categoria:** Deuda de codi
-**Evidència:** `seed.js` línia `station_id: 1`, `seedStationsAndTrains.mjs` valors hardcoded
-**Impacte actual:** Si l'estació 1 és esborrada o reordenada, el seed genera dades incorrectes.
-**Esforç:** XS
+**Categoría:** Deuda de código
+**Evidencia:** `seed.js` línea `station_id: 1`, `seedStationsAndTrains.mjs` valores hardcoded
+**Impacto actual:** Si la estación 1 es borrada o reordenada, el seed genera datos incorrectos.
+**Esfuerzo:** XS
 
-### DT-012: Sense gestor d'estat global al frontend
+### DT-012: Sin gestor de estado global en el frontend
 
-**Categoria:** Deuda d'arquitectura
-**Descripció:** Totes les dades es carreguen via hooks `useState` + `useEffect` a cada component. No hi ha cache compartida entre vistes.
-**Impacte actual:** Cada vegada que es navega entre administració i display, es recarreguen dades. Manca d'estat compartit causa re-renders innecessaris.
-**Esforç:** M
+**Categoría:** Deuda de arquitectura
+**Descripción:** Todos los datos se cargan vía hooks `useState` + `useEffect` en cada componente. No hay caché compartida entre vistas.
+**Impacto actual:** Cada vez que se navega entre administración y display, se recargan datos. Falta de estado compartido causa re-renders innecesarios.
+**Esfuerzo:** M
 
-### DT-013: routeService.ts no s'usa
+### DT-013: routeService.ts no se usa
 
-**Categoria:** Deuda de codi
-**Evidència:** `backend/src/services/routeService.ts` — duplicat TypeScript de `routeService.js`, no importat per cap fitxer JS.
-**Impacte actual:** Codi mort que pot confondre.
-**Esforç:** XS
+**Categoría:** Deuda de código
+**Evidencia:** `backend/src/services/routeService.ts` — duplicado TypeScript de `routeService.js`, no importado por ningún archivo JS.
+**Impacto actual:** Código muerto que puede confundir.
+**Esfuerzo:** XS
 
-### DT-014: Servei Worker sense estratègia de cache robusta
+### DT-014: Service Worker sin estrategia de caché robusta
 
-**Categoria:** Deuda de rendiment
-**Descripció:** El SW a `frontend/public/sw.js` usa cache-first per a estática i network-first per a API, però no té gestió de versions ni purge de cache antiga.
-**Esforç:** S
+**Categoría:** Deuda de rendimiento
+**Descripción:** El SW en `frontend/public/sw.js` usa cache-first para estática y network-first para API, pero no tiene gestión de versiones ni purge de caché antigua.
+**Esfuerzo:** S
 
 ---
 
-## 8. Matriu de priorització
+## 8. Matriz de priorización
 
-| Prioritat | ID | Deuda | Impacte Tècnic | Impacte Negoci | Risc Seguretat | Freqüència | Cost Retard | Esforç | Puntuació | Recomanació |
+| Prioridad | ID | Deuda | Impacto Técnico | Impacto Negocio | Riesgo Seguridad | Frecuencia | Coste Retraso | Esfuerzo | Puntuación | Recomendación |
 |-----------|-----|-------|:----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|-------------|
-| 1 | DT-010 | Sense backup DB | 5 | 5 | 4 | 1 | 5 | 1 | 20.0 | Backup automàtic (WAL + cron/db-dump) |
-| 2 | DT-007 | Auth bàsica | 3 | 3 | 5 | 1 | 4 | 1 | 16.0 | Canviar a token-based o OAuth2 proxy |
-| 3 | DT-008 | Upload sense validació | 4 | 3 | 5 | 1 | 4 | 1 | 17.0 | Validar contingut amb `file-type` |
-| 4 | DT-005 | Sense tests frontend | 4 | 4 | 1 | 5 | 4 | 4 | 4.5 | Tests de Display i Admin |
-| 5 | DT-001 | Admin monolític | 4 | 3 | 1 | 4 | 3 | 5 | 3.0 | Refactoritzar en subcomponents |
-| 6 | DT-002 | routes.js massiu | 4 | 3 | 1 | 3 | 3 | 3 | 4.7 | Extreure serveis |
-| 7 | DT-003 | Migracions inline | 2 | 1 | 1 | 2 | 2 | 1 | 8.0 | Unificar a SQL migrator |
-| 8 | DT-009 | Logs no estructurats | 3 | 2 | 2 | 5 | 4 | 1 | 16.0 | pino o winston |
-| 9 | DT-006 | Linting absent | 2 | 1 | 1 | 5 | 3 | 1 | 12.0 | ESLint + Prettier |
-| 10 | DT-011 | Valors màgics | 2 | 1 | 1 | 2 | 2 | 1 | 8.0 | Constants amb nom |
-| 11 | DT-012 | Sense gestor estat | 3 | 1 | 1 | 3 | 2 | 3 | 3.3 | TanStack Query o Zustand |
-| 12 | DT-013 | Codi mort TypeScript | 1 | 1 | 1 | 1 | 1 | 1 | 5.0 | Eliminar fitxer |
-| 13 | DT-014 | SW sense versionat | 2 | 1 | 1 | 1 | 2 | 1 | 7.0 | Afegir cache versioning |
+| 1 | DT-010 | Sin backup DB | 5 | 5 | 4 | 1 | 5 | 1 | 20.0 | Backup automático (WAL + cron/db-dump) |
+| 2 | DT-007 | Auth básica | 3 | 3 | 5 | 1 | 4 | 1 | 16.0 | Cambiar a token-based u OAuth2 proxy |
+| 3 | DT-008 | Upload sin validación | 4 | 3 | 5 | 1 | 4 | 1 | 17.0 | Validar contenido con `file-type` |
+| 4 | DT-005 | Sin tests frontend | 4 | 4 | 1 | 5 | 4 | 4 | 4.5 | Tests de Display y Admin |
+| 5 | DT-001 | Admin monolítico | 4 | 3 | 1 | 4 | 3 | 5 | 3.0 | Refactorizar en subcomponentes |
+| 6 | DT-002 | routes.js masivo | 4 | 3 | 1 | 3 | 3 | 3 | 4.7 | Extraer servicios |
+| 7 | DT-003 | Migraciones inline | 2 | 1 | 1 | 2 | 2 | 1 | 8.0 | Unificar en SQL migrator |
+| 8 | DT-009 | Logs no estructurados | 3 | 2 | 2 | 5 | 4 | 1 | 16.0 | pino o winston |
+| 9 | DT-006 | Linting ausente | 2 | 1 | 1 | 5 | 3 | 1 | 12.0 | ESLint + Prettier |
+| 10 | DT-011 | Valores mágicos | 2 | 1 | 1 | 2 | 2 | 1 | 8.0 | Constantes con nombre |
+| 11 | DT-012 | Sin gestor estado | 3 | 1 | 1 | 3 | 2 | 3 | 3.3 | TanStack Query o Zustand |
+| 12 | DT-013 | Código muerto TypeScript | 1 | 1 | 1 | 1 | 1 | 1 | 5.0 | Eliminar archivo |
+| 13 | DT-014 | SW sin versionado | 2 | 1 | 1 | 1 | 2 | 1 | 7.0 | Añadir cache versioning |
 
 ---
 
-## 9. Seguretat
+## 9. Seguridad
 
-### Anàlisi defensiu
+### Análisis defensivo
 
-| Hallazgo | Tipus | Severitat | Descripció | Mitigació |
+| Hallazgo | Tipo | Severidad | Descripción | Mitigación |
 |----------|-------|-----------|------------|-----------|
-| **HTTP Basic Auth sense HTTPS** | Configuració insegura | Alt | Les credencials viatgen en base64 (text pla) si no hi ha HTTPS. El Docker Compose no configura TLS. | Forçar HTTPS al proxy o usar token-based auth |
-| **Contrasenya per defecte** | Configuració insegura | Critic | `ADMIN_PASSWORD=railboard` per defecte. Molts usuaris no la canviaran. | Exigir canvi de password al primer inici |
-| **Upload sense validació de contingut** | Risc potencial | Alt | Multer filtra per extensió, però es pot canviar l'extensió d'un executable. | Usar `file-type` per validar MIME real |
-| **No rate limit a /api** | Risc potencial | Mig | El rate limit només aplica a `/admin`. `/api/stations/:id/board` no té protecció. | Afegir rate limit a /api |
-| **SQLite no xifrat** | Risc potencial | Mig | Si algú accedeix al volume, pot llegir la base de dades sencera. | Xifratge a nivell de disc o SQLite Encryption Extension |
-| **CORS massa permissiu** | Configuració insegura | Mig | En no-prod, permet qualsevol origen `http://localhost:*`. | Restringir a origens coneguts |
-| **Helmet desactivat parcialment** | Configuració insegura | Baix | `crossOriginResourcePolicy: "cross-origin"` | Avaluar si és necessari |
-| **Stops sencers a logs** | Risc potencial | Baix | Si algun dia es loggen peticions, les contrasenyes Basic Auth hi apareixeran. | Usar middleware que sanititzi headers |
-| **No CSRF protection** | Risc potencial | Mig | Tot i que l'auth Basic Auth via headers no és vulnerable a CSRF clàssic, les peticions GET/POST a /admin amb credencials desades al navegador sí. | Implementar CSRF token o SameSite cookies |
-| **XSS al panell** | Risc potencial | Mig | Les dades de trens (observations, stops) es renderitzen com a text. Si un admin maliciós injecta HTML, es podria executar. | Revisar que React escapa correctament |
-| **IDOR a /api/stations/:id** | Risc potencial | Baix | L'API pública no requereix auth. Es pot llistar qualsevol estació. | No rellevant per al cas d'ús (dades públiques) |
+| **HTTP Basic Auth sin HTTPS** | Configuración insegura | Alto | Las credenciales viajan en base64 (texto plano) si no hay HTTPS. El Docker Compose no configura TLS. | Forzar HTTPS en el proxy o usar token-based auth |
+| **Contraseña por defecto** | Configuración insegura | Crítico | `ADMIN_PASSWORD=railboard` por defecto. Muchos usuarios no la cambiarán. | Exigir cambio de password al primer inicio |
+| **Upload sin validación de contenido** | Riesgo potencial | Alto | Multer filtra por extensión, pero se puede cambiar la extensión de un ejecutable. | Usar `file-type` para validar MIME real |
+| **Sin rate limit en /api** | Riesgo potencial | Medio | El rate limit solo aplica a `/admin`. `/api/stations/:id/board` no tiene protección. | Añadir rate limit a /api |
+| **SQLite no cifrado** | Riesgo potencial | Medio | Si alguien accede al volume, puede leer la base de datos entera. | Cifrado a nivel de disco o SQLite Encryption Extension |
+| **CORS demasiado permisivo** | Configuración insegura | Medio | En no-prod, permite cualquier origen `http://localhost:*`. | Restringir a orígenes conocidos |
+| **Helmet desactivado parcialmente** | Configuración insegura | Bajo | `crossOriginResourcePolicy: "cross-origin"` | Evaluar si es necesario |
+| **Stops completos en logs** | Riesgo potencial | Bajo | Si algún día se loguean peticiones, las contraseñas Basic Auth aparecerán. | Usar middleware que sanitice headers |
+| **Sin protección CSRF** | Riesgo potencial | Medio | Aunque la auth Basic Auth vía headers no es vulnerable a CSRF clásico, las peticiones GET/POST a /admin con credenciales guardadas en el navegador sí. | Implementar CSRF token o SameSite cookies |
+| **XSS en el panel** | Riesgo potencial | Medio | Los datos de trenes (observations, stops) se renderizan como texto. Si un admin malicioso inyecta HTML, se podría ejecutar. | Revisar que React escapa correctamente |
+| **IDOR en /api/stations/:id** | Riesgo potencial | Bajo | La API pública no requiere auth. Se puede listar cualquier estación. | No relevante para el caso de uso (datos públicos) |
 
-### Classificació final
+### Clasificación final
 
-| Nivell | Comptador |
+| Nivel | Contador |
 |--------|:---------:|
-| Crític | 1 (contrasenya per defecte) |
-| Alt | 3 (Basic auth sense HTTPS, upload sense validació, rate limit /api) |
-| Mig | 4 (SQLite no xifrat, CORS permissiu, CSRF, XSS potencial) |
-| Baix | 2 (Helmet, logs) |
+| Crítico | 1 (contraseña por defecto) |
+| Alto | 3 (Basic auth sin HTTPS, upload sin validación, rate limit /api) |
+| Medio | 4 (SQLite no cifrado, CORS permisivo, CSRF, XSS potencial) |
+| Bajo | 2 (Helmet, logs) |
 
 ---
 
-## 10. Testing i qualitat
+## 10. Testing y calidad
 
-### Tests existents
+### Tests existentes
 
-| Suite | Fitxer | Tests | Tipus |
+| Suite | Archivo | Tests | Tipo |
 |-------|--------|:-----:|-------|
-| DB unit tests | `backend/src/__tests__/db.unit.test.js` | — | Unitari (temp DB) |
-| Helpers unit tests | `backend/src/__tests__/helpers.unit.test.js` | — | Unitari |
-| E2E API | `backend/src/__tests__/e2e.test.js` | — | Integració |
-| Routes integration | `backend/src/__tests__/routes.integration.test.js` | — | Integració |
-| Total backend | 4 fitxers | **72 tests** | ✅ Tots passen |
-| StatusPill | `frontend/src/components/__tests__/StatusPill.test.tsx` | 8 | Unitari |
-| Clock | `frontend/src/components/__tests__/Clock.test.tsx` | 3 | Unitari |
-| i18n | `frontend/src/lib/__tests__/i18n.test.ts` | 10 | Unitari |
-| Total frontend | 3 fitxers | **21 tests** | ✅ Tots passen |
+| DB unit tests | `backend/src/__tests__/db.unit.test.js` | — | Unitario (temp DB) |
+| Helpers unit tests | `backend/src/__tests__/helpers.unit.test.js` | — | Unitario |
+| E2E API | `backend/src/__tests__/e2e.test.js` | — | Integración |
+| Routes integration | `backend/src/__tests__/routes.integration.test.js` | — | Integración |
+| Total backend | 4 archivos | **72 tests** | ✅ Todos pasan |
+| StatusPill | `frontend/src/components/__tests__/StatusPill.test.tsx` | 8 | Unitario |
+| Clock | `frontend/src/components/__tests__/Clock.test.tsx` | 3 | Unitario |
+| i18n | `frontend/src/lib/__tests__/i18n.test.ts` | 10 | Unitario |
+| Total frontend | 3 archivos | **21 tests** | ✅ Todos pasan |
 
-### Cobertura aparent
+### Cobertura aparente
 
-L'única àrea sense test cobrir és:
-- **Frontend:** Display.tsx, Admin.tsx, DisplayConfig.tsx, Trains.tsx (components principals)
+La única área sin test cubrir es:
+- **Frontend:** Display.tsx, Admin.tsx, DisplayConfig.tsx, Trains.tsx (componentes principales)
 - **Backend:** ws.js, services/routeService.js
 
-### Piràmide de testing proposada
+### Pirámide de testing propuesta
 
 ```
          ╱╲
-        ╱ E2E ╲           → Playwright/Cypress (0 tests → 2-3 crítics)
+        ╱ E2E ╲           → Playwright/Cypress (0 tests → 2-3 críticos)
        ╱────────╲
-      ╱ Integració ╲      → supertest + Vitest (3 → 5 tests)
+      ╱ Integración ╲      → supertest + Vitest (3 → 5 tests)
      ╱──────────────╲
     ╱   Components    ╲   → Testing Library (3 → 10 tests)
    ╱────────────────────╲
@@ -829,286 +829,286 @@ L'única àrea sense test cobrir és:
  ╱──────────────────────────╲
 ```
 
-### Fluxos crítics sense cobertura
+### Flujos críticos sin cobertura
 
-1. **Panell de display** — renderització amb dades reals, canvi d'idioma, marquee scrolling
-2. **Generació de tren aleatori** — càlcul de ruta, horari, retards
-3. **Serveis multi-parada** — creació, propagació de retards, canvis d'estat
-4. **Pujada d'imatges** — validesa del fitxer, emmagatzematge, URL resultant
-5. **WebSocket** — connexió, recepció de broadcast, reconnexió
+1. **Panel de display** — renderizado con datos reales, cambio de idioma, marquee scrolling
+2. **Generación de tren aleatorio** — cálculo de ruta, horario, retrasos
+3. **Servicios multi-parada** — creación, propagación de retrasos, cambios de estado
+4. **Subida de imágenes** — validez del archivo, almacenamiento, URL resultante
+5. **WebSocket** — conexión, recepción de broadcast, reconexión
 
 ---
 
-## 11. Rendiment i escalabilitat
+## 11. Rendimiento y escalabilidad
 
-### Avaluació
+### Evaluación
 
-| Aspecte | Estat | Risc |
+| Aspecto | Estado | Riesgo |
 |---------|-------|------|
-| **SQLite sense concurrència** | WAL mode permet lectors concurrents, però només un escriptor | Cua d'escriptura en cas de moltes actualitzacions |
-| **Polling 5 segons** | GET /api/stations/:id/board cada 5s per cada client | Amb N clients, N peticions/5s |
-| **Càrrega de rutes JSON** | `railboard_routes.json` (1981 línies) es carrega a memòria a l'inici | Dades estàtiques, no cal refresh |
-| **Operacions N+1** | `routes.js` consulta dades relacionades amb JOINs | ✅ Ja optimitzat amb JOINs a db.js |
-| **Paginació** | `listTrains()` no té paginació | Acceptable per a desenes de trens; problemàtic amb centenars |
-| **Fitxers estàtics** | Nginx serveix directament amb cache 30d | ✅ |
-| **Uploads** | Emmagatzemats al sistema de fitxers | Sense límit de tamany per usuari (només 15MB a nginx) |
+| **SQLite sin concurrencia** | WAL mode permite lectores concurrentes, pero solo un escritor | Cola de escritura en caso de muchas actualizaciones |
+| **Polling 5 segundos** | GET /api/stations/:id/board cada 5s por cada cliente | Con N clientes, N peticiones/5s |
+| **Carga de rutas JSON** | `railboard_routes.json` (1981 líneas) se carga en memoria al inicio | Datos estáticos, no necesita refresh |
+| **Operaciones N+1** | `routes.js` consulta datos relacionados con JOINs | ✅ Ya optimizado con JOINs en db.js |
+| **Paginación** | `listTrains()` no tiene paginación | Aceptable para decenas de trenes; problemático con cientos |
+| **Archivos estáticos** | Nginx sirve directamente con cache 30d | ✅ |
+| **Uploads** | Almacenados en el sistema de archivos | Sin límite de tamaño por usuario (solo 15MB en nginx) |
 
-### Conclusió
+### Conclusión
 
-El rendiment actual és adequat per a l'ús previst (maquetes ferroviàries, exposicions). No s'identifiquen colls d'ampolla crítics. En cas de créixer a centenars de clients concurrents, caldria:
-1. Afegir Redis com a cache per al panell
-2. Limitar el polling i dependre més de WebSocket
-3. Indexar `station_id` + `status` a la taula `trains`
+El rendimiento actual es adecuado para el uso previsto (maquetas ferroviarias, exposiciones). No se identifican cuellos de botella críticos. En caso de crecer a cientos de clientes concurrentes, sería necesario:
+1. Añadir Redis como caché para el panel
+2. Limitar el polling y depender más de WebSocket
+3. Indexar `station_id` + `status` en la tabla `trains`
 
 ---
 
-## 12. Observabilitat i operació
+## 12. Observabilidad y operación
 
-### Estat actual
+### Estado actual
 
-| Aspecte | Estat |
+| Aspecto | Estado |
 |---------|-------|
-| Logs | `console.log` a tot arreu |
-| Nivells de log | Cap (info/warn/error barrejats) |
-| Request ID | Cap |
-| Mètriques | Cap |
-| Tracing | Cap |
+| Logs | `console.log` en todas partes |
+| Niveles de log | Ninguno (info/warn/error mezclados) |
+| Request ID | Ninguno |
+| Métricas | Ninguna |
+| Tracing | Ninguno |
 | Health check | GET /health → `{ ok: true }` |
-| Alertes | Cap |
-| Dashboard | Cap |
+| Alertas | Ninguna |
+| Dashboard | Ninguno |
 
-### Proposta mínima
+### Propuesta mínima
 
-**Mètriques tècniques:**
-- Nombre de trens per estació
-- Temps de resposta /api/stations/:id/board
-- Nombre de connexions WebSocket
-- Memòria i CPU del contenidor
+**Métricas técnicas:**
+- Número de trenes por estación
+- Tiempo de respuesta /api/stations/:id/board
+- Número de conexiones WebSocket
+- Memoria y CPU del contenedor
 
-**Alertes:**
-- Health check falla 3 vegades seguides
+**Alertas:**
+- Health check falla 3 veces seguidas
 - DB space < 100MB
-- Temps de resposta > 2s
+- Tiempo de respuesta > 2s
 
-**Runbooks necessaris:**
-- Caiguda del servei → `docker compose restart`
-- Recuperació de base de dades → restaurar volume backup
-- Rotació de logs → DOCKER no fa rotació per defecte
+**Runbooks necesarios:**
+- Caída del servicio → `docker compose restart`
+- Recuperación de base de datos → restaurar volume backup
+- Rotación de logs → DOCKER no hace rotación por defecto
 
 ---
 
-## 13. Dependències i obsolescència
+## 13. Dependencias y obsolescencia
 
-| Dependència | Versió | Ús | Estat | Risc | Acció |
+| Dependencia | Versión | Uso | Estado | Riesgo | Acción |
 |-------------|--------|----|-------|------|-------|
-| better-sqlite3 | ^11.3.0 | Base de dades | ✅ Suportada | Baix | Mantenir |
-| express | ^4.21.0 | Framework | ✅ Mantingut | Baix | Mantenir |
-| ws | ^8.18.0 | WebSocket | ✅ Mantingut | Baix | Mantenir |
-| multer | ^1.4.5-lts.1 | Upload | ⚠️ LTS (no noves features) | Baix | Mantenir |
-| helmet | ^8.2.0 | Seguretat | ✅ Mantingut | Baix | Mantenir |
-| express-basic-auth | ^1.2.1 | Auth | ⚠️ Sense canvis des de 2021 | Mig | Migrar a passport o auth middleware propi |
-| express-rate-limit | ^8.5.2 | Rate limit | ✅ Mantingut | Baix | Mantenir |
-| lucide-react | ^1.24.0 | Icones | ✅ Actiu | Baix | Mantenir |
-| vitest | ^4.1.7 | Testing | ✅ Última versió | Baix | Mantenir |
-| supertest | ^7.2.2 | HTTP testing | ✅ Mantingut | Baix | Mantenir |
-| @dnd-kit | ^6 | Drag & drop | ✅ Mantingut | Baix | Mantenir |
-| tailwindcss | ^3.4 | CSS | ✅ Mantingut | Baix | Mantenir |
-| @rolldown/binding-darwin-arm64 | ^1.2.0 | Native binding | ⚠️ Causa problemes d'instal·lació | Mig | Eliminar o ignorar (no es necessita en producció) |
+| better-sqlite3 | ^11.3.0 | Base de datos | ✅ Soportada | Bajo | Mantener |
+| express | ^4.21.0 | Framework | ✅ Mantenido | Bajo | Mantener |
+| ws | ^8.18.0 | WebSocket | ✅ Mantenido | Bajo | Mantener |
+| multer | ^1.4.5-lts.1 | Upload | ⚠️ LTS (sin nuevas features) | Bajo | Mantener |
+| helmet | ^8.2.0 | Seguridad | ✅ Mantenido | Bajo | Mantener |
+| express-basic-auth | ^1.2.1 | Auth | ⚠️ Sin cambios desde 2021 | Medio | Migrar a passport o auth middleware propio |
+| express-rate-limit | ^8.5.2 | Rate limit | ✅ Mantenido | Bajo | Mantener |
+| lucide-react | ^1.24.0 | Iconos | ✅ Activo | Bajo | Mantener |
+| vitest | ^4.1.7 | Testing | ✅ Última versión | Bajo | Mantener |
+| supertest | ^7.2.2 | HTTP testing | ✅ Mantenido | Bajo | Mantener |
+| @dnd-kit | ^6 | Drag & drop | ✅ Mantenido | Bajo | Mantener |
+| tailwindcss | ^3.4 | CSS | ✅ Mantenido | Bajo | Mantener |
+| @rolldown/binding-darwin-arm64 | ^1.2.0 | Native binding | ⚠️ Causa problemas de instalación | Medio | Eliminar o ignorar (no se necesita en producción) |
 
 ---
 
-## 14. Experiència de desenvolupament
+## 14. Experiencia de desarrollo
 
-### Passos actuals per començar
+### Pasos actuales para empezar
 
-1. Clonar repositori
-2. `docker compose up` → tot en marxa
-3. Obrir `http://localhost` → panell
-4. Obrir `http://localhost/admin` → admin (user: `admin`, password: `railboard`)
+1. Clonar repositorio
+2. `docker compose up` → todo en marcha
+3. Abrir `http://localhost` → panel
+4. Abrir `http://localhost/admin` → admin (user: `admin`, password: `railboard`)
 
-### Problemes identificats
+### Problemas identificados
 
-| Problema | Impacte | Solució |
+| Problema | Impacto | Solución |
 |----------|---------|---------|
-| No hi ha `.nvmrc` ni `.node-version` | Un dev pot usar versió incorrecta de Node | Afegir `.nvmrc` amb "20" |
-| No hi ha ESLint/Prettier | Inconsistències d'estil | Configurar ESLint + Prettier |
-| `README.md` existeix però està incomplet | Un nou dev no sap per on començar | Millorar README (vegeu ONBOARDING.md) |
-| Docker requereix build inicial | 2-3 minuts per al primer `docker compose up` | Documentar temps esperat |
-| No hi ha scripts de seed automàtics | Cal executar `node seed.js` manualment | Afegir al `CMD` del Dockerfile o a `docker-compose.yml` |
+| No hay `.nvmrc` ni `.node-version` | Un dev puede usar versión incorrecta de Node | Añadir `.nvmrc` con "20" |
+| No hay ESLint/Prettier | Inconsistencias de estilo | Configurar ESLint + Prettier |
+| `README.md` existe pero está incompleto | Un nuevo dev no sabe por dónde empezar | Mejorar README (véase ONBOARDING.md) |
+| Docker requiere build inicial | 2-3 minutos para el primer `docker compose up` | Documentar tiempo esperado |
+| No hay scripts de seed automáticos | Hay que ejecutar `node seed.js` manualmente | Añadir al `CMD` del Dockerfile o a `docker-compose.yml` |
 
 ---
 
-## 15. Documentació que cal crear
+## 15. Documentación que crear
 
 ```text
 docs/
-├── README.md                    (millorar l'existent)
+├── README.md                    (mejorar el existente)
 ├── architecture/
-│   ├── overview.md              (aquest ANALYSIS.md)
-│   ├── context.md               (diagrames)
+│   ├── overview.md              (este ANALYSIS.md)
+│   ├── context.md               (diagramas)
 │   ├── containers.md            (diagrama Docker)
 │   ├── decisions/
-│   │   └── 001-sqlite.md        (ADR per què SQLite)
+│   │   └── 001-sqlite.md        (ADR por qué SQLite)
 ├── domain/
-│   ├── glossary.md              (taula de termes)
-│   ├── entities.md              (diagrames ER)
-│   ├── business-rules.md        (llistat complet)
+│   ├── glossary.md              (tabla de términos)
+│   ├── entities.md              (diagramas ER)
+│   ├── business-rules.md        (listado completo)
 ├── development/
 │   ├── setup.md                 (ONBOARDING.md)
-│   ├── coding-standards.md      (convencions)
+│   ├── coding-standards.md      (convenciones)
 │   ├── testing.md               (TESTING-STRATEGY.md)
-│   └── troubleshooting.md       (problemes comuns)
+│   └── troubleshooting.md       (problemas comunes)
 ├── operations/
 │   ├── deployment.md            (Docker Compose)
-│   ├── monitoring.md            (operacions)
+│   ├── monitoring.md            (operaciones)
 │   ├── backup.md                (backup/restore)
-│   └── runbooks/                (incidents)
+│   └── runbooks/                (incidentes)
 └── security/
-    ├── authentication.md        (auth actual i millores)
-    └── security-controls.md     (llista de controls)
+    ├── authentication.md        (auth actual y mejoras)
+    └── security-controls.md     (lista de controles)
 ```
 
 ---
 
-## 16. ADR: decisions arquitectòniques
+## 16. ADR: decisiones arquitectónicas
 
-### ADR-001: SQLite com a base de dades
+### ADR-001: SQLite como base de datos
 
-**Estat:** Aparentment acceptat (pendent de validació amb l'equip)
-**Context:** Necessitat d'una base de dades incrustada sense servidor, fàcil de distribuir amb Docker.
-**Decisió aparent:** Usar better-sqlite3 amb mode WAL.
-**Alternatives:** PostgreSQL, MySQL, SQLite.
-**Conseqüències positives:** Zero configuració, sense servidor extern, còpia de seguretat trivial.
-**Conseqüències negatives:** Sense concurrència d'escriptura, sense escalat horitzontal.
-**Riscos:** Pèrdua de dades en escriptura concurrent (WAL mitiga però no elimina), corrupció en cas de fallada de disc.
+**Estado:** Aparentemente aceptado (pendiente de validación con el equipo)
+**Contexto:** Necesidad de una base de datos incrustada sin servidor, fácil de distribuir con Docker.
+**Decisión aparente:** Usar better-sqlite3 con modo WAL.
+**Alternativas:** PostgreSQL, MySQL, SQLite.
+**Consecuencias positivas:** Zero configuración, sin servidor externo, copia de seguridad trivial.
+**Consecuencias negativas:** Sin concurrencia de escritura, sin escalado horizontal.
+**Riesgos:** Pérdida de datos en escritura concurrente (WAL mitiga pero no elimina), corrupción en caso de fallo de disco.
 
-### ADR-002: HTTP Basic Auth per a admin
+### ADR-002: HTTP Basic Auth para admin
 
-**Estat:** Decisió conscient pendent de revisió
-**Context:** Necessitat de protegir les rutes d'administració.
-**Decisió:** Usar express-basic-auth amb usuari fix "admin" i contrasenya configurable per variable d'entorn.
-**Alternatives:** Sessions, JWT, OAuth2, Auth proxy (Authelia, oauth2-proxy).
-**Conseqüències:** Simple d'implementar, però insegur per a entorns exposats a internet. Sense MFA, sense tokens.
+**Estado:** Decisión consciente pendiente de revisión
+**Contexto:** Necesidad de proteger las rutas de administración.
+**Decisión:** Usar express-basic-auth con usuario fijo "admin" y contraseña configurable por variable de entorno.
+**Alternativas:** Sessions, JWT, OAuth2, Auth proxy (Authelia, oauth2-proxy).
+**Consecuencias:** Simple de implementar, pero inseguro para entornos expuestos a internet. Sin MFA, sin tokens.
 
-### ADR-003: Frontend React SPA amb Nginx
+### ADR-003: Frontend React SPA con Nginx
 
-**Estat:** Confirmat
-**Context:** Necessitat d'una interfície rica per al panell i l'administració.
-**Decisió:** React + Vite + Tailwind, servit per Nginx amb SPA fallback.
-**Alternatives:** Next.js (SSR), Vue, Svelte.
-**Conseqüències positives:** Experiència reactiva ràpida, desplegament estàtic senzill.
-**Conseqüències negatives:** SEO limitat (no rellevant per al cas d'ús), bundle gran (448KB JS).
-
----
-
-## 17. Roadmap de millora
-
-### Fase 0: Estabilització immediata
-
-| Iniciativa | Problema | Dependències | Esforç | Risc | Resultat |
-|------------|----------|--------------|--------|------|----------|
-| Backup automàtic DB | DT-010 | Docker | XS | Baix | Script que copia data.db cada hora |
-| Canvi password per defecte | DT-007 | cap | XS | Baix | Forçar canvi al primer inici |
-
-### Fase 1: Visibilitat i control
-
-| Iniciativa | Problema | Dependències | Esforç | Risc | Resultat |
-|------------|----------|--------------|--------|------|----------|
-| Logs estructurats (pino) | DT-009 | cap | S | Baix | Logs JSON amb nivells |
-| ESLint + Prettier | DT-006 | cap | XS | Baix | Codi consistent |
-| Health check ampliat | — | cap | XS | Baix | Verificar DB, uploads, memòria |
-| CI (GitHub Actions) | — | Repo a GH | S | Baix | Tests automàtics a cada PR |
-
-### Fase 2: Reducció de deuda
-
-| Iniciativa | Problema | Dependències | Esforç | Risc | Resultat |
-|------------|----------|--------------|--------|------|----------|
-| Tests de Display | DT-005 | Fase 1 | M | Mig | Tests dels components crítics |
-| Refactor routes.js | DT-002 | cap | M | Mig | Serveis separats |
-| Unificar migracions | DT-003 | cap | S | Baix | Una sola font de veritat |
-| Validació d'uploads | DT-008 | cap | XS | Baix | file-type checking |
-
-### Fase 3: Evolució arquitectònica
-
-| Iniciativa | Problema | Dependències | Esforç | Risc | Resultat |
-|------------|----------|--------------|--------|------|----------|
-| Refactor Admin.tsx | DT-001 | Fase 2 | L | Mig | Subcomponents + lazy loading |
-| Gestor d'estat global | DT-012 | cap | M | Baix | Dades compartides |
-| Migrar auth a tokens | DT-007 | Fase 0 | M | Mig | JWT o Auth proxy |
+**Estado:** Confirmado
+**Contexto:** Necesidad de una interfaz rica para el panel y la administración.
+**Decisión:** React + Vite + Tailwind, servido por Nginx con SPA fallback.
+**Alternativas:** Next.js (SSR), Vue, Svelte.
+**Consecuencias positivas:** Experiencia reactiva rápida, despliegue estático sencillo.
+**Consecuencias negativas:** SEO limitado (no relevante para el caso de uso), bundle grande (448KB JS).
 
 ---
 
-## 18. Pla 30-60-90 dies
+## 17. Roadmap de mejora
 
-### Primers 30 dies
+### Fase 0: Estabilización inmediata
 
-| Setmana | Acció | Entregable |
+| Iniciativa | Problema | Dependencias | Esfuerzo | Riesgo | Resultado |
+|------------|----------|--------------|--------|------|----------|
+| Backup automático DB | DT-010 | Docker | XS | Bajo | Script que copia data.db cada hora |
+| Cambio password por defecto | DT-007 | ninguno | XS | Bajo | Forzar cambio al primer inicio |
+
+### Fase 1: Visibilidad y control
+
+| Iniciativa | Problema | Dependencias | Esfuerzo | Riesgo | Resultado |
+|------------|----------|--------------|--------|------|----------|
+| Logs estructurados (pino) | DT-009 | ninguno | S | Bajo | Logs JSON con niveles |
+| ESLint + Prettier | DT-006 | ninguno | XS | Bajo | Código consistente |
+| Health check ampliado | — | ninguno | XS | Bajo | Verificar DB, uploads, memoria |
+| CI (GitHub Actions) | — | Repo en GH | S | Bajo | Tests automáticos en cada PR |
+
+### Fase 2: Reducción de deuda
+
+| Iniciativa | Problema | Dependencias | Esfuerzo | Riesgo | Resultado |
+|------------|----------|--------------|--------|------|----------|
+| Tests de Display | DT-005 | Fase 1 | M | Medio | Tests de los componentes críticos |
+| Refactor routes.js | DT-002 | ninguno | M | Medio | Servicios separados |
+| Unificar migraciones | DT-003 | ninguno | S | Bajo | Una sola fuente de verdad |
+| Validación de uploads | DT-008 | ninguno | XS | Bajo | file-type checking |
+
+### Fase 3: Evolución arquitectónica
+
+| Iniciativa | Problema | Dependencias | Esfuerzo | Riesgo | Resultado |
+|------------|----------|--------------|--------|------|----------|
+| Refactor Admin.tsx | DT-001 | Fase 2 | L | Medio | Subcomponentes + lazy loading |
+| Gestor de estado global | DT-012 | ninguno | M | Bajo | Datos compartidos |
+| Migrar auth a tokens | DT-007 | Fase 0 | M | Medio | JWT o Auth proxy |
+
+---
+
+## 18. Plan 30-60-90 días
+
+### Primeros 30 días
+
+| Semana | Acción | Entregable |
 |---------|-------|------------|
-| 1 | Backup DB + forçar canvi password | Script backuper, `.env.example` actualitzat |
-| 2 | Logs estructurats + health check ampliat | PR amb pino + /health millorat |
+| 1 | Backup DB + forzar cambio password | Script backuper, `.env.example` actualizado |
+| 2 | Logs estructurados + health check ampliado | PR con pino + /health mejorado |
 | 3 | ESLint + Prettier + CI | `.eslintrc`, `.prettierrc`, workflow GH |
-| 4 | Tests de Display + Admin bàsic | 5-10 tests de components |
+| 4 | Tests de Display + Admin básico | 5-10 tests de componentes |
 
-### Dies 31-60
+### Días 31-60
 
-| Setmana | Acció | Entregable |
+| Semana | Acción | Entregable |
 |---------|-------|------------|
-| 5-6 | Refactor routes.js en serveis | Fitxers `trainService.js`, `operatorService.js`, etc. |
-| 7 | Unificar migracions SQL | Migrar migracions inline a fitxers .sql |
-| 8 | Validació d'uploads amb file-type | Middleware de validació |
+| 5-6 | Refactor routes.js en servicios | Archivos `trainService.js`, `operatorService.js`, etc. |
+| 7 | Unificar migraciones SQL | Migrar migraciones inline a archivos .sql |
+| 8 | Validación de uploads con file-type | Middleware de validación |
 
-### Dies 61-90
+### Días 61-90
 
-| Setmana | Acció | Entregable |
+| Semana | Acción | Entregable |
 |---------|-------|------------|
-| 9-10 | Refactor Admin.tsx en subcomponents | 5-8 fitxers nous |
-| 11 | TanStack Query o Zustand | Cache compartida, menys peticions |
-| 12 | Documentació + onboarding | README, docs/ actualitzats |
+| 9-10 | Refactor Admin.tsx en subcomponentes | 5-8 archivos nuevos |
+| 11 | TanStack Query o Zustand | Caché compartida, menos peticiones |
+| 12 | Documentación + onboarding | README, docs/ actualizados |
 
 ---
 
 ## 19. Quick wins
 
-| Acció | Benefici | Esforç | Risc | Arxius afectats |
+| Acción | Beneficio | Esfuerzo | Riesgo | Archivos afectados |
 |-------|----------|--------|------|-----------------|
-| Backup automàtic (cron dins contenidor) | Pèrdua zero de dades | XS | Baix | `docker-compose.yml`, script backup.sh |
-| Canvi contrasenya per defecte | Seguretat millorada | XS | Baix | `README.md`, `.env.docker` |
-| Validar contingut d'arxius pujats | Evita RCE | XS | Baix | `routes.js` (multer middleware) |
-| Eliminar `routeService.ts` | Codi net | XS | Baix | `backend/src/services/routeService.ts` |
-| Afegir `.nvmrc` | Experiència dev | XS | Baix | `.nvmrc` |
-| Afegir `X-Request-ID` middleware | Depuració | XS | Baix | `index.js` |
-| Afegir `rejectUnauthorized` a multer | Seguretat | XS | Baix | `routes.js` |
+| Backup automático (cron dentro contenedor) | Pérdida cero de datos | XS | Bajo | `docker-compose.yml`, script backup.sh |
+| Cambio contraseña por defecto | Seguridad mejorada | XS | Bajo | `README.md`, `.env.docker` |
+| Validar contenido de archivos subidos | Evita RCE | XS | Bajo | `routes.js` (multer middleware) |
+| Eliminar `routeService.ts` | Código limpio | XS | Bajo | `backend/src/services/routeService.ts` |
+| Añadir `.nvmrc` | Experiencia dev | XS | Bajo | `.nvmrc` |
+| Añadir middleware `X-Request-ID` | Depuración | XS | Bajo | `index.js` |
+| Añadir `rejectUnauthorized` a multer | Seguridad | XS | Bajo | `routes.js` |
 
 ---
 
-## 20. Riscos
+## 20. Riesgos
 
-| ID | Risc | Causa | Probabilitat | Impacte | Mitigació | Contingència |
+| ID | Riesgo | Causa | Probabilidad | Impacto | Mitigación | Contingencia |
 |----|------|-------|:------------:|:-------:|-----------|--------------|
-| R-01 | Pèrdua de dades | Fallada volume Docker, corrupció SQLite | Baixa | Crític | Backup automàtic a host | Restaurar des de backup |
-| R-02 | Accés no autoritzat a admin | Contrasenya per defecte, Basic auth sense HTTPS | Mitjana | Alt | Forçar canvi de password, proxy auth | Revocar accés, canviar password |
-| R-03 | RCE via upload | Fitxer maliciós amb extensió vàlida | Baixa | Crític | Validar MIME real | Revisar logs, eliminar fitxer |
-| R-04 | Bloqueig per falta de mantenibilitat | Admin.tsx + routes.js massius | Alta | Mig | Refactoritzar | Congelar features, només refactor |
-| R-05 | Fuita d'informació | Logs amb dades sensibles | Baixa | Mig | Sanititzar logs | Audit log, rotació |
-| R-06 | Incompatibilitat Node 22+ | Dependències natives (better-sqlite3) | Mitjana | Mig | Testjar amb Node 22 | Pin Node 20 a Dockerfile |
-| R-07 | Pèrdua de coneixement | Cap documentació de domini, decisions no registrades | Mitjana | Alt | ADRs, documentació | Mantenir almenys ANALYSIS.md |
+| R-01 | Pérdida de datos | Fallo volume Docker, corrupción SQLite | Baja | Crítico | Backup automático a host | Restaurar desde backup |
+| R-02 | Acceso no autorizado a admin | Contraseña por defecto, Basic auth sin HTTPS | Media | Alto | Forzar cambio de password, proxy auth | Revocar acceso, cambiar password |
+| R-03 | RCE vía upload | Archivo malicioso con extensión válida | Baja | Crítico | Validar MIME real | Revisar logs, eliminar archivo |
+| R-04 | Bloqueo por falta de mantenibilidad | Admin.tsx + routes.js masivos | Alta | Medio | Refactorizar | Congelar features, solo refactor |
+| R-05 | Fuga de información | Logs con datos sensibles | Baja | Medio | Sanitizar logs | Audit log, rotación |
+| R-06 | Incompatibilidad Node 22+ | Dependencias nativas (better-sqlite3) | Media | Medio | Testear con Node 22 | Fijar Node 20 en Dockerfile |
+| R-07 | Pérdida de conocimiento | Sin documentación de dominio, decisiones no registradas | Media | Alto | ADRs, documentación | Mantener al menos ANALYSIS.md |
 
 ---
 
-## 21. Preguntes pendents
+## 21. Preguntas pendientes
 
-| Pregunta | Per a | Impacte potencial |
+| Pregunta | Para | Impacto potencial |
 |----------|-------|-------------------|
-| Quin és l'ús real del sistema? (nombre de desplegaments, usuaris concurrents) | Producte | Severitat de DT-001 i R-04 |
-| Hi ha plans d'exposar-ho a internet? | Producte/Seguretat | Canvi total d'estratègia d'auth |
-| El sistema de rutes JSON es manté manualment o es genera? | Operacions | Necessitat de refresh automàtic |
-| Hi ha un entorn de staging? | Operacions | Prioritat de CI/CD |
-| Es fan backups manualment ara? | Operacions | Severitat de R-01 |
-| El projecte té un mantenidor actiu? | Equip | Totes les estimacions d'esforç |
-| S'espera suportar múltiples usuaris admin concurrents? | Producte | Necessitat d'autenticació per usuari |
+| ¿Cuál es el uso real del sistema? (número de despliegues, usuarios concurrentes) | Producto | Severidad de DT-001 y R-04 |
+| ¿Hay planes de exponerlo a internet? | Producto/Seguridad | Cambio total de estrategia de auth |
+| ¿El sistema de rutas JSON se mantiene manualmente o se genera? | Operaciones | Necesidad de refresh automático |
+| ¿Hay un entorno de staging? | Operaciones | Prioridad de CI/CD |
+| ¿Se hacen backups manualmente ahora? | Operaciones | Severidad de R-01 |
+| ¿El proyecto tiene un mantenedor activo? | Equipo | Todas las estimaciones de esfuerzo |
+| ¿Se espera soportar múltiples usuarios admin concurrentes? | Producto | Necesidad de autenticación por usuario |
 
 ---
 
-> **Fi de l'ANÀLISI.**
-> Document generat el 2026-07-17. Basat en evidències del codi font, configuració, tests i infraestructura.
-> Àrees no analitzades: rendiment sota càrrega, seguretat de xarxa, compliment GDPR/LOPD.
+> **Fin del ANÁLISIS.**
+> Documento generado el 2026-07-17. Basado en evidencias del código fuente, configuración, tests e infraestructura.
+> Áreas no analizadas: rendimiento bajo carga, seguridad de red, cumplimiento GDPR/LOPD.

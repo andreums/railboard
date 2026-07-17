@@ -1,46 +1,46 @@
-# Model de Domini — RailBoard
+# Modelo de Dominio — RailBoard
 
-> Document del model de domini del sistema RailBoard, que descriu les entitats, relacions, estats i regles de negoci del sistema de panells informatius ferroviaris.
+> Documento del modelo de dominio del sistema RailBoard, que describe las entidades, relaciones, estados y reglas de negocio del sistema de paneles informativos ferroviarios.
 
 ---
 
-## 1. Glossari de domini
+## 1. Glosario de dominio
 
-| Terme (CA) | Terme (EN) | Codi entitat | Descripció |
+| Término (CA) | Término (ES) | Código entidad | Descripción |
 |---|---|---|---|
-| Tren | Train | `Train` | Servei individual amb horari, estat, estació associada i destinació. Model "pla" (mono-estació). |
-| Servei | Service | `Service` | Recorregut complet multi-parada amb origen i destí com a *places*. |
-| Parada | ServiceStop | `ServiceStop` | Punt individual d'un servei a una estació, amb horaris programats/esperats/reals. |
-| Operador | Operator | `Operator` | Companyia ferroviària que opera el tren (Renfe, Iryo, Ouigo…). |
-| Tipus de tren | TrainType | `TrainType` | Categoria del tren (AVE, Cercanías, Avlo, Alvia…). |
-| Estació | Station | `Station` | Estació física amb pantalla(s) de sortides/arribades. |
-| Lloc | Place | `Place` | Ciutat o localitat de destí/origen d'un servei. |
-| Ruta | Route | `RailRoute` | Recorregut ferroviari línia+estacions (ex: C-1 Madrid-Chamartín–Aeropuerto). |
-| Icona | TrainIcon | `TrainIcon` | Imatge personalitzada de la llibreria d'icones per a trens. |
-| Configuració | Config | `Config` | Paràmetres globals de l'aplicació. |
-| Config pantalla | DisplayConfig | `StationDisplayConfig` | Configuració per estació (idioma, plataforma/sector, aparença). |
-| Esdeveniment | ServiceEvent | `ServiceEvent` | Registre d'auditoria de canvis d'estat en serveis. |
-| Moviment | Movement | — | Tipus de moviment: sortida (`departure`), arribada (`arrival`), pas (`pass`), mixt (`mixed`). |
+| Tren | Tren | `Train` | Servicio individual con horario, estado, estación asociada y destino. Modelo "plano" (mono-estación). |
+| Servei | Servicio | `Service` | Recorrido completo multi-parada con origen y destino como *places*. |
+| Parada | Parada | `ServiceStop` | Punto individual de un servicio en una estación, con horarios programados/esperados/reales. |
+| Operador | Operador | `Operator` | Compañía ferroviaria que opera el tren (Renfe, Iryo, Ouigo…). |
+| Tipus de tren | Tipo de tren | `TrainType` | Categoría del tren (AVE, Cercanías, Avlo, Alvia…). |
+| Estació | Estación | `Station` | Estación física con pantalla(s) de salidas/llegadas. |
+| Lloc | Lugar | `Place` | Ciudad o localidad de destino/origen de un servicio. |
+| Ruta | Ruta | `RailRoute` | Recorrido ferroviario línea+estaciones (ej: C-1 Madrid-Chamartín–Aeropuerto). |
+| Icona | Icono | `TrainIcon` | Imagen personalizada de la librería de iconos para trenes. |
+| Configuració | Configuración | `Config` | Parámetros globales de la aplicación. |
+| Config pantalla | Config pantalla | `StationDisplayConfig` | Configuración por estación (idioma, plataforma/sector, apariencia). |
+| Esdeveniment | Evento | `ServiceEvent` | Registro de auditoría de cambios de estado en servicios. |
+| Moviment | Movimiento | — | Tipo de movimiento: salida (`departure`), llegada (`arrival`), paso (`pass`), mixto (`mixed`). |
 
 ---
 
-## 2. Diagrama d'entitats (Mermaid ERD)
+## 2. Diagrama de entidades (Mermaid ERD)
 
 ```mermaid
 erDiagram
     Operator ||--o{ Train : "opera"
     Operator ||--o{ Service : "opera"
-    TrainType ||--o{ Train : "classifica"
-    TrainType ||--o{ Service : "classifica"
-    Station ||--o{ Train : "mostra"
+    TrainType ||--o{ Train : "clasifica"
+    TrainType ||--o{ Service : "clasifica"
+    Station ||--o{ Train : "muestra"
     Station ||--o| StationDisplayConfig : "configura"
-    Station ||--o{ ServiceStop : "acull"
+    Station ||--o{ ServiceStop : "aloja"
     Place ||--o{ Service : "origen"
-    Place ||--o{ Service : "destí"
-    Service ||--o{ ServiceStop : "conté"
+    Place ||--o{ Service : "destino"
+    Service ||--o{ ServiceStop : "contiene"
     Service ||--o{ ServiceEvent : "genera"
     ServiceStop ||--o{ ServiceEvent : "referencia"
-    ServiceStop }o--|| Station : "ubicat a"
+    ServiceStop }o--|| Station : "ubicado en"
 
     Operator {
         int id PK
@@ -156,105 +156,105 @@ erDiagram
 
 ---
 
-## 3. Descripció detallada de les entitats
+## 3. Descripción detallada de las entidades
 
 ### 3.1. `Operator`
 
-Representa una companyia ferroviària.
+Representa una compañía ferroviaria.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `name` | TEXT UNIQUE | Nom de l'operador (ex: "Renfe") |
-| `logo_url` | TEXT | URL del logotip |
-| `pre_announce_ogg` | TEXT | Àudio de pre-anunci per a megafonia |
+| `name` | TEXT UNIQUE | Nombre del operador (ej: "Renfe") |
+| `logo_url` | TEXT | URL del logotipo |
+| `pre_announce_ogg` | TEXT | Audio de pre-anuncio para megafonía |
 
-**Relacions:**
-- Un `Operator` pot estar associat a molts `Train`s (`operator_id` FK a `trains`)
-- Un `Operator` pot estar associat a molts `Service`s (`operator_id` FK a `services`)
+**Relaciones:**
+- Un `Operator` puede estar asociado a muchos `Train`s (`operator_id` FK a `trains`)
+- Un `Operator` puede estar asociado a muchos `Service`s (`operator_id` FK a `services`)
 
-**Regles:**
-- `name` és únic (UNIQUE constraint)
+**Reglas:**
+- `name` es único (UNIQUE constraint)
 
 ---
 
 ### 3.2. `TrainType`
 
-Categoria de tren.
+Categoría de tren.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `code` | TEXT UNIQUE | Codi del tipus (ex: "AVE", "C", "MD") |
-| `name` | TEXT | Nom descriptiu (ex: "Alta Velocidad") |
+| `code` | TEXT UNIQUE | Código del tipo (ej: "AVE", "C", "MD") |
+| `name` | TEXT | Nombre descriptivo (ej: "Alta Velocidad") |
 | `color` | TEXT | Color hexadecimal (#7c1d2e) |
-| `logo_url` | TEXT | URL del logotip |
-| `pre_announce_ogg` | TEXT | Àudio de pre-anunci |
-| `destination_icon_url` | TEXT | Icona de destinació per al display |
+| `logo_url` | TEXT | URL del logotipo |
+| `pre_announce_ogg` | TEXT | Audio de pre-anuncio |
+| `destination_icon_url` | TEXT | Icono de destino para el display |
 
-**Relacions:**
-- Un `TrainType` pot classificar molts `Train`s
-- Un `TrainType` pot classificar molts `Service`s
+**Relaciones:**
+- Un `TrainType` puede clasificar muchos `Train`s
+- Un `TrainType` puede clasificar muchos `Service`s
 
-**Regles:**
-- `code` és la clau per a upsert (API POST /train-types fa upsert per `code`)
+**Reglas:**
+- `code` es la clave para upsert (API POST /train-types hace upsert por `code`)
 
 ---
 
 ### 3.3. `Place`
 
-Ciutat o localitat d'origen/destí.
+Ciudad o localidad de origen/destino.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `name` | TEXT UNIQUE | Nom del lloc (ex: "Barcelona Sants") |
-| `logo_url` | TEXT | URL del logotip |
+| `name` | TEXT UNIQUE | Nombre del lugar (ej: "Barcelona Sants") |
+| `logo_url` | TEXT | URL del logotipo |
 
-**Regles:**
-- `name` és únic
+**Reglas:**
+- `name` es único
 
 ---
 
 ### 3.4. `Station`
 
-Estació física amb pantalla de sortides/arribades.
+Estación física con pantalla de salidas/llegadas.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `name` | TEXT | Nom complet de l'estació |
-| `short` | TEXT | Nom abreujat |
-| `logo_url` | TEXT | URL del logotip |
-| `pre_announce_ogg` | TEXT | Àudio de pre-anunci per a megafonia |
-| `color` | TEXT | Color institucional (#1A3254 per defecte) |
-| `sort_order` | INTEGER | Ordre de visualització als llistats |
-| `created_at` | TEXT | Data de creació (ISO 8601) |
+| `name` | TEXT | Nombre completo de la estación |
+| `short` | TEXT | Nombre abreviado |
+| `logo_url` | TEXT | URL del logotipo |
+| `pre_announce_ogg` | TEXT | Audio de pre-anuncio para megafonía |
+| `color` | TEXT | Color institucional (#1A3254 por defecto) |
+| `sort_order` | INTEGER | Orden de visualización en los listados |
+| `created_at` | TEXT | Fecha de creación (ISO 8601) |
 
-**Relacions:**
-- Una `Station` pot tenir molts `Train`s associats
-- Una `Station` té zero o un `StationDisplayConfig`
-- Una `Station` pot acollir molts `ServiceStop`s
+**Relaciones:**
+- Una `Station` puede tener muchos `Train`s asociados
+- Una `Station` tiene cero o un `StationDisplayConfig`
+- Una `Station` puede alojar muchos `ServiceStop`s
 
-**Regles de negoci:**
-- No es pot eliminar l'última estació (`countStations() <= 1` → error)
-- `sort_order` determina l'ordre als llistats
+**Reglas de negocio:**
+- No se puede eliminar la última estación (`countStations() <= 1` → error)
+- `sort_order` determina el orden en los listados
 
 ---
 
 ### 3.5. `StationDisplayConfig`
 
-Configuració específica per estació.
+Configuración específica por estación.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
-| `station_id` | INTEGER PK, FK | Referència a `stations.id` amb ON DELETE CASCADE |
-| `config_json` | TEXT | JSON amb configuració (idioma, colors, plataformes…) |
-| `updated_at` | TEXT | Data de modificació |
+| `station_id` | INTEGER PK, FK | Referencia a `stations.id` con ON DELETE CASCADE |
+| `config_json` | TEXT | JSON con configuración (idioma, colores, plataformas…) |
+| `updated_at` | TEXT | Fecha de modificación |
 
-**Hereta de `Config`:** Els valors globals actuen com a fallback. El `config_json` sobreescriu valors.
+**Herede de `Config`:** Los valores globales actúan como fallback. El `config_json` sobrescribe valores.
 
-**Camps habituals dins `config_json`:**
+**Campos habituales dentro de `config_json`:**
 - `station_name`, `logo_url`, `language`, `languages[]`, `routeRegion`
 - `platformMin`, `platformMax`, `platformAllowEmpty`, `sectorMin`, `sectorMax`, `sectorAllowEmpty`
 - `mode` (departures/arrivals), `displayMode` (single/multiple)
@@ -266,100 +266,100 @@ Configuració específica per estació.
 
 ---
 
-### 3.6. `Train` (model "pla" / mono-estació)
+### 3.6. `Train` (modelo "plano" / mono-estación)
 
-Representa un tren individual en un panell de sortides/arribades. Model legacy que conviu amb el model `Service` + `ServiceStop`.
+Representa un tren individual en un panel de salidas/llegadas. Modelo legacy que convive con el modelo `Service` + `ServiceStop`.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `number` | TEXT | Número de tren (ex: "03104") |
+| `number` | TEXT | Número de tren (ej: "03104") |
 | `operator_id` | INTEGER FK | Operador (ON DELETE SET NULL) |
-| `train_type_id` | INTEGER FK | Tipus de tren (ON DELETE SET NULL) |
+| `train_type_id` | INTEGER FK | Tipo de tren (ON DELETE SET NULL) |
 | `origin` | TEXT | Origen (string literal, no FK) |
-| `destination` | TEXT | Destí (string literal, no FK) |
-| `stops` | TEXT JSON | Array JSON de parades intermèdies (strings) |
-| `scheduled_time` | TEXT | Horari programat (HH:mm) |
-| `expected_time` | TEXT | Horari previst (HH:mm) |
-| `platform` | TEXT | Via/andana ("-" per defecte) |
-| `sector` | TEXT | Sector ("-" per defecte) |
-| `status` | TEXT | Estat actual (vegeu §4) |
-| `sort_order` | INTEGER | Ordre al panell |
-| `observations` | TEXT | Observacions / notes |
-| `station_id` | INTEGER FK | Estació on es mostra (ON DELETE SET NULL) |
-| `custom_icon_url` | TEXT | URL d'icona personalitzada |
-| `icon_mode` | TEXT | Mode d'icona: `destination`, `custom`, `type`, `operator`, `none` |
-| `service_stop_id` | INTEGER FK | Enllaç opcional a `service_stops` (migració 003) |
-| `created_at` | TEXT | Data de creació |
+| `destination` | TEXT | Destino (string literal, no FK) |
+| `stops` | TEXT JSON | Array JSON de paradas intermedias (strings) |
+| `scheduled_time` | TEXT | Horario programado (HH:mm) |
+| `expected_time` | TEXT | Horario previsto (HH:mm) |
+| `platform` | TEXT | Vía/andén ("-" por defecto) |
+| `sector` | TEXT | Sector ("-" por defecto) |
+| `status` | TEXT | Estado actual (véase §4) |
+| `sort_order` | INTEGER | Orden en el panel |
+| `observations` | TEXT | Observaciones / notas |
+| `station_id` | INTEGER FK | Estación donde se muestra (ON DELETE SET NULL) |
+| `custom_icon_url` | TEXT | URL de icono personalizado |
+| `icon_mode` | TEXT | Modo de icono: `destination`, `custom`, `type`, `operator`, `none` |
+| `service_stop_id` | INTEGER FK | Enlace opcional a `service_stops` (migración 003) |
+| `created_at` | TEXT | Fecha de creación |
 
-**Estats de `status`:** `Scheduled`, `Boarding`, `Delayed`, `Departed`, `Arrived`, `Cancelled`
+**Estados de `status`:** `Scheduled`, `Boarding`, `Delayed`, `Departed`, `Arrived`, `Cancelled`
 
 ---
 
 ### 3.7. `TrainIcon`
 
-Llibreria d'icones personalitzades per a trens.
+Librería de iconos personalizados para trenes.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `name` | TEXT UNIQUE | Nom de la icona |
-| `icon_url` | TEXT | URL del fitxer d'imatge |
-| `created_at` | TEXT | Data de creació |
+| `name` | TEXT UNIQUE | Nombre del icono |
+| `icon_url` | TEXT | URL del archivo de imagen |
+| `created_at` | TEXT | Fecha de creación |
 
 ---
 
-### 3.8. `Service` (model multi-parada)
+### 3.8. `Service` (modelo multi-parada)
 
-Recorregut complet d'un tren amb múltiples parades.
+Recorrido completo de un tren con múltiples paradas.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `number` | TEXT UNIQUE | Número de servei (ex: "03104") |
+| `number` | TEXT UNIQUE | Número de servicio (ej: "03104") |
 | `operator_id` | INTEGER FK | Operador (ON DELETE SET NULL) |
-| `train_type_id` | INTEGER FK | Tipus de tren (ON DELETE SET NULL) |
-| `origin_place_id` | INTEGER FK | Lloc d'origen (Place, ON DELETE SET NULL) |
-| `destination_place_id` | INTEGER FK | Lloc de destinació (Place, ON DELETE SET NULL) |
-| `status` | TEXT | Estat actual |
-| `notes` | TEXT | Notes generals |
-| `started_at` | TEXT | Inici del servei (ISO 8601) |
-| `completed_at` | TEXT | Finalització (ISO 8601) |
-| `cancelled_at` | TEXT | Cancel·lació (ISO 8601) |
-| `created_at` | TEXT | Data de creació |
-| `updated_at` | TEXT | Data de modificació |
+| `train_type_id` | INTEGER FK | Tipo de tren (ON DELETE SET NULL) |
+| `origin_place_id` | INTEGER FK | Lugar de origen (Place, ON DELETE SET NULL) |
+| `destination_place_id` | INTEGER FK | Lugar de destino (Place, ON DELETE SET NULL) |
+| `status` | TEXT | Estado actual |
+| `notes` | TEXT | Notas generales |
+| `started_at` | TEXT | Inicio del servicio (ISO 8601) |
+| `completed_at` | TEXT | Finalización (ISO 8601) |
+| `cancelled_at` | TEXT | Cancelación (ISO 8601) |
+| `created_at` | TEXT | Fecha de creación |
+| `updated_at` | TEXT | Fecha de modificación |
 
-**Estats de `status`:** `Scheduled`, `In Progress`, `Completed`, `Cancelled`
+**Estados de `status`:** `Scheduled`, `In Progress`, `Completed`, `Cancelled`
 
 ---
 
 ### 3.9. `ServiceStop`
 
-Punt individual d'un servei a una estació.
+Punto individual de un servicio en una estación.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `service_id` | INTEGER FK | Servei al qual pertany (ON DELETE CASCADE) |
-| `station_id` | INTEGER FK | Estació (ON DELETE RESTRICT) |
-| `stop_number` | INTEGER | Número d'ordre a la ruta (1, 2, 3…) |
-| `stop_type` | TEXT | Tipus: `Origin`, `Stop`, `Pass`, `Destination` |
-| `arrival_scheduled` | TEXT | Hora programada d'arribada (ISO 8601) |
-| `departure_scheduled` | TEXT | Hora programada de sortida (ISO 8601) |
-| `arrival_expected` | TEXT | Hora prevista d'arribada |
-| `departure_expected` | TEXT | Hora prevista de sortida |
-| `arrival_actual` | TEXT | Hora real d'arribada |
-| `departure_actual` | TEXT | Hora real de sortida |
-| `state` | TEXT | Estat de la parada |
-| `platform` | TEXT | Via/andana |
+| `service_id` | INTEGER FK | Servicio al que pertenece (ON DELETE CASCADE) |
+| `station_id` | INTEGER FK | Estación (ON DELETE RESTRICT) |
+| `stop_number` | INTEGER | Número de orden en la ruta (1, 2, 3…) |
+| `stop_type` | TEXT | Tipo: `Origin`, `Stop`, `Pass`, `Destination` |
+| `arrival_scheduled` | TEXT | Hora programada de llegada (ISO 8601) |
+| `departure_scheduled` | TEXT | Hora programada de salida (ISO 8601) |
+| `arrival_expected` | TEXT | Hora prevista de llegada |
+| `departure_expected` | TEXT | Hora prevista de salida |
+| `arrival_actual` | TEXT | Hora real de llegada |
+| `departure_actual` | TEXT | Hora real de salida |
+| `state` | TEXT | Estado de la parada |
+| `platform` | TEXT | Vía/andén |
 | `sector` | TEXT | Sector |
-| `delay_minutes` | INTEGER | Retard acumulat (minuts) |
-| `delay_locked` | INTEGER | Si és 1, no hereta retards de parades anteriors |
-| `notes` | TEXT | Notes |
-| `created_at` | TEXT | Data de creació |
-| `updated_at` | TEXT | Data de modificació |
+| `delay_minutes` | INTEGER | Retraso acumulado (minutos) |
+| `delay_locked` | INTEGER | Si es 1, no hereda retrasos de paradas anteriores |
+| `notes` | TEXT | Notas |
+| `created_at` | TEXT | Fecha de creación |
+| `updated_at` | TEXT | Fecha de modificación |
 
-**Estats de `state`:** `Scheduled`, `Arrived`, `Departed`, `Passed`, `Cancelled`, `Skipped`
+**Estados de `state`:** `Scheduled`, `Arrived`, `Departed`, `Passed`, `Cancelled`, `Skipped`
 
 **UNIQUE:** `(service_id, station_id, stop_number)`
 
@@ -367,31 +367,31 @@ Punt individual d'un servei a una estació.
 
 ### 3.10. `ServiceEvent`
 
-Registre d'auditoria per a canvis en serveis.
+Registro de auditoría para cambios en servicios.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
 | `id` | INTEGER PK | Identificador autoincremental |
-| `service_id` | INTEGER FK | Servei associat (ON DELETE CASCADE) |
-| `stop_id` | INTEGER FK | Parada associada (ON DELETE SET NULL) |
-| `event_type` | TEXT | Tipus d'esdeveniment |
-| `details` | TEXT | JSON amb detalls |
-| `created_at` | TEXT | Data de creació |
+| `service_id` | INTEGER FK | Servicio asociado (ON DELETE CASCADE) |
+| `stop_id` | INTEGER FK | Parada asociada (ON DELETE SET NULL) |
+| `event_type` | TEXT | Tipo de evento |
+| `details` | TEXT | JSON con detalles |
+| `created_at` | TEXT | Fecha de creación |
 
-**Tipus d'esdeveniment:** `service_created`, `service_updated`, `service_cancelled`, `service_completed`, `stop_arrival`, `stop_departure`, `stop_passed`, `delay_added`, `delay_propagated`
+**Tipos de evento:** `service_created`, `service_updated`, `service_cancelled`, `service_completed`, `stop_arrival`, `stop_departure`, `stop_passed`, `delay_added`, `delay_propagated`
 
 ---
 
 ### 3.11. `Config`
 
-Emmagatzematge clau-valor per a configuració global.
+Almacenamiento clave-valor para configuración global.
 
-| Atribut | Tipus | Descripció |
+| Atributo | Tipo | Descripción |
 |---|---|---|
-| `key` | TEXT PK | Clau de configuració |
+| `key` | TEXT PK | Clave de configuración |
 | `value` | TEXT | Valor |
 
-**Claus predefinides:**
+**Claves predefinidas:**
 - `station_name`, `mode`, `displayMode`
 - `platformMin`, `platformMax`, `platformAllowEmpty`
 - `sectorMin`, `sectorMax`, `sectorAllowEmpty`
@@ -400,70 +400,70 @@ Emmagatzematge clau-valor per a configuració global.
 
 ---
 
-### 3.12. `RailRoute` (només en memòria / fitxer de rutes)
+### 3.12. `RailRoute` (solo en memoria / archivo de rutas)
 
-No emmagatzemat en DB. Les rutes es carreguen des de fitxers JSON/fixtures.
+No almacenado en DB. Las rutas se cargan desde archivos JSON/fixtures.
 
-| Propietat | Tipus | Descripció |
+| Propiedad | Tipo | Descripción |
 |---|---|---|
-| `code` | string | Codi de línia (ex: "C-1") |
-| `name` | string | Nom (ex: "C-1 Madrid Chamartín – Aeropuerto") |
-| `network` | string | Xarxa (ex: "Cercanías Madrid") |
-| `operator` | string | Operador per defecte (ex: "Renfe") |
+| `code` | string | Código de línea (ej: "C-1") |
+| `name` | string | Nombre (ej: "C-1 Madrid Chamartín – Aeropuerto") |
+| `network` | string | Red (ej: "Cercanías Madrid") |
+| `operator` | string | Operador por defecto (ej: "Renfe") |
 | `color` | string | Color hexadecimal |
-| `headwayMin` | number | Interval mínim entre trens (minuts) |
-| `platforms` | string[] | Vies habituals |
+| `headwayMin` | number | Intervalo mínimo entre trenes (minutos) |
+| `platforms` | string[] | Vías habituales |
 | `numbers` | string[] | Números de tren disponibles |
-| `stations` | string[] | Llista d'estacions de la ruta |
-| `notes` | string | Notes opcionals |
+| `stations` | string[] | Lista de estaciones de la ruta |
+| `notes` | string | Notas opcionales |
 
 ---
 
-## 4. Diagrames d'estats
+## 4. Diagramas de estados
 
-### 4.1. Estats de `Train`
+### 4.1. Estados de `Train`
 
 ```mermaid
 stateDiagram-v2
     [*] --> Scheduled : create
-    Scheduled --> Boarding : inici embarque
-    Scheduled --> Cancelled : cancel·lar
-    Scheduled --> Delayed : retard
-    Boarding --> Departed : sortida
-    Boarding --> Cancelled : cancel·lar
-    Boarding --> Delayed : retard
-    Delayed --> Boarding : inici embarque
-    Delayed --> Cancelled : cancel·lar
-    Delayed --> Departed : sortida
+    Scheduled --> Boarding : inicio embarque
+    Scheduled --> Cancelled : cancelar
+    Scheduled --> Delayed : retraso
+    Boarding --> Departed : salida
+    Boarding --> Cancelled : cancelar
+    Boarding --> Delayed : retraso
+    Delayed --> Boarding : inicio embarque
+    Delayed --> Cancelled : cancelar
+    Delayed --> Departed : salida
     Departed --> [*]
     Arrived --> [*]
     Cancelled --> [*]
 ```
 
-### 4.2. Estats de `Service`
+### 4.2. Estados de `Service`
 
 ```mermaid
 stateDiagram-v2
     [*] --> Scheduled : create
-    Scheduled --> InProgress : 1a parada marcada sortida
-    Scheduled --> Cancelled : cancel·lar
-    InProgress --> Completed : última parada marcada sortida
-    InProgress --> Cancelled : cancel·lar
+    Scheduled --> InProgress : 1a parada marcada salida
+    Scheduled --> Cancelled : cancelar
+    InProgress --> Completed : última parada marcada salida
+    InProgress --> Cancelled : cancelar
     Completed --> [*]
     Cancelled --> [*]
 ```
 
-### 4.3. Estats de `ServiceStop`
+### 4.3. Estados de `ServiceStop`
 
 ```mermaid
 stateDiagram-v2
     [*] --> Scheduled : create
-    Scheduled --> Arrived : marcar arribada
-    Scheduled --> Passed : marcar pas
-    Scheduled --> Cancelled : cancel·lar
+    Scheduled --> Arrived : marcar llegada
+    Scheduled --> Passed : marcar paso
+    Scheduled --> Cancelled : cancelar
     Scheduled --> Skipped : saltar
-    Arrived --> Departed : marcar sortida
-    Arrived --> Cancelled : cancel·lar
+    Arrived --> Departed : marcar salida
+    Arrived --> Cancelled : cancelar
     Passed --> [*]
     Departed --> [*]
     Cancelled --> [*]
@@ -472,139 +472,139 @@ stateDiagram-v2
 
 ---
 
-## 5. Regles de negoci
+## 5. Reglas de negocio
 
-### 5.1. Cicle de vida del tren
+### 5.1. Ciclo de vida del tren
 
-1. **Transició d'estats de Train:** `Scheduled` → `Boarding` → `Departed` / `Arrived`.
-   - `Delayed` és un estat transversal: qualsevol estat excepte `Departed`/`Arrived`/`Cancelled` pot passar a `Delayed`, i des de `Delayed` es pot tornar a `Scheduled` o `Boarding`.
-   - `Cancelled` es pot aplicar des de qualsevol estat excepte `Departed`/`Arrived`.
+1. **Transición de estados de Train:** `Scheduled` → `Boarding` → `Departed` / `Arrived`.
+   - `Delayed` es un estado transversal: cualquier estado excepto `Departed`/`Arrived`/`Cancelled` puede pasar a `Delayed`, y desde `Delayed` se puede volver a `Scheduled` o `Boarding`.
+   - `Cancelled` se puede aplicar desde cualquier estado excepto `Departed`/`Arrived`.
 
-2. **Transició d'estats de Service:** `Scheduled` → `In Progress` → `Completed`; `Cancelled` des de `Scheduled` o `In Progress`.
+2. **Transición de estados de Service:** `Scheduled` → `In Progress` → `Completed`; `Cancelled` desde `Scheduled` o `In Progress`.
 
-3. **Transició d'estats de ServiceStop:** `Scheduled` → `Arrived` → `Departed`; `Passed`, `Cancelled`, `Skipped` són terminals des de `Scheduled`.
+3. **Transición de estados de ServiceStop:** `Scheduled` → `Arrived` → `Departed`; `Passed`, `Cancelled`, `Skipped` son terminales desde `Scheduled`.
 
-### 5.2. Propagació de retards
+### 5.2. Propagación de retrasos
 
-4. **Propagació automàtica:** Quan una parada arriba amb retard (`delay_minutes > 0`), el retard es propaga a les parades posteriors sumant-lo a `arrival_expected`, `departure_expected` i `delay_minutes`.
+4. **Propagación automática:** Cuando una parada llega con retraso (`delay_minutes > 0`), el retraso se propaga a las paradas posteriores sumándolo a `arrival_expected`, `departure_expected` y `delay_minutes`.
 
-5. **Bloqueig de propagació:** Si `delay_locked = 1` en una parada, aquesta no rep la propagació de retards de parades anteriors.
+5. **Bloqueo de propagación:** Si `delay_locked = 1` en una parada, esta no recibe la propagación de retrasos de paradas anteriores.
 
-6. **Propagació manual:** `addDelay` a una parada també es propaga a les posteriors (excepte si `delay_locked`).
+6. **Propagación manual:** `addDelay` a una parada también se propaga a las posteriores (excepto si `delay_locked`).
 
-### 5.3. Finalització de servei
+### 5.3. Finalización de servicio
 
-7. **Compleció de Service:** Quan l'última parada (la de `stop_number` màxim) es marca com a `Departed`, el `Service` passa automàticament a `Completed`.
+7. **Compleción de Service:** Cuando la última parada (la de `stop_number` máximo) se marca como `Departed`, el `Service` pasa automáticamente a `Completed`.
 
-8. **Inici de Service:** Quan es marca la primera sortida d'un servei (qualsevol `Departed` d'un `ServiceStop`), el `Service` passa a `In Progress` (si no ho estava ja).
+8. **Inicio de Service:** Cuando se marca la primera salida de un servicio (cualquier `Departed` de un `ServiceStop`), el `Service` pasa a `In Progress` (si no lo estaba ya).
 
-### 5.4. Restriccions d'integritat
+### 5.4. Restricciones de integridad
 
-9. **No es pot eliminar l'última estació:** El backend retorna error si `countStations() <= 1`.
+9. **No se puede eliminar la última estación:** El backend retorna error si `countStations() <= 1`.
 
-10. **`clearTrains` requereix `X-Confirm: yes`:** El DELETE /trains requereix validador al header per evitar esborrats accidentals.
+10. **`clearTrains` requiere `X-Confirm: yes`:** El DELETE /trains requiere validador en el header para evitar borrados accidentales.
 
-11. **`operator.name` és únic** (UNIQUE constraint).
+11. **`operator.name` es único** (UNIQUE constraint).
 
-12. **`place.name` és únic** (UNIQUE constraint).
+12. **`place.name` es único** (UNIQUE constraint).
 
-13. **`train_type.code` és la clau per a upsert:** POST /train-types fa upsert basat en `code`.
+13. **`train_type.code` es la clave para upsert:** POST /train-types hace upsert basado en `code`.
 
-14. **`service.number` és únic** (UNIQUE constraint).
+14. **`service.number` es único** (UNIQUE constraint).
 
-15. **`train_icons.name` és únic** (UNIQUE constraint).
+15. **`train_icons.name` es único** (UNIQUE constraint).
 
-### 5.5. Gestió d'icones al panell
+### 5.5. Gestión de iconos en el panel
 
-16. **`icon_mode` determina quina icona es mostra al panell:**
-    - `destination` — icona de destinació del tipus de tren (`type_destination_icon`)
-    - `custom` — icona personalitzada (`custom_icon_url`)
-    - `type` — logotip del tipus de tren
-    - `operator` — logotip de l'operador
-    - `none` — sense icona
+16. **`icon_mode` determina qué icono se muestra en el panel:**
+     - `destination` — icono de destino del tipo de tren (`type_destination_icon`)
+     - `custom` — icono personalizado (`custom_icon_url`)
+     - `type` — logotipo del tipo de tren
+     - `operator` — logotipo del operador
+     - `none` — sin icono
 
-17. **`showDestinationIcon`:** Configuració global que, si és `false`, desactiva les icones de destinació independentment de `icon_mode`.
+17. **`showDestinationIcon`:** Configuración global que, si es `false`, desactiva los iconos de destino independientemente de `icon_mode`.
 
-### 5.6. Altres regles
+### 5.6. Otras reglas
 
-18. **`sort_order`** determina l'ordre de visualització dels trens al panell (ascendent) i de les estacions als llistats.
+18. **`sort_order`** determina el orden de visualización de los trenes en el panel (ascendente) y de las estaciones en los listados.
 
-19. **Idiomes suportats:** `es`, `ca`, `en`, `fr`, `eu`, `gl`.
+19. **Idiomas soportados:** `es`, `ca`, `en`, `fr`, `eu`, `gl`.
 
-20. **Actualització en temps real:** Qualsevol canvi via endpoints admin (POST/PUT/PATCH/DELETE) emet un missatge WebSocket (`{ type: "update" }`) perquè els displays es refresquin.
+20. **Actualización en tiempo real:** Cualquier cambio vía endpoints admin (POST/PUT/PATCH/DELETE) emite un mensaje WebSocket (`{ type: "update" }`) para que los displays se refresquen.
 
-21. **Rate limiting:** Les peticions POST/PUT/PATCH/DELETE a `/admin` tenen un límit de 30 per minut.
+21. **Rate limiting:** Las peticiones POST/PUT/PATCH/DELETE a `/admin` tienen un límite de 30 por minuto.
 
-22. **Dualitat Train ⮀ Service:** El sistema suporta dos models concurrents:
-    - `Train` (pla, directe) per a operació simple mono-estació
-    - `Service` + `ServiceStop` (jeràrquic) per a operació multi-estació
-    - L'endpoint `/stations/:id/board` intenta primer `Train`, després fa fallback a `Service`
+22. **Dualidad Train ⮀ Service:** El sistema soporta dos modelos concurrentes:
+     - `Train` (plano, directo) para operación simple mono-estación
+     - `Service` + `ServiceStop` (jerárquico) para operación multi-estación
+     - El endpoint `/stations/:id/board` intenta primero `Train`, luego hace fallback a `Service`
 
 ---
 
-## 6. Anàlisi de regles de negoci
+## 6. Análisis de reglas de negocio
 
-### 6.1. Regles duplicades
+### 6.1. Reglas duplicadas
 
-| Regla | On es duplica | Impacte |
+| Regla | Dónde se duplica | Impacto |
 |---|---|---|
-| Validació de tipus d'arxiu (img/àudio) | `routes.js:41-51` (img), `routes.js:57-69` (àudio) | Duplicació de lògica de `fileFilter` per a Multer |
-| Normalització d'idiomes | `db.js:416-445` i `routes.js:648-678` | Lògica `normalizeDisplayLanguage` / `normalizeLanguageList` duplicada i lleugerament diferent |
-| `normalizeStation` per cerca | `routes.js:105-115` i variants a `routes.js:1135` | No hi ha funció compartida |
-| Lògica de generació de retards aleatoris (profile) | `routes.js:1101-1112` i `generate-random-train` | Hardcoded per codi de tipus |
-| Lògica de càlcul de propagació de retards | `serviceStops.markArrival:738-748` i `serviceStops.addDelay:826-835` | Quasi idèntica |
+| Validación de tipo de archivo (img/audio) | `routes.js:41-51` (img), `routes.js:57-69` (audio) | Duplicación de lógica de `fileFilter` para Multer |
+| Normalización de idiomas | `db.js:416-445` y `routes.js:648-678` | Lógica `normalizeDisplayLanguage` / `normalizeLanguageList` duplicada y ligeramente diferente |
+| `normalizeStation` para búsqueda | `routes.js:105-115` y variantes en `routes.js:1135` | No hay función compartida |
+| Lógica de generación de retrasos aleatorios (profile) | `routes.js:1101-1112` y `generate-random-train` | Hardcoded por código de tipo |
+| Lógica de cálculo de propagación de retrasos | `serviceStops.markArrival:738-748` y `serviceStops.addDelay:826-835` | Casi idéntica |
 
-### 6.2. Regles que només estan al frontend
+### 6.2. Reglas que solo están en el frontend
 
-| Regla | Fitxer | Descripció |
+| Regla | Archivo | Descripción |
 |---|---|---|
-| Colors d'estat al panell | `Display.tsx:472-476` | `Cancelled` → opacitat reduïda, `Boarding` → fons groc |
-| Filtre d'estats a l'admin | `Admin.tsx:1913-1916` | Colors de pill d'estat: verd `Departed`, ambre `Boarding`, gris `Cancelled` |
-| Validació FormData per arxius | `api.ts:223-234` | Converteix `custom_icon_file` a FormData |
-| `showDestinationIcon` per defecte | `DisplayConfig.tsx:32` | `showDestinationIcon: true` al formulari de configuració |
-| `DEFAULT_CONFIG` parcialment duplicat | `DisplayConfig.tsx` | Els valors per defecte de `platformMin`, `sectorMin`, etc. es repeteixen respecte a `db.js:132-139` |
+| Colores de estado en el panel | `Display.tsx:472-476` | `Cancelled` → opacidad reducida, `Boarding` → fondo amarillo |
+| Filtro de estados en el admin | `Admin.tsx:1913-1916` | Colores de pill de estado: verde `Departed`, ámbar `Boarding`, gris `Cancelled` |
+| Validación FormData para archivos | `api.ts:223-234` | Convierte `custom_icon_file` a FormData |
+| `showDestinationIcon` por defecto | `DisplayConfig.tsx:32` | `showDestinationIcon: true` en el formulario de configuración |
+| `DEFAULT_CONFIG` parcialmente duplicado | `DisplayConfig.tsx` | Los valores por defecto de `platformMin`, `sectorMin`, etc. se repiten respecto a `db.js:132-139` |
 
-### 6.3. Valors màgics hardcodejats
+### 6.3. Valores mágicos hardcodeados
 
-| Valor | On apareix | Descripció |
+| Valor | Dónde aparece | Descripción |
 |---|---|---|
-| `#7c1d2e` | `db.js:29`, `routes.js:1045`, `seed.js:45` | Color per defecte per a AVE / train_type |
-| `#1A3254` | `db.js:46`, `db.js:381` | Color per defecte per a estacions |
-| `ADMIN_PASSWORD = "railboard"` | `routes.js:21` | Password admin per defecte |
+| `#7c1d2e` | `db.js:29`, `routes.js:1045`, `seed.js:45` | Color por defecto para AVE / train_type |
+| `#1A3254` | `db.js:46`, `db.js:381` | Color por defecto para estaciones |
+| `ADMIN_PASSWORD = "railboard"` | `routes.js:21` | Password admin por defecto |
 | `rateLimitMax = 1000` (dev) / `120` (prod) | `index.js:36` | Rate limiting |
-| `fileSize: 10 * 1024 * 1024` | `routes.js:39` | Límit d'imatges (10 MB) |
-| `fileSize: 5 * 1024 * 1024` | `routes.js:56` | Límit d'àudio (5 MB) |
-| `maxStopLimit = 9` | `routes.js:1189,1278` | Límit màxim de parades mostrades als stops d'un tren aleatori |
-| `delayProb: 0.16, cancelledProb: 0.03` | `routes.js:1103` | Probabilitats de retard per tipus Cercanías |
-| `delayProb: 0.09, cancelledProb: 0.02` | `routes.js:1108` | Probabilitats de retard per tipus AVE |
-| Constants de regió `getRouteRegion` | `routes.js:153-167` | Mapa hardcodejat de regió per nom de ruta |
+| `fileSize: 10 * 1024 * 1024` | `routes.js:39` | Límite de imágenes (10 MB) |
+| `fileSize: 5 * 1024 * 1024` | `routes.js:56` | Límite de audio (5 MB) |
+| `maxStopLimit = 9` | `routes.js:1189,1278` | Límite máximo de paradas mostradas en los stops de un tren aleatorio |
+| `delayProb: 0.16, cancelledProb: 0.03` | `routes.js:1103` | Probabilidades de retraso por tipo Cercanías |
+| `delayProb: 0.09, cancelledProb: 0.02` | `routes.js:1108` | Probabilidades de retraso por tipo AVE |
+| Constantes de región `getRouteRegion` | `routes.js:153-167` | Mapa hardcodeado de región por nombre de ruta |
 | `DEFAULT_CONFIG` | `db.js:132-139` | `platformMin: "1"`, `platformMax: "8"`, `sectorMin: "A"`, `sectorMax: "D"` |
-| `baseOperators = ["Renfe", "Iryo", "Ouigo", "SNCF"]` | `routes.js:78` | Operadors base per a `ensureLearnedRailData` |
-| `C-3` (cas especial de stops) | `routes.js:1190` | `C-3` mostra totes les parades sense truncar |
-| `Xàtiva` (cas especial C-2) | `routes.js:1162-1165` | Lògica de desviament a Xàtiva per C-2 |
-| `3` minuts headway (mínim random) | `routes.js:1180` | `lastOffset + headwayMin + randomInt(-3, 4)` |
+| `baseOperators = ["Renfe", "Iryo", "Ouigo", "SNCF"]` | `routes.js:78` | Operadores base para `ensureLearnedRailData` |
+| `C-3` (caso especial de stops) | `routes.js:1190` | `C-3` muestra todas las paradas sin truncar |
+| `Xàtiva` (caso especial C-2) | `routes.js:1162-1165` | Lógica de desvío a Xàtiva para C-2 |
+| `3` minutos headway (mínimo random) | `routes.js:1180` | `lastOffset + headwayMin + randomInt(-3, 4)` |
 
-### 6.4. Validacions que falten
+### 6.4. Validaciones que faltan
 
-| Manca de validació | On | Descripció |
+| Falta de validación | Dónde | Descripción |
 |---|---|---|
-| `origin` i `destination` no validats contra `places` | `createTrain`, `updateTrain` | S'accepta qualsevol string literal |
-| `scheduled_time` / `expected_time` format | `createTrain` | No es valida format HH:mm al crear tren |
-| `stops` JSON | `createTrain` | Es fa `JSON.stringify` però no es valida que sigui un array |
-| `platform` / `sector` permesos contra config | `backend` | No es valida que platform estigui dins `platformMin`–`platformMax` al crear tren |
-| Duplicat de `service.number` al crear | `services.create` | La DB llançarà error UNIQUE constraint, però no hi ha comprovació prèvia |
-| `stop_type` és `Origin`/`Stop`/`Pass`/`Destination` | `serviceStops.create` | No es valida el valor (accepta qualsevol string) |
-| `state` de `ServiceStop` és un valor permès | `serviceStops.*` | No es valida el valor |
-| No es pot assignar `status = "Delayed"` sense canviar `expected_time` | `backend` | L'API `PATCH /trains/:id/status` permet posar qualsevol `status` sense tocar `expected_time` |
-| No es pot assignar `status = "Departed"` sense `platform` | `backend` | No hi ha validació |
-| No es pot crear un servei sense parades | `services.create` | Es permet crear un servei buit |
-| `actual_time` ha de ser ISO 8601 vàlid | `serviceStops.markArrival` | Es fa `new Date(actual_time)` sense validar |
+| `origin` y `destination` no validados contra `places` | `createTrain`, `updateTrain` | Se acepta cualquier string literal |
+| `scheduled_time` / `expected_time` formato | `createTrain` | No se valida formato HH:mm al crear tren |
+| `stops` JSON | `createTrain` | Se hace `JSON.stringify` pero no se valida que sea un array |
+| `platform` / `sector` permitidos contra config | `backend` | No se valida que platform esté dentro de `platformMin`–`platformMax` al crear tren |
+| Duplicado de `service.number` al crear | `services.create` | La DB lanzará error UNIQUE constraint, pero no hay comprobación previa |
+| `stop_type` es `Origin`/`Stop`/`Pass`/`Destination` | `serviceStops.create` | No se valida el valor (acepta cualquier string) |
+| `state` de `ServiceStop` es un valor permitido | `serviceStops.*` | No se valida el valor |
+| No se puede asignar `status = "Delayed"` sin cambiar `expected_time` | `backend` | La API `PATCH /trains/:id/status` permite poner cualquier `status` sin tocar `expected_time` |
+| No se puede asignar `status = "Departed"` sin `platform` | `backend` | No hay validación |
+| No se puede crear un servicio sin paradas | `services.create` | Se permite crear un servicio vacío |
+| `actual_time` debe ser ISO 8601 válido | `serviceStops.markArrival` | Se hace `new Date(actual_time)` sin validar |
 
 ---
 
-## 7. Cross-reference: entitat → taula → fitxers
+## 7. Cross-reference: entidad → tabla → archivos
 
-| Entitat | Taula DB | Fitxer principal DB | Fitxer API | Fitxers frontend |
+| Entidad | Tabla DB | Archivo principal DB | Archivo API | Archivos frontend |
 |---|---|---|---|---|
 | `Operator` | `operators` | `db.js:18-23, 316-330` | `routes.js:836-866` | `api.ts:51, 266-285`, `Admin.tsx`, `Display.tsx` |
 | `TrainType` | `train_types` | `db.js:25-32, 332-356` | `routes.js:900-966` | `api.ts:52, 287-308`, `Admin.tsx` |
@@ -615,6 +615,6 @@ stateDiagram-v2
 | `TrainIcon` | `train_icons` | `db.js:74-79, 367-374` | `routes.js:878-898` | `api.ts:53, 311-325` |
 | `Service` | `services` | `db.js:506-625` | `routes.js:1309-1387` | `api.ts:70-95, 372-388`, `ServicesPanel.tsx` |
 | `ServiceStop` | `service_stops` | `db.js:627-863` | `routes.js:1391-1557` | `api.ts:97-119, 391-419`, `ServicesPanel.tsx` |
-| `ServiceEvent` | `service_events` | `db.js:866-881` | — (via log intern) | `api.ts:379` (sols lectura) |
+| `ServiceEvent` | `service_events` | `db.js:866-881` | — (via log interno) | `api.ts:379` (solo lectura) |
 | `Config` | `config` | `db.js:13-16, 181-194` | `routes.js:720-725` | `api.ts:120-157, 214-216` |
-| `RailRoute` | — (memòria) | `fixtures/routes.js` + `services/routeService.js` | `routes.js:868-876`, `railRoutesApi.js:142` | `api.ts:54-65`, `Display.tsx` |
+| `RailRoute` | — (memoria) | `fixtures/routes.js` + `services/routeService.js` | `routes.js:868-876`, `railRoutesApi.js:142` | `api.ts:54-65`, `Display.tsx` |

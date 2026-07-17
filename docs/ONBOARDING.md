@@ -1,96 +1,96 @@
-# Guia d'incorporació — RailBoard
+# Guía de incorporación — RailBoard
 
-> **Idioma:** Català (el projecte usa principalment castellà i anglès als codis font)
-> **Última actualització:** 2026-07-17
-> **Versió del projecte:** 1.0.0
+> **Idioma:** Español (el proyecto usa principalmente castellano e inglés en los códigos fuente)
+> **Última actualización:** 2026-07-17
+> **Versión del proyecto:** 1.0.0
 
 ---
 
-## Índex
+## Índice
 
-- [Requisits del sistema](#requisits-del-sistema)
-- [Configuració inicial (Docker)](#configuració-inicial-docker)
-- [Execució en desenvolupament sense Docker](#execució-en-desenvolupament-sense-docker)
-- [Seed de dades de demostració](#seed-de-dades-de-demostració)
+- [Requisitos del sistema](#requisitos-del-sistema)
+- [Configuración inicial (Docker)](#configuración-inicial-docker)
+- [Ejecución en desarrollo sin Docker](#ejecución-en-desarrollo-sin-docker)
+- [Seed de datos de demostración](#seed-de-datos-de-demostración)
 - [Testing](#testing)
-- [Estructura del projecte](#estructura-del-projecte)
-- [Comandes útils](#comandes-útils)
-- [Resolució de problemes comuns](#resolució-de-problemes-comuns)
-- [Convencions de codi](#convencions-de-codi)
-- [Flux de treball](#flux-de-treball)
-- [Documentació relacionada](#documentació-relacionada)
+- [Estructura del proyecto](#estructura-del-proyecto)
+- [Comandos útiles](#comandos-útiles)
+- [Resolución de problemas comunes](#resolución-de-problemas-comunes)
+- [Convenciones de código](#convenciones-de-código)
+- [Flujo de trabajo](#flujo-de-trabajo)
+- [Documentación relacionada](#documentación-relacionada)
 
 ---
 
-## Requisits del sistema
+## Requisitos del sistema
 
-| Eina | Versió mínima | Per a |
-|------|--------------|-------|
-| **Docker** | 24+ | Execució en producció i desenvolupament |
-| **Docker Compose** | v2.24+ | Orquestració de contenidors |
-| **Git** | 2.40+ | Control de versions |
-| **Node.js** | 20 LTS (>=18) | Desenvolupament local sense Docker |
-| **npm** | 10+ | Gestió de dependències |
+| Herramienta | Versión mínima | Para |
+|-------------|----------------|------|
+| **Docker** | 24+ | Ejecución en producción y desarrollo |
+| **Docker Compose** | v2.24+ | Orquestación de contenedores |
+| **Git** | 2.40+ | Control de versiones |
+| **Node.js** | 20 LTS (>=18) | Desarrollo local sin Docker |
+| **npm** | 10+ | Gestión de dependencias |
 
-> **Nota:** Si uses macOS amb Apple Silicon, assegura't que Docker Desktop utilitzi Rosetta 2 o que les imatges tinguin suport natiu per a ARM64.
+> **Nota:** Si usas macOS con Apple Silicon, asegúrate de que Docker Desktop utilice Rosetta 2 o que las imágenes tengan soporte nativo para ARM64.
 
 ---
 
-## Configuració inicial (Docker)
+## Configuración inicial (Docker)
 
-La forma més ràpida de posar el projecte en marxa és amb Docker Compose, que aixeca tant el backend com el frontend (servit per Nginx) en dos contenidors.
+La forma más rápida de poner el proyecto en marcha es con Docker Compose, que levanta tanto el backend como el frontend (servido por Nginx) en dos contenedores.
 
-### Pas 1: Clonar el repositori
+### Paso 1: Clonar el repositorio
 
 ```bash
 git clone https://github.com/andreums/railboard.git
 cd railboard
 ```
 
-### Pas 2: Configurar variables d'entorn
+### Paso 2: Configurar variables de entorno
 
 ```bash
 cp .env.docker .env
 ```
 
-Edita el fitxer `.env` i canvia com a mínim:
+Edita el archivo `.env` y cambia como mínimo:
 
 ```env
-ADMIN_PASSWORD=<una-contrasenya-segura>
+ADMIN_PASSWORD=<una-contraseña-segura>
 CORS_ORIGIN=http://localhost
 HOST_PORT=80
 ```
 
-> **IMPORTANT:** La contrasenya per defecte és `railboard`. **No la deixis** en producció o en xarxes públiques.
+> **IMPORTANTE:** La contraseña por defecto es `railboard`. **No la dejes** en producción o en redes públicas.
 
-### Pas 3: Engegar els contenidors
+### Paso 3: Iniciar los contenedores
 
 ```bash
 docker compose up --build
 ```
 
-El primer build pot trigar 2-3 minuts (instal·lació de dependències npm + compilació).
+El primer build puede tardar 2-3 minutos (instalación de dependencias npm + compilación).
 
-### Pas 4: Accedir a l'aplicació
+### Paso 4: Acceder a la aplicación
 
-| URL | Què hi trobaràs |
+| URL | Qué encontrarás |
 |-----|-----------------|
-| http://localhost | Panell públic de sortides/arribades |
-| http://localhost/admin | Panell d'administració (usuari: `admin`, contrasenya: la del `.env`) |
+| http://localhost | Panel público de salidas/llegadas |
+| http://localhost/admin | Panel de administración (usuario: `admin`, contraseña: la del `.env`) |
 
-### Pas 5: Carregar dades de demostració
+### Paso 5: Cargar datos de demostración
 
 ```bash
 docker compose exec backend node src/seed.js
 ```
 
-Això crearà operadors, tipus de tren, places i trens ficticis d'estil Renfe.
+Esto creará operadores, tipos de tren, lugares y trenes ficticios de estilo Renfe.
 
 ---
 
-## Execució en desenvolupament sense Docker
+## Ejecución en desarrollo sin Docker
 
-Per a desenvolupament actiu (hot reload, debug), es recomana executar backend i frontend per separat.
+Para desarrollo activo (hot reload, debug), se recomienda ejecutar backend y frontend por separado.
 
 ### Backend
 
@@ -100,9 +100,9 @@ npm install
 npm run dev
 ```
 
-El backend arrenca a http://localhost:4000 amb `node --watch` (recàrrega automàtica en canviar fitxers).
+El backend arranca en http://localhost:4000 con `node --watch` (recarga automática al cambiar archivos).
 
-> **Problema conegut:** `node --watch` pot causar `EMFILE: too many open files`. Si passa, usa `node src/index.js` sense watch i recarrega manualment.
+> **Problema conocido:** `node --watch` puede causar `EMFILE: too many open files`. Si ocurre, usa `node src/index.js` sin watch y recarga manualmente.
 
 ### Frontend
 
@@ -112,27 +112,27 @@ npm install
 npm run dev    # http://localhost:5173
 ```
 
-Per defecte, el frontend espera l'API a `http://localhost:4000`. Si vols canviar-ho, crea `frontend/.env`:
+Por defecto, el frontend espera la API en `http://localhost:4000`. Si quieres cambiarlo, crea `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:4000
 ```
 
-### URLs en mode desenvolupament
+### URLs en modo desarrollo
 
-| URL | Què hi trobaràs |
+| URL | Qué encontrarás |
 |-----|-----------------|
-| http://localhost:5173 | Panell públic (dev mode) |
+| http://localhost:5173 | Panel público (dev mode) |
 | http://localhost:5173/admin | Admin (dev mode) |
 | http://localhost:4000/health | Health check del backend |
-| http://localhost:4000/api/stations/1/board | API de dades del panell |
-| ws://localhost:4000/ws | WebSocket per a actualitzacions en temps real |
+| http://localhost:4000/api/stations/1/board | API de datos del panel |
+| ws://localhost:4000/ws | WebSocket para actualizaciones en tiempo real |
 
 ---
 
-## Seed de dades de demostració
+## Seed de datos de demostración
 
-Hi ha dues maneres de poblar la base de dades amb dades de prova:
+Hay dos maneras de poblar la base de datos con datos de prueba:
 
 ### Via Docker
 
@@ -140,31 +140,31 @@ Hi ha dues maneres de poblar la base de dades amb dades de prova:
 docker compose exec backend node src/seed.js
 ```
 
-### Via backend directe
+### Via backend directo
 
 ```bash
 cd backend && npm run seed
 ```
 
-### Què crea el seed?
+### Qué crea el seed?
 
-- **6 operadors** (Renfe, Avlo, Iryo, Ouigo, SNCF, Euskotren)
-- **Tipus de tren** (AVE, Avlo, Alvia, Intercity, Media Distancia, Cercanías, etc.)
-- **Places** (ciutats espanyoles i franceses)
-- **Trens de demostració** amb horaris, andanes, estats aleatoris
-- **Estació per defecte** amb configuració de display
+- **6 operadores** (Renfe, Avlo, Iryo, Ouigo, SNCF, Euskotren)
+- **Tipos de tren** (AVE, Avlo, Alvia, Intercity, Media Distancia, Cercanías, etc.)
+- **Lugares** (ciudades españolas y francesas)
+- **Trenes de demostración** con horarios, andenes, estados aleatorios
+- **Estación por defecto** con configuración de display
 
 ### Via Admin UI
 
-Des del panell d'administració, pots fer clic a "Carregar trens ficticis" des del tab de tren.
+Desde el panel de administración, puedes hacer clic en "Cargar trenes ficticios" desde el tab de tren.
 
-> **ATENCIÓ:** `seedTrains()` esborra TOTES les dades existents abans de crear-ne de noves.
+> **ATENCIÓN:** `seedTrains()` borra TODOS los datos existentes antes de crear nuevos.
 
 ---
 
 ## Testing
 
-El projecte usa [Vitest](https://vitest.dev/) com a test runner tant al backend com al frontend.
+El proyecto usa [Vitest](https://vitest.dev/) como test runner tanto en backend como en frontend.
 
 ### Backend (72 tests)
 
@@ -174,12 +174,12 @@ cd backend && npm test
 docker compose exec backend npm test
 ```
 
-| Suite | Fitxer | Tipus 
-|-------|--------|-------|
-| DB unit tests | `src/__tests__/db.unit.test.js` | Unitari (temp DB) |
-| Helpers unit tests | `src/__tests__/helpers.unit.test.js` | Unitari |
-| E2E API | `src/__tests__/e2e.test.js` | Integració |
-| Routes integration | `src/__tests__/routes.integration.test.js` | Integració |
+| Suite | Archivo | Tipo |
+|-------|---------|------|
+| DB unit tests | `src/__tests__/db.unit.test.js` | Unitario (temp DB) |
+| Helpers unit tests | `src/__tests__/helpers.unit.test.js` | Unitario |
+| E2E API | `src/__tests__/e2e.test.js` | Integración |
+| Routes integration | `src/__tests__/routes.integration.test.js` | Integración |
 
 ### Frontend (21 tests)
 
@@ -187,13 +187,13 @@ docker compose exec backend npm test
 cd frontend && npm test
 ```
 
-| Suite | Fitxer | Tipus |
-|-------|--------|-------|
-| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | Unitari (8 tests) |
-| Clock | `src/components/__tests__/Clock.test.tsx` | Unitari (3 tests) |
-| i18n | `src/lib/__tests__/i18n.test.ts` | Unitari (10 tests) |
+| Suite | Archivo | Tipo |
+|-------|---------|------|
+| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | Unitario (8 tests) |
+| Clock | `src/components/__tests__/Clock.test.tsx` | Unitario (3 tests) |
+| i18n | `src/lib/__tests__/i18n.test.ts` | Unitario (10 tests) |
 
-### Mode watch
+### Modo watch
 
 ```bash
 npm run test:watch
@@ -208,46 +208,46 @@ cd backend
 node scripts/ws_e2e_test.mjs C-1
 ```
 
-Aquest script obre un WebSocket, fa una petició POST per crear un tren des de la ruta `C-1`, i espera rebre el broadcast `{type: "update"}`.
+Este script abre un WebSocket, hace una petición POST para crear un tren desde la ruta `C-1`, y espera recibir el broadcast `{type: "update"}`.
 
 ---
 
-## Estructura del projecte
+## Estructura del proyecto
 
 ```
 railboard/
 ├── backend/                       # API Express + SQLite + WebSocket
-│   ├── src/                       # Codi font
+│   ├── src/                       # Código fuente
 │   │   ├── index.js               # Entry point: Express, middleware, WS
-│   │   ├── db.js                  # Capa de base de dades (esquema, CRUD, migracions)
-│   │   ├── routes.js              # Admin API (totes les rutes, 1676 línies)
+│   │   ├── db.js                  # Capa de base de datos (esquema, CRUD, migraciones)
+│   │   ├── routes.js              # Admin API (todas las rutas, 1676 líneas)
 │   │   ├── railRoutesApi.js       # API pública (/api)
 │   │   ├── ws.js                  # Servidor WebSocket (broadcast)
-│   │   ├── migrations.js          # Executor de migracions SQL
-│   │   ├── seed.js                # Dades de demostració
+│   │   ├── migrations.js          # Ejecutor de migraciones SQL
+│   │   ├── seed.js                # Datos de demostración
 │   │   ├── services/
-│   │   │   ├── routeService.js    # Càrrega i consulta de rutes JSON
-│   │   │   └── routeService.ts    # ⚠️ Codi mort (duplicat TS, no s'usa)
+│   │   │   ├── routeService.js    # Carga y consulta de rutas JSON
+│   │   │   └── routeService.ts    # ⚠️ Código muerto (duplicado TS, no se usa)
 │   │   ├── data/
-│   │   │   └── railboard_routes.json  # 57 rutes espanyoles
+│   │   │   └── railboard_routes.json  # 57 rutas españolas
 │   │   └── __tests__/             # Tests del backend
-│   ├── migrations/                # Migracions SQL seqüencials
-│   ├── scripts/                   # Scripts auxiliars
+│   ├── migrations/                # Migraciones SQL secuenciales
+│   ├── scripts/                   # Scripts auxiliares
 │   └── data/                      # (runtime) data.db, uploads
 │
 ├── frontend/                      # React SPA
 │   ├── src/
-│   │   ├── pages/                 # Cada pàgina de l'aplicació
-│   │   │   ├── Display.tsx        # Panell públic (841 línies)
-│   │   │   ├── Admin.tsx          # Admin panel (3128 línies) — component monolític
-│   │   │   ├── Trains.tsx         # Gestió de trens (drag & drop)
-│   │   │   ├── TrainSettings.tsx  # Operadors i tipus de tren
-│   │   │   └── DisplayConfig.tsx  # Configuració de pantalles
-│   │   ├── components/            # Components reutilitzables
-│   │   │   ├── Clock.tsx          # Rellotge en viu
-│   │   │   ├── StatusPill.tsx     # Badge d'estat
-│   │   │   ├── SteamTrain.tsx     # Animació decorativa
-│   │   │   └── admin/             # Subcomponents del panell admin
+│   │   ├── pages/                 # Cada página de la aplicación
+│   │   │   ├── Display.tsx        # Panel público (841 líneas)
+│   │   │   ├── Admin.tsx          # Admin panel (3128 líneas) — componente monolítico
+│   │   │   ├── Trains.tsx         # Gestión de trenes (drag & drop)
+│   │   │   ├── TrainSettings.tsx  # Operadores y tipos de tren
+│   │   │   └── DisplayConfig.tsx  # Configuración de pantallas
+│   │   ├── components/            # Componentes reutilizables
+│   │   │   ├── Clock.tsx          # Reloj en vivo
+│   │   │   ├── StatusPill.tsx     # Badge de estado
+│   │   │   ├── SteamTrain.tsx     # Animación decorativa
+│   │   │   └── admin/             # Subcomponentes del panel admin
 │   │   │       ├── GenerationPanel.tsx
 │   │   │       ├── RoutesPanel.tsx
 │   │   │       ├── StationPanel.tsx
@@ -256,144 +256,144 @@ railboard/
 │   │   │       ├── LocutionsPanel.tsx
 │   │   │       ├── ServicesPanel.tsx
 │   │   │       └── StylesPanel.tsx
-│   │   ├── lib/                   # Utilitats
-│   │   │   ├── api.ts             # Client REST + WebSocket
-│   │   │   ├── i18n.ts            # Multiidioma (6 idiomes)
+│   │   ├── lib/                   # Utilidades
+│   │   │   ├── api.ts             # Cliente REST + WebSocket
+│   │   │   ├── i18n.ts            # Multiidioma (6 idiomas)
 │   │   │   ├── tts.ts             # Text-to-Speech (Web Speech API)
-│   │   │   ├── svgPlaceholder.ts  # Placeholder SVG per a logos
-│   │   │   └── trainOptions.ts    # Opcions de generació de trens
-│   │   └── types/                 # Tipus TypeScript compartits
+│   │   │   ├── svgPlaceholder.ts  # Placeholder SVG para logos
+│   │   │   └── trainOptions.ts    # Opciones de generación de trenes
+│   │   └── types/                 # Tipos TypeScript compartidos
 │   ├── public/
 │   │   ├── sw.js                  # Service Worker (PWA)
 │   │   ├── manifest.json          # PWA manifest
-│   │   └── fonts/                 # Tipografies locals
+│   │   └── fonts/                 # Tipografías locales
 │   └── package.json
 │
-├── docker/                        # Configuració de producció
+├── docker/                        # Configuración de producción
 │   └── nginx.conf                 # Reverse proxy (backend + frontend)
 │
-├── docs/                          # Documentació del projecte
+├── docs/                          # Documentación del proyecto
 │   ├── index.md
 │   └── api.md
 │
-├── docker-compose.yml             # Orquestració de contenidors
-├── .env.docker                    # Plantilla de variables d'entorn
-├── ROADMAP.md                     # Full de ruta tècnic
-├── ONBOARDING.md                  # Aquest fitxer
-├── ANALYSIS.md                    # Anàlisi tècnica completa
-├── STATUS.md                      # Estat actual del projecte
-├── CHANGELOG.md                   # Registre de canvis
-└── README.md                      # Visió general del projecte
+├── docker-compose.yml             # Orquestación de contenedores
+├── .env.docker                    # Plantilla de variables de entorno
+├── ROADMAP.md                     # Hoja de ruta técnica
+├── ONBOARDING.md                  # Este archivo
+├── ANALYSIS.md                    # Análisis técnica completa
+├── STATUS.md                      # Estado actual del proyecto
+├── CHANGELOG.md                   # Registro de cambios
+└── README.md                      # Visión general del proyecto
 ```
 
 ---
 
-## Comandes útils
+## Comandos útiles
 
-### Gestió de contenidors
+### Gestión de contenedores
 
 ```bash
-docker compose up --build          # Construir i engegar
-docker compose down                # Aturar i eliminar contenidors
-docker compose restart backend     # Reiniciar només el backend
-docker compose logs -f backend     # Veure logs del backend en temps real
-docker compose logs -f frontend    # Veure logs del frontend
+docker compose up --build          # Construir e iniciar
+docker compose down                # Detener y eliminar contenedores
+docker compose restart backend     # Reiniciar solo el backend
+docker compose logs -f backend     # Ver logs del backend en tiempo real
+docker compose logs -f frontend    # Ver logs del frontend
 ```
 
-### Seed i dades
+### Seed y datos
 
 ```bash
-docker compose exec backend node src/seed.js        # Reseed de dades
+docker compose exec backend node src/seed.js        # Reseed de datos
 docker compose exec backend node scripts/ws_e2e_test.mjs C-1  # Test E2E WS
 ```
 
-### Depuració
+### Depuración
 
 ```bash
-docker compose exec backend sh     # Shell dins del contenidor backend
+docker compose exec backend sh     # Shell dentro del contenedor backend
 docker compose exec backend wget -qO- http://localhost:4000/health  # Health check
 ```
 
-### Manteniment de base de dades
+### Mantenimiento de base de datos
 
 ```bash
 # Backup manual
 docker compose exec backend sh -c "cp /app/data/data.db /app/data/backup-$(date +%Y%m%d-%H%M%S).db"
 
-# Reset complet (elimina DB + uploads)
+# Reset completo (elimina DB + uploads)
 docker compose down && docker volume rm railboard_db-data railboard_uploads && docker compose up
 ```
 
-### Desenvolupament
+### Desarrollo
 
 ```bash
 # Backend
-cd backend && npm run dev          # Servidor amb hot reload
-cd backend && npm test             # Executar tests
+cd backend && npm run dev          # Servidor con hot reload
+cd backend && npm test             # Ejecutar tests
 cd backend && node src/seed.js     # Seed manual
 
 # Frontend
 cd frontend && npm run dev         # Dev server (Vite)
-cd frontend && npm test            # Executar tests
-cd frontend && npm run build       # Build de producció
+cd frontend && npm test            # Ejecutar tests
+cd frontend && npm run build       # Build de producción
 cd frontend && npm run preview     # Preview de la build
 ```
 
 ---
 
-## Resolució de problemes comuns
+## Resolución de problemas comunes
 
-| Problema | Causa probable | Solució |
-|----------|---------------|---------|
-| `Cannot find native binding` | `@rolldown/binding-darwin-arm64` no instal·lat | `npm install @rolldown/binding-darwin-arm64` (opcional, no necessari per a producció) |
-| `EMFILE: too many open files` | `node --watch` en macOS | Usar `node src/index.js` sense watch, o augmentar `ulimit -n` |
-| DB corrupta o inconsistent | Tallada durant escriptura, migració fallida | `docker compose down && docker volume rm railboard_db-data && docker compose up` (pèrdua de dades!) |
-| No es veuen trens al panell | Base de dades buida | Executar `docker compose exec backend node src/seed.js` |
-| Error de connexió WebSocket | Backend no accessible | Comprovar que `docker compose ps` mostra `railboard-backend` com `healthy` |
-| Error 502 de Nginx | Backend no preparat quan Nginx intenta connectar | Esperar 10s i refrescar; comprovar `docker compose logs backend` |
-| `Port 80 already in use` | Altre servei al port 80 | Canviar `HOST_PORT=8080` a `.env` i accedir a `http://localhost:8080` |
-| Login admin no funciona | Contrasenya incorrecta | Comprovar `ADMIN_PASSWORD` al `.env`; si està buit, es fa servir `railboard` per defecte |
-| `npm install` falla amb `gyp ERR!` | Falten build tools (macOS Xcode CLI, Linux build-essential) | Instal·lar Xcode CLI: `xcode-select --install`; o `apt install build-essential python3` a Linux |
-| Error `VITE_API_URL` no definit | Falta `.env` al frontend | Crear `frontend/.env` amb `VITE_API_URL=http://localhost:4000` |
-| El Service Worker no s'actualitza | Cache del navegador | Obrir DevTools → Application → Clear storage, o fer hard refresh (Cmd+Shift+R) |
+| Problema | Causa probable | Solución |
+|----------|----------------|----------|
+| `Cannot find native binding` | `@rolldown/binding-darwin-arm64` no instalado | `npm install @rolldown/binding-darwin-arm64` (opcional, no necesario para producción) |
+| `EMFILE: too many open files` | `node --watch` en macOS | Usar `node src/index.js` sin watch, o aumentar `ulimit -n` |
+| DB corrupta o inconsistente | Corte durante escritura, migración fallida | `docker compose down && docker volume rm railboard_db-data && docker compose up` (pérdida de datos!) |
+| No se ven trenes en el panel | Base de datos vacía | Ejecutar `docker compose exec backend node src/seed.js` |
+| Error de conexión WebSocket | Backend no accesible | Comprobar que `docker compose ps` muestra `railboard-backend` como `healthy` |
+| Error 502 de Nginx | Backend no preparado cuando Nginx intenta conectar | Esperar 10s y refrescar; comprobar `docker compose logs backend` |
+| `Port 80 already in use` | Otro servicio en el puerto 80 | Cambiar `HOST_PORT=8080` en `.env` y acceder a `http://localhost:8080` |
+| Login admin no funciona | Contraseña incorrecta | Comprobar `ADMIN_PASSWORD` en el `.env`; si está vacío, se usa `railboard` por defecto |
+| `npm install` falla con `gyp ERR!` | Faltan build tools (macOS Xcode CLI, Linux build-essential) | Instalar Xcode CLI: `xcode-select --install`; o `apt install build-essential python3` en Linux |
+| Error `VITE_API_URL` no definido | Falta `.env` en el frontend | Crear `frontend/.env` con `VITE_API_URL=http://localhost:4000` |
+| El Service Worker no se actualiza | Caché del navegador | Abrir DevTools → Application → Clear storage, o hacer hard refresh (Cmd+Shift+R) |
 
 ---
 
-## Convencions de codi
+## Convenciones de código
 
-### Generals
+### Generales
 
 - **JavaScript:** ESM (`import`/`export`), no CommonJS (`require`)
-- **TypeScript:** Strict mode, definicions explícites
-- **Format:** camelCase per a variables i funcions, snake_case per a columnes de base de dades
-- **Indentació:** 2 espais (no tabs)
+- **TypeScript:** Strict mode, definiciones explícitas
+- **Formato:** camelCase para variables y funciones, snake_case para columnas de base de datos
+- **Indentación:** 2 espacios (no tabs)
 
 ### Backend (JavaScript)
 
-- Fitxers: `.js` amb ESM
-- Lògica de negoci en serveis (en refactor), no en rutes
-- Errors: retornar objectes `{ error: string, details?: any }` amb codis HTTP adequats
-- DB: usar `better-sqlite3` amb `db.prepare()`, mai SQL concatenat
+- Archivos: `.js` con ESM
+- Lógica de negocio en servicios (en refactor), no en rutas
+- Errores: retornar objetos `{ error: string, details?: any }` con códigos HTTP adecuados
+- DB: usar `better-sqlite3` con `db.prepare()`, nunca SQL concatenado
 
 ```javascript
-// Bé
+// Bien
 db.prepare("SELECT * FROM trains WHERE id = ?").get(id);
 
-// Malament
+// Mal
 db.prepare(`SELECT * FROM trains WHERE id = ${id}`).get();
 ```
 
 ### Frontend (TypeScript)
 
-- **React:** Hooks funcionals, no classes
-- **Componentes:** Un component per fitxer, export per defecte
-- **Estils:** Tailwind CSS, evitar CSS inline o fitxers CSS separats
-- **Icons:** `lucide-react`
+- **React:** Hooks funcionales, no clases
+- **Componentes:** Un componente por archivo, export por defecto
+- **Estilos:** Tailwind CSS, evitar CSS inline o archivos CSS separados
+- **Iconos:** `lucide-react`
 - **Drag & Drop:** `@dnd-kit`
 - **Routing:** `react-router-dom`
 
 ```tsx
-// Bé
+// Bien
 export default function StatusPill({ status }: { status: string }) {
   return <span className="px-2 py-1 rounded bg-blue-100">{status}</span>;
 }
@@ -401,54 +401,54 @@ export default function StatusPill({ status }: { status: string }) {
 
 ### Commits
 
-Prefix obligatori segons el tipus de canvi:
+Prefijo obligatorio según el tipo de cambio:
 
-| Prefix | Ús |
-|--------|----|
-| `feat:` | Nova funcionalitat |
-| `fix:` | Correcció d'error |
-| `refactor:` | Canvi de codi que no corregeix ni afegeix res |
-| `test:` | Afegir o modificar tests |
-| `docs:` | Documentació |
-| `chore:` | Manteniment (dependències, CI, config) |
-| `security:` | Millora de seguretat |
+| Prefijo | Uso |
+|---------|-----|
+| `feat:` | Nueva funcionalidad |
+| `fix:` | Corrección de error |
+| `refactor:` | Cambio de código que no corrige ni añade nada |
+| `test:` | Añadir o modificar tests |
+| `docs:` | Documentación |
+| `chore:` | Mantenimiento (dependencias, CI, config) |
+| `security:` | Mejora de seguridad |
 
-### Base de dades
+### Base de datos
 
-- Les migracions van a `backend/migrations/` amb noms `XXX-descripcio.sql`
-- Les noves columnes s'afegeixen amb `ALTER TABLE` dins de migracions
-- No afegir `ALTER TABLE` inline a `db.js`
-
----
-
-## Flux de treball
-
-### Per a contribucions puntuals
-
-1. Crea un fork o branch: `git checkout -b feat/nom-descriptiu`
-2. Implementa el canvi amb tests si és possible
-3. Executa els tests: `npm test` al backend i frontend
-4. Fes commit amb prefix apropiat: `git commit -m "feat: descripció curta"`
-5. Obre un pull request contra `main`
-
-### Per a tasques del roadmap
-
-Consulta [ROADMAP.md](./ROADMAP.md) per a l'estat actual i les iniciatives en curs. Cada fase té entregables verificables.
+- Las migraciones van en `backend/migrations/` con nombres `XXX-descripcio.sql`
+- Las nuevas columnas se añaden con `ALTER TABLE` dentro de migraciones
+- No añadir `ALTER TABLE` inline en `db.js`
 
 ---
 
-## Documentació relacionada
+## Flujo de trabajo
 
-| Document | Contingut |
-|----------|-----------|
-| [README.md](./README.md) | Visió general del projecte, stack, instal·lació bàsica |
-| [ROADMAP.md](./ROADMAP.md) | Full de ruta tècnic, fases, riscos, quick wins |
-| [ANALYSIS.md](./ANALYSIS.md) | Anàlisi tècnica completa del repositori |
-| [STATUS.md](./STATUS.md) | Estat actual del projecte (última sessió) |
-| [CHANGELOG.md](./CHANGELOG.md) | Registre de canvis per sessió |
-| [docs/index.md](./docs/index.md) | Documentació del projecte |
-| [docs/api.md](./docs/api.md) | Documentació de l'API REST |
+### Para contribuciones puntuales
+
+1. Crea un fork o branch: `git checkout -b feat/nombre-descriptivo`
+2. Implementa el cambio con tests si es posible
+3. Ejecuta los tests: `npm test` en backend y frontend
+4. Haz commit con prefijo apropiado: `git commit -m "feat: descripción corta"`
+5. Abre un pull request contra `main`
+
+### Para tareas del roadmap
+
+Consulta [ROADMAP.md](./ROADMAP.md) para el estado actual y las iniciativas en curso. Cada fase tiene entregables verificables.
 
 ---
 
-> **Consell final:** Si és el teu primer dia, engega amb Docker, carrega el seed i explora l'admin. Després, executa els tests per veure que tot funciona. Quan estiguis còmode, llegeix ANALYSIS.md per entendre les decisions arquitectòniques i el deute tècnic existent.
+## Documentación relacionada
+
+| Documento | Contenido |
+|-----------|-----------|
+| [README.md](./README.md) | Visión general del proyecto, stack, instalación básica |
+| [ROADMAP.md](./ROADMAP.md) | Hoja de ruta técnica, fases, riesgos, quick wins |
+| [ANALYSIS.md](./ANALYSIS.md) | Análisis técnica completa del repositorio |
+| [STATUS.md](./STATUS.md) | Estado actual del proyecto (última sesión) |
+| [CHANGELOG.md](./CHANGELOG.md) | Registro de cambios por sesión |
+| [docs/index.md](./docs/index.md) | Documentación del proyecto |
+| [docs/api.md](./docs/api.md) | Documentación de la API REST |
+
+---
+
+> **Consejo final:** Si es tu primer día, inicia con Docker, carga el seed y explora el admin. Después, ejecuta los tests para ver que todo funciona. Cuando estés cómodo, lee ANALYSIS.md para entender las decisiones arquitectónicas y la deuda técnica existente.

@@ -1,432 +1,432 @@
-# Documentació funcional de RailBoard
+# Documentación funcional de RailBoard
 
-> Sistema de panells informatius ferroviaris multiestació, inspirat en els panells Gravita/ADIF de Renfe.
-> Lloc web: [https://railboard.app](https://railboard.app)
+> Sistema de paneles informativos ferroviarios multiestación, inspirado en los paneles Gravita/ADIF de Renfe.
+> Sitio web: [https://railboard.app](https://railboard.app)
 
 ---
 
-## Funcionalitat: Panell de sortides/arribades
+## Funcionalidad: Panel de salidas/llegadas
 
-**Objectiu:** Mostrar en pantalla completa els horaris de trens d'una estació, amb un disseny inspirat en els panells Gravita d'ADIF.
+**Objetivo:** Mostrar en pantalla completa los horarios de trenes de una estación, con un diseño inspirado en los paneles Gravita de ADIF.
 
-**Actors:** Viatgers (públic general), visitants de l'estació.
+**Actores:** Viajeros (público general), visitantes de la estación.
 
-**Precondicions:** Hi ha almenys un display configurat amb una estació assignada i trens creats.
+**Precondiciones:** Hay al menos un display configurado con una estación asignada y trenes creados.
 
-**Flux principal:**
-1. El panell carrega la configuració del display (`/config`), la llista d'estacions (`/stations`) i els llocs (`/places`).
-2. Sol·licita les dades del tauler via `GET /stations/:id/board?mode=departures|arrivals`.
-3. Filtra els trens amb estat diferent de `Departed`/`Arrived`, els ordena per hora prevista i mostra fins a 12 files.
-4. Cada fila es distribueix en dos sub-rols: superior (60%) amb TIME, DESTINATION, PRODUCT (logo + número), PLATFORM; inferior (40%) amb estat estimat, parades intermèdies, observacions i badge de Cercanías.
-5. El footer mostra un text configurable amb animació `marquee`.
-6. Si hi ha diversos idiomes configurats, alterna cada 5 segons entre ells.
-7. El rellotge en mode real mostra l'hora del sistema; en mode fictici avança a una velocitat configurable.
+**Flujo principal:**
+1. El panel carga la configuración del display (`/config`), la lista de estaciones (`/stations`) y los lugares (`/places`).
+2. Solicita los datos del tablero vía `GET /stations/:id/board?mode=departures|arrivals`.
+3. Filtra los trenes con estado diferente de `Departed`/`Arrived`, los ordena por hora prevista y muestra hasta 12 filas.
+4. Cada fila se distribuye en dos sub-rows: superior (60%) con TIME, DESTINATION, PRODUCT (logo + número), PLATFORM; inferior (40%) con estado estimado, paradas intermedias, observaciones y badge de Cercanías.
+5. El footer muestra un texto configurable con animación `marquee`.
+6. Si hay varios idiomas configurados, alterna cada 5 segundos entre ellos.
+7. El reloj en modo real muestra la hora del sistema; en modo ficticio avanza a una velocidad configurable.
 
-**Fluxos alternatius:**
-- Si l'endpoint board falla, fa fallback a `GET /trains` (llista plana de trens).
-- Si no es troba cap tren o està carregant, es mostra l'animació `SteamTrain`.
-- L'error de càrrega mostra un botó "Reintentar ahora".
+**Flujos alternativos:**
+- Si el endpoint board falla, hace fallback a `GET /trains` (lista plana de trenes).
+- Si no se encuentra ningún tren o está cargando, se muestra la animación `SteamTrain`.
+- El error de carga muestra un botón "Reintentar ahora".
 
-**Errors esperables:**
-- `GET /stations/:id/board` retorna 404 si l'estació no existeix.
-- Error de configuració: es mostra "Error al cargar la configuración".
+**Errores esperables:**
+- `GET /stations/:id/board` retorna 404 si la estación no existe.
+- Error de configuración: se muestra "Error al cargar la configuración".
 
-**Permisos:** Públic (cap autenticació).
+**Permisos:** Público (sin autenticación).
 
-**Dades implicades:** `Config` (estil, idiomes, mode), `Train[]` (trens), `Place[]` (destins), `Station[]` (estacions).
+**Datos implicados:** `Config` (estilo, idiomas, modo), `Train[]` (trenes), `Place[]` (destinos), `Station[]` (estaciones).
 
-**Components tècnics:**
-- `frontend/src/pages/Display.tsx` — Component principal del panell.
-- `frontend/src/components/Clock.tsx` — Rellotge en mode real o fictici.
-- `frontend/src/components/SteamTrain.tsx` — Animació de locomotora de vapor durant càrrega.
-- `frontend/src/components/StatusPill.tsx` — Indicador d'estat visual.
-- `frontend/src/lib/i18n.ts` — Sistema de traduccions (es, ca, en, fr, eu, gl).
-- `frontend/src/lib/api.ts` — Connexió amb API i WebSocket.
+**Componentes técnicos:**
+- `frontend/src/pages/Display.tsx` — Componente principal del panel.
+- `frontend/src/components/Clock.tsx` — Reloj en modo real o ficticio.
+- `frontend/src/components/SteamTrain.tsx` — Animación de locomotora de vapor durante carga.
+- `frontend/src/components/StatusPill.tsx` — Indicador de estado visual.
+- `frontend/src/lib/i18n.ts` — Sistema de traducciones (es, ca, en, fr, eu, gl).
+- `frontend/src/lib/api.ts` — Conexión con API y WebSocket.
 - `backend/src/routes.js:1563-1674` — Endpoint `GET /stations/:stationId/board`.
-- `backend/src/ws.js` — Notificacions WebSocket (`service_updated`).
+- `backend/src/ws.js` — Notificaciones WebSocket (`service_updated`).
 
-**Riscos o limitacions:**
-- La rotació d'idiomes mostra textos en diferents llengües sense control de temporització per fila.
-- El marquee de parades es basa en `scrollWidth`, pot fallar si el text canvia dinàmicament.
+**Riesgos o limitaciones:**
+- La rotación de idiomas muestra textos en diferentes lenguas sin control de temporización por fila.
+- El marquee de paradas se basa en `scrollWidth`, puede fallar si el texto cambia dinámicamente.
 
-**Evidències:** `frontend/src/pages/Display.tsx:1-841`, `frontend/src/components/Clock.tsx:1-45`, `frontend/src/components/SteamTrain.tsx:1-186`, `frontend/src/components/StatusPill.tsx:1-30`.
+**Evidencias:** `frontend/src/pages/Display.tsx:1-841`, `frontend/src/components/Clock.tsx:1-45`, `frontend/src/components/SteamTrain.tsx:1-186`, `frontend/src/components/StatusPill.tsx:1-30`.
 
 ---
 
-## Funcionalitat: Administració de trens (CRUD)
+## Funcionalidad: Administración de trenes (CRUD)
 
-**Objectiu:** Gestionar els trens del sistema: crear, editar, eliminar, reordenar i exportar.
+**Objetivo:** Gestionar los trenes del sistema: crear, editar, eliminar, reordenar y exportar.
 
-**Actors:** Administrador de l'estació.
+**Actores:** Administrador de la estación.
 
-**Precondicions:** L'usuari s'ha autenticat via HTTP Basic Auth.
+**Precondiciones:** El usuario se ha autenticado vía HTTP Basic Auth.
 
-**Flux principal:**
-1. L'usuari accedeix a `/trains` (pàgina independent) o a la pestanya "Trenes" del panell d'administració.
-2. Es carrega la llista de trens amb dades enriquides (operador, tipus, estació).
-3. L'usuari pot:
-   - **Crear:** Obre un modal amb formulari: número, operador, tipus, origen, destí, parades, hora programada/estimada, via, sector, estat, observacions, mode d'icona.
-   - **Editar:** Modal preomplert amb dades del tren seleccionat.
-   - **Eliminar:** Diàleg de confirmació `confirm()`.
-   - **Reordenar:** Activa mode drag-and-drop amb `@dnd-kit` i envia l'ordre via `PUT /trains/reorder`.
-   - **Anunciar:** Usa la Web Speech API per llegir un anunci de megafonia.
-   - **Exportar:** `GET /trains/export` descarrega un JSON.
+**Flujo principal:**
+1. El usuario accede a `/trains` (página independiente) o a la pestaña "Trenes" del panel de administración.
+2. Se carga la lista de trenes con datos enriquecidos (operador, tipo, estación).
+3. El usuario puede:
+   - **Crear:** Abre un modal con formulario: número, operador, tipo, origen, destino, paradas, hora programada/estimada, vía, sector, estado, observaciones, modo de icono.
+   - **Editar:** Modal rellenado con datos del tren seleccionado.
+   - **Eliminar:** Diálogo de confirmación `confirm()`.
+   - **Reordenar:** Activa modo drag-and-drop con `@dnd-kit` y envía el orden vía `PUT /trains/reorder`.
+   - **Anunciar:** Usa la Web Speech API para leer un anuncio de megafonía.
+   - **Exportar:** `GET /trains/export` descarga un JSON.
 
-**Fluxos alternatius:**
-- En mode reordenació, els IDs dels trens s'envien al backend per actualitzar `sort_order`.
-- El càlcul de retràs és automàtic a partir de l'hora programada i l'estimada.
+**Flujos alternativos:**
+- En modo reordenación, los IDs de los trenes se envían al backend para actualizar `sort_order`.
+- El cálculo de retraso es automático a partir de la hora programada y la estimada.
 
-**Errors esperables:**
-- `DELETE /trains/:id` → 404 si el tren no existeix.
-- `POST /trains` → 400 si falten camps obligatoris.
+**Errores esperables:**
+- `DELETE /trains/:id` → 404 si el tren no existe.
+- `POST /trains` → 400 si faltan campos obligatorios.
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:** `Trains` (taula SQLite), `Operators`, `TrainTypes`, `Places`, `Stations`.
+**Datos implicados:** `Trains` (tabla SQLite), `Operators`, `TrainTypes`, `Places`, `Stations`.
 
-**Components tècnics:**
-- `frontend/src/pages/Trains.tsx` — CRUD complet amb formulari, llista, drag and drop.
-- `frontend/src/pages/Admin.tsx` — Secció de gestió de trens dins del panell admin (línies 639-696).
-- `frontend/src/components/admin/GenerationPanel.tsx` — Generació ràpida de trens.
+**Componentes técnicos:**
+- `frontend/src/pages/Trains.tsx` — CRUD completo con formulario, lista, drag and drop.
+- `frontend/src/pages/Admin.tsx` — Sección de gestión de trenes dentro del panel admin (líneas 639-696).
+- `frontend/src/components/admin/GenerationPanel.tsx` — Generación rápida de trenes.
 - `backend/src/routes.js:751-833` — Endpoints REST (`GET/POST/PUT/DELETE /trains`, `/trains/reorder`, `/trains/export`).
-- `backend/src/db.js:57-301` — Taula i operacions CRUD.
+- `backend/src/db.js:57-301` — Tabla y operaciones CRUD.
 
-**Riscos o limitacions:**
-- El drag and drop només funciona en mode reordenació; no hi ha reordenació per defecte.
-- L'eliminació massiva requereix header `X-Confirm: yes`.
-- No hi ha paginació en llistes llargues.
+**Riesgos o limitaciones:**
+- El drag and drop solo funciona en modo reordenación; no hay reordenación por defecto.
+- La eliminación masiva requiere header `X-Confirm: yes`.
+- No hay paginación en listas largas.
 
-**Evidències:** `frontend/src/pages/Trains.tsx:1-556`, `backend/src/routes.js:751-833`, `backend/src/db.js:57-301`.
+**Evidencias:** `frontend/src/pages/Trains.tsx:1-556`, `backend/src/routes.js:751-833`, `backend/src/db.js:57-301`.
 
 ---
 
-## Funcionalitat: Generació intel·ligent de trens
+## Funcionalidad: Generación inteligente de trenes
 
-**Objectiu:** Crear trens automàticament a partir de rutes reals del dataset ferroviari, amb horaris, retards i observacions realistes.
+**Objetivo:** Crear trenes automáticamente a partir de rutas reales del dataset ferroviario, con horarios, retrasos y observaciones realistas.
 
-**Actors:** Administrador (generació manual o automàtica).
+**Actores:** Administrador (generación manual o automática).
 
-**Precondicions:** El dataset de rutes (`railboard_routes.json`) ha d'estar carregat. Hi ha d'haver operadors, tipus de tren i llocs al sistema.
+**Precondiciones:** El dataset de rutas (`railboard_routes.json`) debe estar cargado. Debe haber operadores, tipos de tren y lugares en el sistema.
 
-**Flux principal:**
-1. L'administrador prem "Generar 1 tren" o activa l'auto-generació amb interval configurable.
-2. El backend crida `ensureLearnedRailData()` per assegurar que operadors, tipus i llocs base existeixen.
-3. Selecciona una ruta del dataset amb ponderació inversa als usos recents (afavoreix rutes menys usades).
-4. Determina direcció (anada/tornada) basada en la posició de l'estació dins la ruta.
-5. Calcula l'horari: respecta `headwayMin` de la ruta, amb un 14% de probabilitat de tren "passat" (cap enrere).
-6. Aplica perfil de retràs segons el tipus de tren:
-   - Cercanías/Rodalies: 16% retràs, 3% cancel·lat.
-   - Media Distància: 14% retràs, 3% cancel·lat.
-   - AVE/AVANT/IRYO/OUIGO: 9% retràs, 2% cancel·lat.
-   - Altres: 12% retràs, 3% cancel·lat.
-7. Genera observacions multilingües des d'un banc de frases temàtiques (genèriques, servei, retràs, via, estat, informació).
-8. Crea el tren a la base de dades i notifica via WebSocket.
+**Flujo principal:**
+1. El administrador presiona "Generar 1 tren" o activa la auto-generación con intervalo configurable.
+2. El backend llama a `ensureLearnedRailData()` para asegurar que operadores, tipos y lugares base existen.
+3. Selecciona una ruta del dataset con ponderación inversa a los usos recientes (favorece rutas menos usadas).
+4. Determina dirección (ida/vuelta) basada en la posición de la estación dentro de la ruta.
+5. Calcula el horario: respeta `headwayMin` de la ruta, con un 14% de probabilidad de tren "pasado" (hacia atrás).
+6. Aplica perfil de retraso según el tipo de tren:
+   - Cercanías/Rodalies: 16% retraso, 3% cancelado.
+   - Media Distancia: 14% retraso, 3% cancelado.
+   - AVE/AVANT/IRYO/OUIGO: 9% retraso, 2% cancelado.
+   - Otros: 12% retraso, 3% cancelado.
+7. Genera observaciones multilingües desde un banco de frases temáticas (genéricas, servicio, retraso, vía, estado, información).
+8. Crea el tren en la base de datos y notifica vía WebSocket.
 
-**Fluxos alternatius:**
-- Si no hi ha rutes disponibles per a l'estació/regió, retorna error 400.
-- Si l'estació de destí és Xàtiva i la ruta és C-2, pot escurçar el trajecte (55% probabilitat).
-- Les parades intermèdies es limiten a un màxim de 9; per a C-3 s'inclouen totes.
+**Flujos alternativos:**
+- Si no hay rutas disponibles para la estación/región, retorna error 400.
+- Si la estación de destino es Xàtiva y la ruta es C-2, puede acortar el trayecto (55% probabilidad).
+- Las paradas intermedias se limitan a un máximo de 9; para C-3 se incluyen todas.
 
-**Errors esperables:**
-- 400 "No routes available from backend data" — El dataset de rutes no està carregat.
-- 400 "No routes available for this display" — L'estació seleccionada no té rutes associades.
+**Errores esperables:**
+- 400 "No routes available from backend data" — El dataset de rutas no está cargado.
+- 400 "No routes available for this display" — La estación seleccionada no tiene rutas asociadas.
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:** `railboard_routes.json` (dataset), `routes` (servei), `Trains`, `Operators`, `TrainTypes`, `Places`.
+**Datos implicados:** `railboard_routes.json` (dataset), `routes` (servicio), `Trains`, `Operators`, `TrainTypes`, `Places`.
 
-**Components tècnics:**
+**Componentes técnicos:**
 - `backend/src/routes.js:1084-1222` — `POST /generate-random-train`.
 - `backend/src/routes.js:1225-1304` — `POST /trains/from-route/:code`.
-- `backend/src/services/routeService.js/ts` — Servei de rutes ferroviàries.
-- `backend/src/fixtures/routes.js` — Dades de rutes (antigues RODALIA_ROUTES).
-- `backend/src/fixtures/seedTrains.js` — Fixtures de demostració.
-- `frontend/src/components/admin/GenerationPanel.tsx` — Interfície d'auto-generació.
+- `backend/src/services/routeService.js/ts` — Servicio de rutas ferroviarias.
+- `backend/src/fixtures/routes.js` — Datos de rutas (antiguas RODALIA_ROUTES).
+- `backend/src/fixtures/seedTrains.js` — Fixtures de demostración.
+- `frontend/src/components/admin/GenerationPanel.tsx` — Interfaz de auto-generación.
 
-**Riscos o limitacions:**
-- El càlcul de `headwayMin` pot generar trens molt seguits si l'interval és massa petit.
-- La generació no considera festius ni temporades.
-- No hi ha validació de xoc d'horaris amb el mateix número de tren.
+**Riesgos o limitaciones:**
+- El cálculo de `headwayMin` puede generar trenes muy seguidos si el intervalo es demasiado pequeño.
+- La generación no considera festivos ni temporadas.
+- No hay validación de choque de horarios con el mismo número de tren.
 
-**Evidències:** `backend/src/routes.js:1084-1304`, `backend/src/fixtures/routes.js:1-74`, `backend/src/db.js:196-264`.
-
----
-
-## Funcionalitat: Gestió d'operadors i tipus de tren
-
-**Objectiu:** Mantenir un catàleg d'operadors ferroviaris i tipus de tren amb logotips i àudios de pre-anunci.
-
-**Actors:** Administrador.
-
-**Precondicions:** L'usuari està autenticat.
-
-**Flux principal:**
-1. L'usuari accedeix a `/train-settings`.
-2. Es mostren dues columnes: Operadors i Tipus de tren.
-3. Per a cada element, es pot:
-   - **Editar:** Modal amb camps (nom, logo, àudio de pre-anunci).
-   - **Eliminar:** Confirmació i eliminació directa.
-   - **Crear:** Formulari inline a la part inferior de cada catàleg.
-4. Els logotips es pugen com a imatges (PNG, JPG, GIF, WebP, SVG).
-5. Els àudios de pre-anunci es pugen com a OGG/Opus/MP3 (màxim 5 MB).
-
-**Fluxos alternatius:**
-- Els operadors i tipus base es creen automàticament via `ensureLearnedRailData()` durant la generació de trens.
-
-**Errors esperables:**
-- L'upload de fitxers invàlids retorna error `FILE_TYPE_NOT_ALLOWED`.
-- L'eliminació d'un tipus usat per trens existents deixa `train_type_id = NULL`.
-
-**Permisos:** Administrador (Basic Auth).
-
-**Dades implicades:** `Operators` (id, name, logo_url, pre_announce_ogg), `TrainTypes` (id, code, name, color, logo_url, destination_icon_url, pre_announce_ogg).
-
-**Components tècnics:**
-- `frontend/src/pages/TrainSettings.tsx` — Interfície de gestió amb modals i formularis.
-- `backend/src/routes.js:835-966` — Endpoints REST per operadors i tipus de tren.
-- `backend/src/db.js:316-374` — CRUD genèric per a operadors, tipus, places i icones.
-- `backend/src/routes.js:55-69` — Configuració de `multer` per a pujada d'àudios.
-
-**Riscos o limitacions:**
-- No hi ha control de versions per a logotips.
-- Els àudios de pre-anunci no es reprodueixen automàticament al panell públic.
-
-**Evidències:** `frontend/src/pages/TrainSettings.tsx:1-203`, `backend/src/routes.js:835-966`, `backend/src/db.js:316-374`.
+**Evidencias:** `backend/src/routes.js:1084-1304`, `backend/src/fixtures/routes.js:1-74`, `backend/src/db.js:196-264`.
 
 ---
 
-## Funcionalitat: Serveis multi-parada
+## Funcionalidad: Gestión de operadores y tipos de tren
 
-**Objectiu:** Gestionar serveis ferroviaris complexos amb múltiples parades a través de diverses estacions, amb control d'estats i traçabilitat.
+**Objetivo:** Mantener un catálogo de operadores ferroviarios y tipos de tren con logotipos y audios de pre-anuncio.
 
-**Actors:** Administrador, sistema de monitoratge.
+**Actores:** Administrador.
 
-**Precondicions:** Hi ha estacions, operadors i tipus de tren configurats al sistema.
+**Precondiciones:** El usuario está autenticado.
 
-**Flux principal:**
-1. L'administrador crea un servei amb número, operador, tipus de tren, origen i destí.
-2. Afegeix parades al servei, cada una amb:
-   - Tipus de parada: `Origin` (origen), `Stop` (aturada), `Pass` (pas sense aturada), `Destination` (destí final).
-   - Horari programat d'arribada i/o sortida.
-   - Via i sector assignats.
-3. Durant l'operació, es marquen esdeveniments sobre cada parada:
-   - `POST /stops/:id/arrival` — Marca l'arribada.
-   - `POST /stops/:id/departure` — Marca la sortida.
-   - `POST /stops/:id/pass` — Marca pas sense aturada.
-4. El sistema propaga el retràs entre parades consecutives automàticament, tret que la parada tingui `delay_locked = true`.
+**Flujo principal:**
+1. El usuario accede a `/train-settings`.
+2. Se muestran dos columnas: Operadores y Tipos de tren.
+3. Para cada elemento, se puede:
+   - **Editar:** Modal con campos (nombre, logo, audio de pre-anuncio).
+   - **Eliminar:** Confirmación y eliminación directa.
+   - **Crear:** Formulario inline en la parte inferior de cada catálogo.
+4. Los logotipos se suben como imágenes (PNG, JPG, GIF, WebP, SVG).
+5. Los audios de pre-anuncio se suben como OGG/Opus/MP3 (máximo 5 MB).
 
-**Fluxos alternatius:**
-- **Cancel·lació:** `POST /services/:id/cancel` — Cancel·la el servei i totes les seves parades.
-- **Retràs manual:** `POST /stops/:id/delay` — Afegeix retràs a una parada específica.
-- **Reordenació:** `POST /services/:id/stops/reorder` — Reordena les parades del servei.
+**Flujos alternativos:**
+- Los operadores y tipos base se crean automáticamente vía `ensureLearnedRailData()` durante la generación de trenes.
 
-**Errors esperables:**
-- 400 si falten camps obligatoris (`number`, `station_id`, `stop_number`, `stop_type`).
-- 404 si el servei o la parada no existeixen.
+**Errores esperables:**
+- La subida de archivos inválidos retorna error `FILE_TYPE_NOT_ALLOWED`.
+- La eliminación de un tipo usado por trenes existentes deja `train_type_id = NULL`.
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:**
-- `services` — Servei amb estat (Scheduled → In Progress → Completed / Cancelled).
-- `service_stops` — Parades amb estats (Scheduled → Arrived → Departed → Passed → Completed).
-- `service_events` — Traçabilitat d'esdeveniments (audit trail).
+**Datos implicados:** `Operators` (id, name, logo_url, pre_announce_ogg), `TrainTypes` (id, code, name, color, logo_url, destination_icon_url, pre_announce_ogg).
 
-**Components tècnics:**
-- `frontend/src/components/admin/ServicesPanel.tsx` — Interfície de gestió de serveis i parades.
-- `backend/src/routes.js:1306-1557` — Endpoints de serveis, parades i operacions.
-- `backend/src/db.js:504-882` — Taules `services`, `service_stops`, `service_events`, operacions CRUD i màquina d'estats.
-- `backend/src/ws.js` — Notificacions de canvis d'estat.
+**Componentes técnicos:**
+- `frontend/src/pages/TrainSettings.tsx` — Interfaz de gestión con modales y formularios.
+- `backend/src/routes.js:835-966` — Endpoints REST para operadores y tipos de tren.
+- `backend/src/db.js:316-374` — CRUD genérico para operadores, tipos, lugares e iconos.
+- `backend/src/routes.js:55-69` — Configuración de `multer` para subida de audios.
 
-**Riscos o limitacions:**
-- La propagació de retràs no considera el temps de volta ni la disponibilitat de material.
-- L'audit trail (`service_events`) no és purgable; pot créixer indefinidament.
+**Riesgos o limitaciones:**
+- No hay control de versiones para logotipos.
+- Los audios de pre-anuncio no se reproducen automáticamente en el panel público.
 
-**Evidències:** `frontend/src/components/admin/ServicesPanel.tsx:1-501`, `backend/src/routes.js:1306-1557`, `backend/src/db.js:504-882`.
+**Evidencias:** `frontend/src/pages/TrainSettings.tsx:1-203`, `backend/src/routes.js:835-966`, `backend/src/db.js:316-374`.
 
 ---
 
-## Funcionalitat: Configuració multiestació (DisplayConfig)
+## Funcionalidad: Servicios multi-parada
 
-**Objectiu:** Gestionar la configuració individual de cada display/estació del sistema, incloent aspectes visuals, idiomes, vies i mode de visualització.
+**Objetivo:** Gestionar servicios ferroviarios complejos con múltiples paradas a través de varias estaciones, con control de estados y trazabilidad.
 
-**Actors:** Administrador.
+**Actores:** Administrador, sistema de monitorización.
 
-**Precondicions:** L'usuari està autenticat.
+**Precondiciones:** Hay estaciones, operadores y tipos de tren configurados en el sistema.
 
-**Flux principal:**
-1. L'usuari accedeix a `/admin/displays` (ruta múltiple) o directament a `/admin/displays/:id`.
-2. En mode múltiple, es mostra una graella de totes les estacions; en mode únic, es mostra directament l'única estació.
-3. Per a cada display, es configuren:
-   - **Config general:** Nom de l'estació, mode (sortides/llegades), regió/ciutat per filtrar rutes, idiomes (selecció múltiple de es/ca/en/fr/eu/gl), URL del logotip.
-   - **Vies i sectors:** Rang mínim/màxim, opció de permetre buit, mostrar icona de destí.
-   - **Estil i rellotge:** Colors (fons, capçalera, text de capçalera, fila principal, fila alterna), mode de rellotge (real/fictici), hora fictícia, avanç (1s/2s/5s/10s/15s per segon real), text del footer.
-   - **Trenes:** Llista dels trens associats al display, amb accions per afegir, generar, exportar o buidar.
-   - **Tipus de tren:** Assignació d'icones de destí per tipus de tren.
+**Flujo principal:**
+1. El administrador crea un servicio con número, operador, tipo de tren, origen y destino.
+2. Añade paradas al servicio, cada una con:
+   - Tipo de parada: `Origin` (origen), `Stop` (detención), `Pass` (paso sin detención), `Destination` (destino final).
+   - Horario programado de llegada y/o salida.
+   - Vía y sector asignados.
+3. Durante la operación, se marcan eventos sobre cada parada:
+   - `POST /stops/:id/arrival` — Marca la llegada.
+   - `POST /stops/:id/departure` — Marca la salida.
+   - `POST /stops/:id/pass` — Marca paso sin detención.
+4. El sistema propaga el retraso entre paradas consecutivas automáticamente, salvo que la parada tenga `delay_locked = true`.
 
-**Fluxos alternatius:**
-- Si el mode global és `single`, s'ignora el paràmetre d'URL i es mostra sempre la mateixa estació.
-- Es pot crear un nou display (estació) des del panell.
+**Flujos alternativos:**
+- **Cancelación:** `POST /services/:id/cancel` — Cancela el servicio y todas sus paradas.
+- **Retraso manual:** `POST /stops/:id/delay` — Añade retraso a una parada específica.
+- **Reordenación:** `POST /services/:id/stops/reorder` — Reordena las paradas del servicio.
 
-**Errors esperables:**
-- Error en guardar la configuració es mostra com a notificació d'error.
-- Si no hi ha displays, es mostra un missatge d'avís.
+**Errores esperables:**
+- 400 si faltan campos obligatorios (`number`, `station_id`, `stop_number`, `stop_type`).
+- 404 si el servicio o la parada no existen.
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:**
-- `stations` — Taula d'estacions (id, name, short, logo_url, color).
-- `station_display_configs` — Configuració per estació emmagatzemada com a JSON.
+**Datos implicados:**
+- `services` — Servicio con estado (Scheduled → In Progress → Completed / Cancelled).
+- `service_stops` — Paradas con estados (Scheduled → Arrived → Departed → Passed → Completed).
+- `service_events` — Trazabilidad de eventos (audit trail).
 
-**Components tècnics:**
-- `frontend/src/pages/DisplayConfig.tsx` — Pàgina completa de configuració de display.
+**Componentes técnicos:**
+- `frontend/src/components/admin/ServicesPanel.tsx` — Interfaz de gestión de servicios y paradas.
+- `backend/src/routes.js:1306-1557` — Endpoints de servicios, paradas y operaciones.
+- `backend/src/db.js:504-882` — Tablas `services`, `service_stops`, `service_events`, operaciones CRUD y máquina de estados.
+- `backend/src/ws.js` — Notificaciones de cambios de estado.
+
+**Riesgos o limitaciones:**
+- La propagación de retraso no considera el tiempo de vuelta ni la disponibilidad de material.
+- El audit trail (`service_events`) no es purgable; puede crecer indefinidamente.
+
+**Evidencias:** `frontend/src/components/admin/ServicesPanel.tsx:1-501`, `backend/src/routes.js:1306-1557`, `backend/src/db.js:504-882`.
+
+---
+
+## Funcionalidad: Configuración multiestación (DisplayConfig)
+
+**Objetivo:** Gestionar la configuración individual de cada display/estación del sistema, incluyendo aspectos visuales, idiomas, vías y modo de visualización.
+
+**Actores:** Administrador.
+
+**Precondiciones:** El usuario está autenticado.
+
+**Flujo principal:**
+1. El usuario accede a `/admin/displays` (ruta múltiple) o directamente a `/admin/displays/:id`.
+2. En modo múltiple, se muestra una cuadrícula de todas las estaciones; en modo único, se muestra directamente la única estación.
+3. Para cada display, se configuran:
+   - **Config general:** Nombre de la estación, modo (salidas/llegadas), región/ciudad para filtrar rutas, idiomas (selección múltiple de es/ca/en/fr/eu/gl), URL del logotipo.
+   - **Vías y sectores:** Rango mínimo/máximo, opción de permitir vacío, mostrar icono de destino.
+   - **Estilo y reloj:** Colores (fondo, cabecera, texto de cabecera, fila principal, fila alterna), modo de reloj (real/ficticio), hora ficticia, avance (1s/2s/5s/10s/15s por segundo real), texto del footer.
+   - **Trenes:** Lista de los trenes asociados al display, con acciones para añadir, generar, exportar o vaciar.
+   - **Tipo de tren:** Asignación de iconos de destino por tipo de tren.
+
+**Flujos alternativos:**
+- Si el modo global es `single`, se ignora el parámetro de URL y se muestra siempre la misma estación.
+- Se puede crear un nuevo display (estación) desde el panel.
+
+**Errores esperables:**
+- Error al guardar la configuración se muestra como notificación de error.
+- Si no hay displays, se muestra un mensaje de aviso.
+
+**Permisos:** Administrador (Basic Auth).
+
+**Datos implicados:**
+- `stations` — Tabla de estaciones (id, name, short, logo_url, color).
+- `station_display_configs` — Configuración por estación almacenada como JSON.
+
+**Componentes técnicos:**
+- `frontend/src/pages/DisplayConfig.tsx` — Página completa de configuración de display.
 - `backend/src/routes.js:727-749` — Endpoints `GET/PUT /stations/:id/config`.
-- `backend/src/db.js:459-502` — Funcions `getStationDisplayConfig`, `setStationDisplayConfig`, `listStationDisplayConfigs`.
+- `backend/src/db.js:459-502` — Funciones `getStationDisplayConfig`, `setStationDisplayConfig`, `listStationDisplayConfigs`.
 
-**Riscos o limitacions:**
-- La configuració es guarda com a JSON sense esquema fix; canvis al schema poden requerir migracions.
-- No hi ha validació de rang per a vies i sectors (es permeten valors no numèrics/alphabetics).
+**Riesgos o limitaciones:**
+- La configuración se guarda como JSON sin esquema fijo; cambios en el schema pueden requerir migraciones.
+- No hay validación de rango para vías y sectores (se permiten valores no numéricos/alfabéticos).
 
-**Evidències:** `frontend/src/pages/DisplayConfig.tsx:1-981+`, `backend/src/routes.js:727-749`, `backend/src/db.js:459-502`.
+**Evidencias:** `frontend/src/pages/DisplayConfig.tsx:1-981+`, `backend/src/routes.js:727-749`, `backend/src/db.js:459-502`.
 
 ---
 
-## Funcionalitat: Locucions i TTS (Text-to-Speech)
+## Funcionalidad: Locuciones y TTS (Text-to-Speech)
 
-**Objectiu:** Gestionar locucions de megafonia amb suport multilingüe i síntesi de veu via Web Speech API.
+**Objetivo:** Gestionar locuciones de megafonía con soporte multilingüe y síntesis de voz vía Web Speech API.
 
-**Actors:** Administrador, viatgers (escolten els anuncis).
+**Actores:** Administrador, viajeros (escuchan los anuncios).
 
-**Precondicions:** El navegador admet Web Speech API.
+**Precondiciones:** El navegador admite Web Speech API.
 
-**Flux principal:**
-1. L'administrador accedeix a la pestanya "Veu" o "Locuciones" del panell d'administració.
-2. Configura les plantilles d'anunci per a sortides i arribades, amb variables `{number}`, `{type_name}`, `{destination}`, `{platform}`, `{sector}`.
-3. Cada idioma pot tenir la seva pròpia plantilla via el mapa `announce_templates_map`.
-4. Es poden definir presets d'anuncis (benvinguda, tancament, retràs, etc.).
-5. La configuració de veu inclou: velocitat (rate), to (pitch), volum i selecció de veu per idioma.
-6. L'anunci es dispara des de la interfície d'administració o des de la pàgina de trens, usant `window.speechSynthesis.speak()`.
+**Flujo principal:**
+1. El administrador accede a la pestaña "Voz" o "Locuciones" del panel de administración.
+2. Configura las plantillas de anuncio para salidas y llegadas, con variables `{number}`, `{type_name}`, `{destination}`, `{platform}`, `{sector}`.
+3. Cada idioma puede tener su propia plantilla vía el mapa `announce_templates_map`.
+4. Se pueden definir presets de anuncios (bienvenida, cierre, retraso, etc.).
+5. La configuración de voz incluye: velocidad (rate), tono (pitch), volumen y selección de voz por idioma.
+6. El anuncio se dispara desde la interfaz de administración o desde la página de trenes, usando `window.speechSynthesis.speak()`.
 
-**Fluxos alternatius:**
-- **Pre-anunci:** Si el tipus de tren o l'operador té un fitxer d'àudio de pre-anunci (OGG/Opus/MP3), es reprodueix abans de la síntesi de veu.
-- **Llista de veus:** Es carrega automàticament de `speechSynthesis.getVoices()`.
+**Flujos alternativos:**
+- **Pre-anuncio:** Si el tipo de tren o el operador tiene un archivo de audio de pre-anuncio (OGG/Opus/MP3), se reproduce antes de la síntesis de voz.
+- **Lista de voces:** Se carga automáticamente de `speechSynthesis.getVoices()`.
 
-**Errors esperables:**
-- Si el navegador no suporta Web Speech API, el botó d'anunciar no fa res visible.
-- Les veus poden no estar disponibles per a tots els idiomes configurats.
+**Errores esperables:**
+- Si el navegador no soporta Web Speech API, el botón de anunciar no hace nada visible.
+- Las voces pueden no estar disponibles para todos los idiomas configurados.
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:**
+**Datos implicados:**
 - Config: `tts_rate`, `tts_pitch`, `tts_volume`, `tts_voice`, `tts_voice_map`, `announce_departure`, `announce_arrival`, `announce_templates_map`, `announce_presets`.
-- Àudios de pre-anunci a `Operators.pre_announce_ogg`, `TrainTypes.pre_announce_ogg`, `Stations.pre_announce_ogg`.
+- Audios de pre-anuncio en `Operators.pre_announce_ogg`, `TrainTypes.pre_announce_ogg`, `Stations.pre_announce_ogg`.
 
-**Components tècnics:**
-- `frontend/src/lib/tts.ts` — Funcions `speak`, `renderTemplate`, `defaultTemplate`, `loadVoiceSettings`, `getVoices`, `getVoiceURIForLanguage`.
-- `frontend/src/components/admin/LocutionsPanel.tsx` — Interfície de gestió de plantilles i presets.
-- `frontend/src/pages/Admin.tsx:698-757` — Configuració de veu i tests d'anunci.
+**Componentes técnicos:**
+- `frontend/src/lib/tts.ts` — Funciones `speak`, `renderTemplate`, `defaultTemplate`, `loadVoiceSettings`, `getVoices`, `getVoiceURIForLanguage`.
+- `frontend/src/components/admin/LocutionsPanel.tsx` — Interfaz de gestión de plantillas y presets.
+- `frontend/src/pages/Admin.tsx:698-757` — Configuración de voz y tests de anuncio.
 
-**Riscos o limitacions:**
-- Web Speech API no funciona en tots els navegadors (especialment en iOS/chromium).
-- No hi ha fallback si la veu seleccionada no està disponible (es queda en silenci).
-- Els àudios de pre-anunci no tenen temporització sincronitzada amb la TTS.
+**Riesgos o limitaciones:**
+- Web Speech API no funciona en todos los navegadores (especialmente en iOS/chromium).
+- No hay fallback si la voz seleccionada no está disponible (se queda en silencio).
+- Los audios de pre-anuncio no tienen temporización sincronizada con la TTS.
 
-**Evidències:** `frontend/src/lib/tts.ts:1-258`, `frontend/src/components/admin/LocutionsPanel.tsx:1-73`, `frontend/src/pages/Admin.tsx:698-757`.
-
----
-
-## Funcionalitat: PWA i mode offline
-
-**Objectiu:** Permetre que RailBoard funcioni com a aplicació instal·lable i tingui resiliència bàsica a fallades de xarxa.
-
-**Actors:** Viatgers (instal·len i usen l'app), administradors (en mode offline parcial).
-
-**Precondicions:** El navegador admet Service Workers.
-
-**Flux principal:**
-1. Al primer accés, el Service Worker (`sw.js`) s'instal·la i emmagatzema en cache recursos estàtics (`/`, `/manifest.json`, `/fonts/fonts.css`).
-2. Per a peticions d'arxius estàtics (JS, CSS, PNG, JPG, ICO, SVG, WOFF2, TTF, EOT): **cache-first** — si està en cache, serveix del cache; altrament, fa fetch i l'emmagatzema.
-3. Per a peticions a `/api/` o `/admin/`: **network-first** — primer intenta xarxa; si falla, serveix del cache.
-4. Per a navegació: network-first, amb caiguda a la pàgina principal en cache.
-
-**Fluxos alternatius:**
-- Si tot falla en mode offline per a una API, retorna `{"error": "Offline"}` amb codi 503.
-
-**Errors esperables:**
-- 503 "Offline" per a peticions d'API quan no hi ha cache ni connexió.
-
-**Permisos:** Públic (cap autenticació).
-
-**Dades implicades:**
-- `CACHE = "railboard-v1"` — Nom del cache.
-- `manifest.json` — Configuració d'instal·lació (name, short_name, description, icons).
-
-**Components tècnics:**
-- `frontend/public/sw.js` — Service Worker amb estratègies cache-first / network-first.
-- `frontend/public/manifest.json` — Manifest d'aplicació web progressiva.
-- `frontend/public/fonts/` — 6 famílies de fonts tipogràfiques locals (Oswald, Roboto Condensed, Roboto Mono, etc.).
-- `frontend/src/pages/Display.tsx:36-42` — Injecció dinàmica del full d'estils de fonts via JavaScript.
-
-**Riscos o limitacions:**
-- Estratègia cache-first per a estàtics: les actualitzacions requereixen un nou `CACHE` versionat.
-- Les peticions d'admin amb Basic Auth no es cachegen correctament si la resposta no inclou els headers adequats.
-- No hi ha cache per a imatges dinàmiques (logotips, icones pujats per l'usuari).
-- L'aplicació no pot funcionar completament offline perquè les dades de trens requereixen API.
-
-**Evidències:** `frontend/public/sw.js:1-82`, `frontend/public/manifest.json:1-16`, `frontend/public/fonts/fonts.css`.
+**Evidencias:** `frontend/src/lib/tts.ts:1-258`, `frontend/src/components/admin/LocutionsPanel.tsx:1-73`, `frontend/src/pages/Admin.tsx:698-757`.
 
 ---
 
-## Funcionalitat: Panell d'administració complet
+## Funcionalidad: PWA y modo offline
 
-**Objectiu:** Proporcionar una interfície unificada per a totes les operacions de gestió del sistema RailBoard.
+**Objetivo:** Permitir que RailBoard funcione como aplicación instalable y tenga resiliencia básica a fallos de red.
 
-**Actors:** Administrador.
+**Actores:** Viajeros (instalan y usan la app), administradores (en modo offline parcial).
 
-**Precondicions:** L'usuari està autenticat.
+**Precondiciones:** El navegador admite Service Workers.
 
-**Flux principal:**
-1. L'administrador accedeix a `/admin` i veu un panell amb barra lateral esquerra organitzada en grups:
-   - **General:** Dashboard, Validació, Importació de dades.
-   - **Infraestructura ferroviària:** Rutes, Operadors, Trenes, Tipus de tren, Destins, Serveis.
-   - **Displays i señalètica:** Displays, Estació actual, Estils.
-   - **Audio i locucions:** Veu i idiomes, Locuciones.
-2. Cada pestanya mostra el seu contingut específic:
-   - **Dashboard:** KPIs (rutes, estacions, xarxes, operadors, displays, trens), estat del backend, resum operatiu.
-   - **Estació:** Configuració general (nom, mode, idioma, footer).
-   - **Rutes:** Navegador de rutes amb filtres per regió/xarxa/operador, generació de trens des de ruta.
-   - **Validation:** Anàlisi de consistència de dades (rutes duplicades, estacions sense display).
-   - **Import:** Validació i previsualització d'importació JSON de rutes.
-   - **Estils:** Personalització visual (colors de fons, capçalera, files).
-   - **Destins:** CRUD de llocs/destins.
-   - **Serveis:** Gestió de serveis multi-parada.
-   - **Displays:** Enllaç a `DisplayConfig.tsx`.
+**Flujo principal:**
+1. En el primer acceso, el Service Worker (`sw.js`) se instala y almacena en caché recursos estáticos (`/`, `/manifest.json`, `/fonts/fonts.css`).
+2. Para peticiones de archivos estáticos (JS, CSS, PNG, JPG, ICO, SVG, WOFF2, TTF, EOT): **cache-first** — si está en caché, sirve desde la caché; de lo contrario, hace fetch y lo almacena.
+3. Para peticiones a `/api/` o `/admin/`: **network-first** — primero intenta red; si falla, sirve desde la caché.
+4. Para navegación: network-first, con caída a la página principal en caché.
 
-**Fluxos alternatius:**
-- El panell mostra notificacions toast per a operacions exitoses/fallides.
-- Les dades es refresquen automàticament via WebSocket i polling.
+**Flujos alternativos:**
+- Si todo falla en modo offline para una API, retorna `{"error": "Offline"}` con código 503.
 
-**Errors esperables:**
-- Errors d'API es capturen i es mostren com a notificacions o missatges d'error inline.
-- La validació de rutes detecta errors (falten camps, rutes duplicades) i warnings (sense estacions, sense displays).
+**Errores esperables:**
+- 503 "Offline" para peticiones de API cuando no hay caché ni conexión.
+
+**Permisos:** Público (sin autenticación).
+
+**Datos implicados:**
+- `CACHE = "railboard-v1"` — Nombre de la caché.
+- `manifest.json` — Configuración de instalación (name, short_name, description, icons).
+
+**Componentes técnicos:**
+- `frontend/public/sw.js` — Service Worker con estrategias cache-first / network-first.
+- `frontend/public/manifest.json` — Manifest de aplicación web progresiva.
+- `frontend/public/fonts/` — 6 familias de fuentes tipográficas locales (Oswald, Roboto Condensed, Roboto Mono, etc.).
+- `frontend/src/pages/Display.tsx:36-42` — Inyección dinámica de la hoja de estilos de fuentes vía JavaScript.
+
+**Riesgos o limitaciones:**
+- Estrategia cache-first para estáticos: las actualizaciones requieren un nuevo `CACHE` versionado.
+- Las peticiones de admin con Basic Auth no se cachean correctamente si la respuesta no incluye los headers adecuados.
+- No hay caché para imágenes dinámicas (logotipos, iconos subidos por el usuario).
+- La aplicación no puede funcionar completamente offline porque los datos de trenes requieren API.
+
+**Evidencias:** `frontend/public/sw.js:1-82`, `frontend/public/manifest.json:1-16`, `frontend/public/fonts/fonts.css`.
+
+---
+
+## Funcionalidad: Panel de administración completo
+
+**Objetivo:** Proporcionar una interfaz unificada para todas las operaciones de gestión del sistema RailBoard.
+
+**Actores:** Administrador.
+
+**Precondiciones:** El usuario está autenticado.
+
+**Flujo principal:**
+1. El administrador accede a `/admin` y ve un panel con barra lateral izquierda organizada en grupos:
+   - **General:** Dashboard, Validación, Importación de datos.
+   - **Infraestructura ferroviaria:** Rutas, Operadores, Trenes, Tipos de tren, Destinos, Servicios.
+   - **Displays y señalética:** Displays, Estación actual, Estilos.
+   - **Audio y locuciones:** Voz e idiomas, Locuciones.
+2. Cada pestaña muestra su contenido específico:
+   - **Dashboard:** KPIs (rutas, estaciones, redes, operadores, displays, trenes), estado del backend, resumen operativo.
+   - **Estación:** Configuración general (nombre, modo, idioma, footer).
+   - **Rutas:** Navegador de rutas con filtros por región/red/operador, generación de trenes desde ruta.
+   - **Validation:** Análisis de consistencia de datos (rutas duplicadas, estaciones sin display).
+   - **Import:** Validación y previsualización de importación JSON de rutas.
+   - **Estilos:** Personalización visual (colores de fondo, cabecera, filas).
+   - **Destinos:** CRUD de lugares/destinos.
+   - **Servicios:** Gestión de servicios multi-parada.
+   - **Displays:** Enlace a `DisplayConfig.tsx`.
+
+**Flujos alternativos:**
+- El panel muestra notificaciones toast para operaciones exitosas/fallidas.
+- Los datos se refrescan automáticamente vía WebSocket y polling.
+
+**Errores esperables:**
+- Errores de API se capturan y se muestran como notificaciones o mensajes de error inline.
+- La validación de rutas detecta erroros (faltan campos, rutas duplicadas) y warnings (sin estaciones, sin displays).
 
 **Permisos:** Administrador (Basic Auth).
 
-**Dades implicades:** Totes les taules del sistema: Config, Stations, Trains, Operators, TrainTypes, Places, Routes, Services, ServiceStops.
+**Datos implicados:** Todas las tablas del sistema: Config, Stations, Trains, Operators, TrainTypes, Places, Routes, Services, ServiceStops.
 
-**Components tècnics:**
-- `frontend/src/pages/Admin.tsx` — Component principal del panell d'administració.
-- `frontend/src/components/admin/GenerationPanel.tsx` — Generació i auto-generació de trens.
-- `frontend/src/components/admin/RoutesPanel.tsx` — Navegador de rutes amb filtres.
-- `frontend/src/components/admin/ServicesPanel.tsx` — Gestió de serveis multi-parada.
-- `frontend/src/components/admin/StationPanel.tsx` — Configuració de l'estació actual.
-- `frontend/src/components/admin/StylesPanel.tsx` — Personalització d'estils.
-- `frontend/src/components/admin/LocutionsPanel.tsx` — Plantilles de locucions.
-- `frontend/src/components/admin/PlacesPanel.tsx` — CRUD de destins.
+**Componentes técnicos:**
+- `frontend/src/pages/Admin.tsx` — Componente principal del panel de administración.
+- `frontend/src/components/admin/GenerationPanel.tsx` — Generación y auto-generación de trenes.
+- `frontend/src/components/admin/RoutesPanel.tsx` — Navegador de rutas con filtros.
+- `frontend/src/components/admin/ServicesPanel.tsx` — Gestión de servicios multi-parada.
+- `frontend/src/components/admin/StationPanel.tsx` — Configuración de la estación actual.
+- `frontend/src/components/admin/StylesPanel.tsx` — Personalización de estilos.
+- `frontend/src/components/admin/LocutionsPanel.tsx` — Plantillas de locuciones.
+- `frontend/src/components/admin/PlacesPanel.tsx` — CRUD de destinos.
 - `frontend/src/components/admin/WSLogPanel.tsx` — Log de WebSocket.
-- `frontend/src/components/admin/StationPanel.tsx` — Configuració de display per estació.
+- `frontend/src/components/admin/StationPanel.tsx` — Configuración de display por estación.
 
-**Riscos o limitacions:**
-- La interfície d'administració no és responsiva per a dispositius mòbils (sidebar ocult en `lg:`).
-- La validació de rutes és bàsica (format de camps, sense verificació de consistència geogràfica).
+**Riesgos o limitaciones:**
+- La interfaz de administración no es responsiva para dispositivos móviles (sidebar oculto en `lg:`).
+- La validación de rutas es básica (formato de campos, sin verificación de consistencia geográfica).
 
-**Evidències:** `frontend/src/pages/Admin.tsx:1-1121+`, `frontend/src/components/admin/GenerationPanel.tsx:1-35`, `frontend/src/components/admin/RoutesPanel.tsx:1-214`, `frontend/src/components/admin/ServicesPanel.tsx:1-501`, `frontend/src/components/admin/StylesPanel.tsx:1-43`, `frontend/src/components/admin/LocutionsPanel.tsx:1-73`, `backend/src/routes.js:1-1676`.
+**Evidencias:** `frontend/src/pages/Admin.tsx:1-1121+`, `frontend/src/components/admin/GenerationPanel.tsx:1-35`, `frontend/src/components/admin/RoutesPanel.tsx:1-214`, `frontend/src/components/admin/ServicesPanel.tsx:1-501`, `frontend/src/components/admin/StylesPanel.tsx:1-43`, `frontend/src/components/admin/LocutionsPanel.tsx:1-73`, `backend/src/routes.js:1-1676`.

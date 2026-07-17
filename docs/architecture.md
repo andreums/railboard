@@ -1,30 +1,30 @@
 # Arquitectura de RailBoard
 
-## 1. Visió general
+## 1. Visión general
 
-RailBoard és un sistema monorepo per a la visualització de panells informatius ferroviaris en estacions. Consta de dos subsistemes: un _backend_ Express amb SQLite i WebSocket, i un _frontend_ React amb Vite i Tailwind. El desplegament es fa mitjançant Docker Compose amb un proxy Nginx que encamina el tràfic als contenidors corresponents.
+RailBoard es un sistema monorepo para la visualización de paneles informativos ferroviarios en estaciones. Consta de dos subsistemas: un _backend_ Express con SQLite y WebSocket, y un _frontend_ React con Vite y Tailwind. El despliegue se realiza mediante Docker Compose con un proxy Nginx que enruta el tráfico a los contenedores correspondientes.
 
-| Subsistema | Tecnologia | Punts d'entrada |
+| Subsistema | Tecnología | Puntos de entrada |
 |---|---|---|
 | Backend | Express (Node 20), better-sqlite3, ws | `:4000` |
 | Frontend | React + Vite + Tailwind, Nginx (prod) | `:80` |
-| Base de dades | SQLite (WAL) | fitxer `data.db` |
-| Temps real | WebSocket | `/ws` |
+| Base de datos | SQLite (WAL) | archivo `data.db` |
+| Tiempo real | WebSocket | `/ws` |
 
-**Fitxers clau:**
-- `backend/src/index.js` (89 línies) — punt d'entrada del backend
-- `backend/src/routes.js` (1676 línies) — rutes administratives
-- `backend/src/railRoutesApi.js` (209 línies) — API pública
-- `backend/src/db.js` (882 línies) — capa de base de dades
-- `backend/src/ws.js` (18 línies) — servidor WebSocket
-- `frontend/src/pages/Admin.tsx` (3128 línies) — panell d'administració
-- `frontend/src/pages/Display.tsx` (841 línies) — pantalla de visualització
-- `docker-compose.yml` (47 línies) — orquestració de serveis
-- `docker/nginx.conf` (89 línies) — configuració del proxy invers
+**Archivos clave:**
+- `backend/src/index.js` (89 líneas) — punto de entrada del backend
+- `backend/src/routes.js` (1676 líneas) — rutas administrativas
+- `backend/src/railRoutesApi.js` (209 líneas) — API pública
+- `backend/src/db.js` (882 líneas) — capa de base de datos
+- `backend/src/ws.js` (18 líneas) — servidor WebSocket
+- `frontend/src/pages/Admin.tsx` (3128 líneas) — panel de administración
+- `frontend/src/pages/Display.tsx` (841 líneas) — pantalla de visualización
+- `docker-compose.yml` (47 líneas) — orquestación de servicios
+- `docker/nginx.conf` (89 líneas) — configuración del proxy inverso
 
 ---
 
-## 2. Diagrama de context
+## 2. Diagrama de contexto
 
 ```mermaid
 graph TD
@@ -39,15 +39,15 @@ graph TD
     FE -->|polling 5s| BE
 ```
 
-- El visitant accedeix al panell informatiu via `GET /display/:stationId`.
-- L'administrador accedeix al panell de control via `/admin`.
-- Nginx fa de proxy invers únic: tot el tràfic passa per ell.
-- El frontend es comunica amb el backend via REST i WebSocket.
-- El backend llegeix de SQLite i d'un fitxer JSON estàtic de rutes.
+- El visitante accede al panel informativo vía `GET /display/:stationId`.
+- El administrador accede al panel de control vía `/admin`.
+- Nginx actúa como proxy inverso único: todo el tráfico pasa por él.
+- El frontend se comunica con el backend vía REST y WebSocket.
+- El backend lee de SQLite y de un archivo JSON estático de rutas.
 
 ---
 
-## 3. Diagrama de contenidors
+## 3. Diagrama de contenedores
 
 ```mermaid
 graph TD
@@ -63,20 +63,20 @@ graph TD
     BE --> V_UP
 ```
 
-**Configuració dels contenidors:**
+**Configuración de los contenedores:**
 
-| Servei | Dockerfile | Base | Expose | Healthcheck |
+| Servicio | Dockerfile | Base | Expose | Healthcheck |
 |---|---|---|---|---|
-| Backend | `backend/Dockerfile` (14 línies) | `node:20-alpine` | 4000 | `GET /health` cada 30s |
-| Frontend | `frontend/Dockerfile` (21 línies, multi-stage) | `nginx:alpine` | 80 | — |
+| Backend | `backend/Dockerfile` (14 líneas) | `node:20-alpine` | 4000 | `GET /health` cada 30s |
+| Frontend | `frontend/Dockerfile` (21 líneas, multi-stage) | `nginx:alpine` | 80 | — |
 
-**Volums persistents:**
-- `db-data`: base de dades SQLite (`/app/data/data.db`)
-- `uploads`: fitxers pujats (logotips, àudio)
+**Volúmenes persistentes:**
+- `db-data`: base de datos SQLite (`/app/data/data.db`)
+- `uploads`: archivos subidos (logotipos, audio)
 
 ---
 
-## 4. Diagrama de components
+## 4. Diagrama de componentes
 
 ### 4.1 Backend
 
@@ -147,41 +147,41 @@ graph TD
     end
 ```
 
-### 4.3 Base de dades
+### 4.3 Base de datos
 
-**Taules principals** (creades automàticament a `db.js:12-80`):
+**Tablas principales** (creadas automáticamente en `db.js:12-80`):
 
-| Taula | Finalitat | Clau forana |
+| Tabla | Finalidad | Clave foránea |
 |---|---|---|
-| `config` | Configuració clau/valor | — |
-| `operators` | Operadors ferroviaris | — |
-| `train_types` | Tipus de tren (AVE, Avlo, Cercanías…) | — |
-| `places` | Llocs/orígens/destins | — |
-| `stations` | Estacions | — |
-| `station_display_configs` | Configuració per estació | `station_id` → `stations(id)` |
-| `trains` | Trens individuals (mode simple) | `operator_id`, `train_type_id`, `station_id` |
-| `train_icons` | Icones personalitzades | — |
-| `services` | Serveis/expedicions (mode multiciutat) | `operator_id`, `train_type_id`, `origin_place_id`, `destination_place_id` |
-| `service_stops` | Parades d'un servei | `service_id`, `station_id` |
-| `service_events` | Registre d'esdeveniments | `service_id`, `stop_id` |
-| `schema_migrations` | Control de migracions | — |
+| `config` | Configuración clave/valor | — |
+| `operators` | Operadores ferroviarios | — |
+| `train_types` | Tipos de tren (AVE, Avlo, Cercanías…) | — |
+| `places` | Lugares/orígenes/destinos | — |
+| `stations` | Estaciones | — |
+| `station_display_configs` | Configuración por estación | `station_id` → `stations(id)` |
+| `trains` | Trenes individuales (modo simple) | `operator_id`, `train_type_id`, `station_id` |
+| `train_icons` | Iconos personalizados | — |
+| `services` | Servicios/expediciones (modo multiciudad) | `operator_id`, `train_type_id`, `origin_place_id`, `destination_place_id` |
+| `service_stops` | Paradas de un servicio | `service_id`, `station_id` |
+| `service_events` | Registro de eventos | `service_id`, `stop_id` |
+| `schema_migrations` | Control de migraciones | — |
 
-**Migracions SQL** (directori `backend/migrations/`):
-1. `001-services.sql` — taules `services` i `service_stops`
-2. `002-service-events.sql` — taula `service_events`
-3. `003-trains-compatibility.sql` — compatibilitat amb trens
+**Migraciones SQL** (directorio `backend/migrations/`):
+1. `001-services.sql` — tablas `services` y `service_stops`
+2. `002-service-events.sql` — tabla `service_events`
+3. `003-trains-compatibility.sql` — compatibilidad con trenes
 
-**Dades de demo:** `backend/src/seed.js` (206 línies) crea operadors (Renfe, Avlo, Iryo, Ouigo), tipus de tren (AVE, Alvia, IC, MD, Avant, Cercanías), places i trens de demostració amb logotips SVG generats inline.
+**Datos de demo:** `backend/src/seed.js` (206 líneas) crea operadores (Renfe, Avlo, Iryo, Ouigo), tipos de tren (AVE, Alvia, IC, MD, Avant, Cercanías), lugares y trenes de demostración con logotipos SVG generados inline.
 
 ---
 
-## 5. Fluxos de dades
+## 5. Flujos de datos
 
-### 5.1 Flux principal: Panell informatiu
+### 5.1 Flujo principal: Panel informativo
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuari
+    participant U as Usuario
     participant N as Nginx
     participant FE as Frontend
     participant BE as Backend
@@ -191,7 +191,7 @@ sequenceDiagram
     N->>FE: /display/1 (SPA)
     FE->>BE: GET /api/stations/1/board?mode=departures
     BE->>DB: Query trains (JOIN operators, train_types)
-    alt trains buit
+    alt trains vacío
         BE->>DB: Query services + service_stops
     end
     DB-->>BE: rows
@@ -200,30 +200,30 @@ sequenceDiagram
 
     loop cada 5s
         FE->>BE: GET /api/stations/1/board
-        BE-->>FE: JSON actualitzat
+        BE-->>FE: JSON actualizado
     end
 
-    Note over FE,BE: WebSocket: broadcast "update" als clients connectats
+    Note over FE,BE: WebSocket: broadcast "update" a los clientes conectados
     BE->>FE: WS message { type: "update" }
     FE->>FE: refresca
 ```
 
-**Detalls de la consulta** (`railRoutesApi.js:166-196`):
-1. Es llegeix la configuració de l'estació (`getStationDisplayConfig`)
-2. Primer s'intenta obtenir dades de la taula `trains` (`buildRowsFromTrains`)
-3. Si no hi ha trens, es cau als serveis (`buildRowsFromServices`)
-4. Les files s'ordenen per hora esperada i número de tren
-5. Es retorna JSON amb `station`, `mode`, `source` ("trains" | "services"), `rows`
+**Detalles de la consulta** (`railRoutesApi.js:166-196`):
+1. Se lee la configuración de la estación (`getStationDisplayConfig`)
+2. Primero se intenta obtener datos de la tabla `trains` (`buildRowsFromTrains`)
+3. Si no hay trenes, se recurre a los servicios (`buildRowsFromServices`)
+4. Las filas se ordenan por hora esperada y número de tren
+5. Se retorna JSON con `station`, `mode`, `source` ("trains" | "services"), `rows`
 
-**Columnes renderitzades** (`Display.tsx`):
-- **TIME** — 11.17% amplada, hora prevista
-- **DESTINATION** — 56.33% amplada, destí + parades intermèdies
-- **PRODUCT** — 18% amplada, logotip del tipus + número
-- **PLATFORM** — 7.5% amplada, via
-- **STATUS** — fila inferior sota TIME
-- **STOPS** — fila inferior sota DESTINATION
+**Columnas renderizadas** (`Display.tsx`):
+- **TIME** — 11.17% ancho, hora prevista
+- **DESTINATION** — 56.33% ancho, destino + paradas intermedias
+- **PRODUCT** — 18% ancho, logotipo del tipo + número
+- **PLATFORM** — 7.5% ancho, vía
+- **STATUS** — fila inferior bajo TIME
+- **STOPS** — fila inferior bajo DESTINATION
 
-### 5.2 Flux administratiu
+### 5.2 Flujo administrativo
 
 ```mermaid
 sequenceDiagram
@@ -234,7 +234,7 @@ sequenceDiagram
     participant WS as WebSocket
 
     A->>N: GET /admin
-    N->>BE: /admin (amb Basic Auth)
+    N->>BE: /admin (con Basic Auth)
     BE->>BE: basicAuth (admin:ADMIN_PASSWORD)
     BE-->>A: Admin SPA
 
@@ -248,84 +248,84 @@ sequenceDiagram
     A->>BE: POST /admin/upload
     BE->>BE: multer (10MB img, 5MB audio)
     BE->>BE: { image/png, jpeg, gif, webp, svg }
-    BE->>DB: INSERT operator/train_type amb logo_url
-    BE-->>A: URL del fitxer
+    BE->>DB: INSERT operator/train_type con logo_url
+    BE-->>A: URL del archivo
 ```
 
-**Rutes administratives** (`routes.js`): CRUD complet per a operadors, tipus de tren, places, estacions, trens, serveis, parades, configuració, pujada de fitxers i àudio, gestió de rutes, icones, etc. Cada mutació emet un `broadcast` via WebSocket.
+**Rutas administrativas** (`routes.js`): CRUD completo para operadores, tipos de tren, lugares, estaciones, trenes, servicios, paradas, configuración, subida de archivos y audio, gestión de rutas, iconos, etc. Cada mutación emite un `broadcast` vía WebSocket.
 
 ---
 
-## 6. Patrons de comunicació
+## 6. Patrones de comunicación
 
-| Patró | Protocol | Origen → Destí | Ús |
+| Patrón | Protocolo | Origen → Destino | Uso |
 |---|---|---|---|
-| Síncron (REST) | HTTP | Frontend → Backend | CRUD, consultes de panell |
-| Síncron (REST) | HTTP | Admin → Backend | Operacions d'escriptura |
-| Asíncron (pub/sub) | WebSocket | Backend → Frontend | Notificacions de canvis (`{ type: "update" }`) |
-| Polling | HTTP | Frontend → Backend | Refresc periòdic cada 5s (Display.tsx:280) |
-| Servei de fitxers | HTTP | Nginx → Backend | Fitxers estàtics a `/uploads/` |
-| Proxy invers | HTTP | Nginx → Backend | `/api/`, `/admin/`, `/ws`, `/health`, `/uploads/` |
+| Síncrono (REST) | HTTP | Frontend → Backend | CRUD, consultas de panel |
+| Síncrono (REST) | HTTP | Admin → Backend | Operaciones de escritura |
+| Asíncrono (pub/sub) | WebSocket | Backend → Frontend | Notificaciones de cambios (`{ type: "update" }`) |
+| Polling | HTTP | Frontend → Backend | Refresco periódico cada 5s (Display.tsx:280) |
+| Servicio de archivos | HTTP | Nginx → Backend | Archivos estáticos en `/uploads/` |
+| Proxy inverso | HTTP | Nginx → Backend | `/api/`, `/admin/`, `/ws`, `/health`, `/uploads/` |
 
 **WebSocket** (`ws.js:5-9`):
-- Servidor muntat al mateix port HTTP amb `path: "/ws"`
-- Envia un missatge `{ type: "hello" }` en connectar-se
-- `broadcast(data)` envia a tots els clients connectats
+- Servidor montado en el mismo puerto HTTP con `path: "/ws"`
+- Envía un mensaje `{ type: "hello" }` al conectarse
+- `broadcast(data)` envía a todos los clientes conectados
 
-**Conexió del frontend** (`api.ts:430-462`):
-- Converteix `http://` a `ws://` automàticament
-- Reconeció automàtica amb 1.5s de retard
-- Suport per a _listeners_ d'esdeveniments específics
+**Conexión del frontend** (`api.ts:430-462`):
+- Convierte `http://` a `ws://` automáticamente
+- Reconexión automática con 1.5s de retardo
+- Soporte para _listeners_ de eventos específicos
 
 ---
 
-## 7. Arquitectura de seguretat
+## 7. Arquitectura de seguridad
 
-### 7.1 Autenticació
-- **HTTP Basic Auth** per a totes les rutes `/admin` (`routes.js:23-27`)
-- Usuari fix: `admin`
-- Contrasenya: variable d'entorn `ADMIN_PASSWORD`, valor per defecte `"railboard"`
-- Implementat amb `express-basic-auth` amb `challenge: true`
+### 7.1 Autenticación
+- **HTTP Basic Auth** para todas las rutas `/admin` (`routes.js:23-27`)
+- Usuario fijo: `admin`
+- Contraseña: variable de entorno `ADMIN_PASSWORD`, valor por defecto `"railboard"`
+- Implementado con `express-basic-auth` con `challenge: true`
 
-### 7.2 Capes de seguretat HTTP
-- **Helmet** amb `crossOriginResourcePolicy: "cross-origin"` (necessari per a imatges de tercers)
-- **CORS** configurat dinàmicament: origin exacte `CORS_ORIGIN` o qualsevol `localhost:*` en desenvolupament
+### 7.2 Capas de seguridad HTTP
+- **Helmet** con `crossOriginResourcePolicy: "cross-origin"` (necesario para imágenes de terceros)
+- **CORS** configurado dinámicamente: origin exacto `CORS_ORIGIN` o cualquier `localhost:*` en desarrollo
 - **Rate limiting**:
-  - `/admin` general: 120 req/min en producció, 1000 en desenvolupament
-  - Operacions d'escriptura (POST/PUT/PATCH/DELETE): 30 req/min
-- **Headers de seguretat Nginx** (`nginx.conf:85-88`):
+  - `/admin` general: 120 req/min en producción, 1000 en desarrollo
+  - Operaciones de escritura (POST/PUT/PATCH/DELETE): 30 req/min
+- **Headers de seguridad Nginx** (`nginx.conf:85-88`):
   - `X-Frame-Options: SAMEORIGIN`
   - `X-Content-Type-Options: nosniff`
   - `X-XSS-Protection: 1; mode=block`
   - `Referrer-Policy: strict-origin-when-cross-origin`
 
-### 7.3 Validació de fitxers
-- Imatges (multer): 10MB màxim, només PNG/JPG/GIF/WebP/SVG
-- Àudio: 5MB màxim, només OGG/Opus/MP3
-- Tamany màxim del body JSON: 1MB
+### 7.3 Validación de archivos
+- Imágenes (multer): 10MB máximo, solo PNG/JPG/GIF/WebP/SVG
+- Audio: 5MB máximo, solo OGG/Opus/MP3
+- Tamaño máximo del body JSON: 1MB
 
-### 7.4 Manca de seguretat
-- **Sense HTTPS** (el xifratge es delega al proxy extern o load balancer)
-- **Sense CSRF** (no hi ha tokens anti-CSRF)
-- **Sense MFA** (l'autenticació és només Basic Auth)
-- Contrasenya per defecte feble (`"railboard"`)
+### 7.4 Carencias de seguridad
+- **Sin HTTPS** (el cifrado se delega al proxy externo o load balancer)
+- **Sin CSRF** (no hay tokens anti-CSRF)
+- **Sin MFA** (la autenticación es solo Basic Auth)
+- Contraseña por defecto débil (`"railboard"`)
 
 ---
 
-## 8. Arquitectura de desplegament
+## 8. Arquitectura de despliegue
 
-### 8.1 Entorns
+### 8.1 Entornos
 
-| Entorn | Port | CORS_ORIGIN | RATE_LIMIT_MAX | ADMIN_PASSWORD |
+| Entorno | Puerto | CORS_ORIGIN | RATE_LIMIT_MAX | ADMIN_PASSWORD |
 |---|---|---|---|---|
-| Desenvolupament | `:4000` (backend directe) | `http://localhost:5173` | 1000 | `railboard` |
-| Producció (Docker) | `:80` (Nginx) | `http://localhost` | 120 | Variable |
+| Desarrollo | `:4000` (backend directo) | `http://localhost:5173` | 1000 | `railboard` |
+| Producción (Docker) | `:80` (Nginx) | `http://localhost` | 120 | Variable |
 
 ### 8.2 Proxy Nginx
 
 ```
 :80
-├── /               → serveix SPA (try_files → index.html)
+├── /               → sirve SPA (try_files → index.html)
 ├── /admin          → proxy_pass http://backend:4000
 ├── /admin/         → proxy_pass http://backend:4000 (15m body)
 ├── /api/           → proxy_pass http://backend:4000
@@ -335,65 +335,65 @@ sequenceDiagram
 └── /*.js|css|png…  → static files (cache 30d)
 ```
 
-### 8.3 Volums i persistència
-- La base de dades SQLite es guarda al volum `db-data:/app/data`
-- Les pujades es guarden al volum `uploads:/app/uploads`
-- Les migracions SQL s'apliquen automàticament en iniciar el backend (`runMigrations` a `index.js:82`)
+### 8.3 Volúmenes y persistencia
+- La base de datos SQLite se guarda en el volumen `db-data:/app/data`
+- Las subidas se guardan en el volumen `uploads:/app/uploads`
+- Las migraciones SQL se aplican automáticamente al iniciar el backend (`runMigrations` en `index.js:82`)
 
 ### 8.4 PWA
-- `manifest.json` per a instal·lació com a aplicació
-- `sw.js` (service worker) per a cache offline
-- Fonts locals servides des de `/fonts/`
-- El frontend es construeix amb Vite i es desplega com a SPA amb fallback a `index.html`
+- `manifest.json` para instalación como aplicación
+- `sw.js` (service worker) para caché offline
+- Fuentes locales servidas desde `/fonts/`
+- El frontend se construye con Vite y se despliega como SPA con fallback a `index.html`
 
 ---
 
-## 9. Decisions arquitecturals clau
+## 9. Decisiones arquitectónicas clave
 
-### 9.1 SQLite en lloc de PostgreSQL/MySQL
-**Evidència:** `backend/src/db.js` utilitza `better-sqlite3` amb mode WAL.
-**Raó:** Projecte monousuari o de petita escala. SQLite simplifica el desplegament (no cal servidor de base de dades extern), les còpies de seguretat i la configuració. El mode WAL permet lectures concurrents sense bloquejos.
+### 9.1 SQLite en lugar de PostgreSQL/MySQL
+**Evidencia:** `backend/src/db.js` utiliza `better-sqlite3` con modo WAL.
+**Razón:** Proyecto monousuario o de pequeña escala. SQLite simplifica el despliegue (no requiere servidor de base de datos externo), las copias de seguridad y la configuración. El modo WAL permite lecturas concurrentes sin bloqueos.
 
-### 9.2 Monorepo amb dos contenidors separats
-**Evidència:** `docker-compose.yml` defineix `backend` i `frontend` com a serveis independents.
-**Raó:** Separació de responsabilitats. El frontend pot desenvolupar-se i escalar-se independentment del backend. Nginx fa de proxy i servei d'arxius estàtics.
+### 9.2 Monorepo con dos contenedores separados
+**Evidencia:** `docker-compose.yml` define `backend` y `frontend` como servicios independientes.
+**Razón:** Separación de responsabilidades. El frontend puede desarrollarse y escalarse independientemente del backend. Nginx actúa como proxy y servicio de archivos estáticos.
 
-### 9.3 WebSocket al mateix port HTTP
-**Evidència:** `index.js:78-79`: el WebSocket es connecta al mateix servidor HTTP (`http.createServer` + `attachWebSocket`).
-**Raó:** Evita configuracions complexes de ports addicionals i simplifica el desplegament darrere de Nginx (que gestiona l'upgrade de protocol).
+### 9.3 WebSocket en el mismo puerto HTTP
+**Evidencia:** `index.js:78-79`: el WebSocket se conecta al mismo servidor HTTP (`http.createServer` + `attachWebSocket`).
+**Razón:** Evita configuraciones complejas de puertos adicionales y simplifica el despliegue detrás de Nginx (que gestiona el upgrade de protocolo).
 
 ### 9.4 Polling + WebSocket
-**Evidència:** `Display.tsx:280` estableix un `setInterval(refresh, 5000)` i `Display.tsx:294` connecta WebSocket.
-**Raó:** El polling garanteix actualitzacions fins i tot si el WebSocket es perd; el WebSocket proporciona actualitzacions immediates quan hi ha canvis. Patró híbrid de robustesa i baixa latència.
+**Evidencia:** `Display.tsx:280` establece un `setInterval(refresh, 5000)` y `Display.tsx:294` conecta WebSocket.
+**Razón:** El polling garantiza actualizaciones incluso si el WebSocket se pierde; el WebSocket proporciona actualizaciones inmediatas cuando hay cambios. Patrón híbrido de robustez y baja latencia.
 
-### 9.5 `station_id` opcional a la taula `trains`
-**Evidència:** `db.js:109-112`: columna afegida posteriorment mitjançant migració.
-**Raó:** Suport per a múltiples estacions es va afegir després del disseny inicial. La columna és opcional (`SET NULL` en cascada) per a compatibilitat enrere.
+### 9.5 `station_id` opcional en la tabla `trains`
+**Evidencia:** `db.js:109-112`: columna añadida posteriormente mediante migración.
+**Razón:** Soporte para múltiples estaciones se añadió después del diseño inicial. La columna es opcional (`SET NULL` en cascada) para compatibilidad hacia atrás.
 
-### 9.6 Sistema dual: `trains` i `services`
-**Evidència:** `railRoutesApi.js:174-176`: primer prova `buildRowsFromTrains`, si no hi ha resultats cau a `buildRowsFromServices`.
-**Raó:** El mode `trains` (taula plana) és més senzill i va ser el primer a implementar-se. El mode `services` (amb parades múltiples i gestió de retards en cadena) és més complet i es va afegir posteriorment per al suport multiciutat. Ambdós conviuen per a compatibilitat.
+### 9.6 Sistema dual: `trains` y `services`
+**Evidencia:** `railRoutesApi.js:174-176`: primero prueba `buildRowsFromTrains`, si no hay resultados recurre a `buildRowsFromServices`.
+**Razón:** El modo `trains` (tabla plana) es más sencillo y fue el primero en implementarse. El modo `services` (con paradas múltiples y gestión de retrasos en cadena) es más completo y se añadió posteriormente para el soporte multiciudad. Ambos conviven para compatibilidad.
 
-### 9.7 Configuració per estació heretada de la global
-**Evidència:** `db.js:468-478`: `getStationDisplayConfig` combina `getConfig()` global, valors per defecte de l'estació i `config_json` de `station_display_configs`.
-**Raó:** Patró de configuració per capes (global → estació → override JSON), similar a CSS.
+### 9.7 Configuración por estación heredada de la global
+**Evidencia:** `db.js:468-478`: `getStationDisplayConfig` combina `getConfig()` global, valores por defecto de la estación y `config_json` de `station_display_configs`.
+**Razón:** Patrón de configuración por capas (global → estación → override JSON), similar a CSS.
 
-### 9.8 Nginx com a proxy invers i servidor web
-**Evidència:** `docker/nginx.conf`: gestiona SPA, API, WebSocket, fitxers estàtics i cache.
-**Raó:** Nginx és eficient servint fitxers estàtics i gestionant connexions WebSocket de llarga durada. El backend Express es centra exclusivament en la lògica de negoci.
+### 9.8 Nginx como proxy inverso y servidor web
+**Evidencia:** `docker/nginx.conf`: gestiona SPA, API, WebSocket, archivos estáticos y caché.
+**Razón:** Nginx es eficiente sirviendo archivos estáticos y gestionando conexiones WebSocket de larga duración. El backend Express se centra exclusivamente en la lógica de negocio.
 
 ---
 
-## 10. Riscos arquitecturals
+## 10. Riesgos arquitectónicos
 
-| Risc | Descripció | Impacte | Mitigació |
+| Riesgo | Descripción | Impacto | Mitigación |
 |---|---|---|---|
-| **Concurrència SQLite** | SQLite no escala amb escriptures concurrents elevades | Pèrdua de dades o bloquejos en alta càrrega d'administradors | Mode WAL, operacions d'escriptura limitades a 30 req/min |
-| **Contrasenya per defecte** | `ADMIN_PASSWORD` per defecte és `"railboard"` | Accés no autoritzat al panell d'administració | Documentar canvi obligatori en producció; variable d'entorn `ADMIN_PASSWORD` |
-| **Pèrdua de dades en reinici** | SQLite emmagatzemat en volum Docker | Pèrdua de dades si el volum esborra o corromp | Còpies de seguretat externes; healthcheck per detectar errors |
-| **Manca de HTTPS** | El tràfic entre navegador i Nginx va en clar | Intercepció de contrasenyes i dades | Delegar HTTPS a un reverse proxy extern (Traefik, Caddy, cloud LB) |
-| **Manca de CSRF** | No hi ha protecció contra CSRF a les rutes d'admin | Atacs de falsificació de peticions | L'autenticació Basic Auth mitiga parcialment (el navegador no envia credencials creuades automàticament) |
-| **Dependència de `better-sqlite3`** | És una dependència nativa compilada per a Node 20 | Errors en actualitzar Node o plataforma no compatible | `package-lock.json` fixa la versió; Alpine Linux compatible |
-| **Retard en WebSocket** | El WebSocket es reconecta cada 1.5s en caure | Petita finestra de desactualització al panell | Polling cada 5s com a fallback garanteix actualització ≤5s |
-| **Tamany de `routes.js`** | 1676 línies en un sol fitxer | Mantenibilitat reduïda, dificultat de testing | Refactorització en mòduls més petits (`routes/` directoris) |
-| **Tamany de `Admin.tsx`** | 3128 línies en un sol component | Mantenibilitat reduïda, renderitzat lent | Dividir en subcomponents (ja existeixen 8 panells a `components/admin/`) |
+| **Concurrencia SQLite** | SQLite no escala con escrituras concurrentes elevadas | Pérdida de datos o bloqueos en alta carga de administradores | Modo WAL, operaciones de escritura limitadas a 30 req/min |
+| **Contraseña por defecto** | `ADMIN_PASSWORD` por defecto es `"railboard"` | Acceso no autorizado al panel de administración | Documentar cambio obligatorio en producción; variable de entorno `ADMIN_PASSWORD` |
+| **Pérdida de datos en reinicio** | SQLite almacenado en volumen Docker | Pérdida de datos si el volumen se borra o corrompe | Copias de seguridad externas; healthcheck para detectar errores |
+| **Falta de HTTPS** | El tráfico entre navegador y Nginx va en claro | Intercepción de contraseñas y datos | Delegar HTTPS a un reverse proxy externo (Traefik, Caddy, cloud LB) |
+| **Falta de CSRF** | No hay protección contra CSRF en las rutas de admin | Ataques de falsificación de peticiones | La autenticación Basic Auth mitiga parcialmente (el navegador no envía credenciales cruzadas automáticamente) |
+| **Dependencia de `better-sqlite3`** | Es una dependencia nativa compilada para Node 20 | Errores al actualizar Node o plataforma no compatible | `package-lock.json` fija la versión; Alpine Linux compatible |
+| **Retardo en WebSocket** | El WebSocket se reconecta cada 1.5s al caer | Pequeña ventana de desactualización en el panel | Polling cada 5s como fallback garantiza actualización ≤5s |
+| **Tamaño de `routes.js`** | 1676 líneas en un solo archivo | Mantenibilidad reducida, dificultad de testing | Refactorización en módulos más pequeños (`routes/` directorios) |
+| **Tamaño de `Admin.tsx`** | 3128 líneas en un solo componente | Mantenibilidad reducida, renderizado lento | Dividir en subcomponentes (ya existen 8 paneles en `components/admin/`) |
