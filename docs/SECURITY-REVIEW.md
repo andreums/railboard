@@ -2,17 +2,17 @@
 
 ## Hallazgos
 
-| # | Hallazgo | Tipo | Severidad |
-|---|---|---|---|
-| 1 | HTTP Basic Auth sin HTTPS | vulnerabilidad confirmada | crítico |
-| 2 | Password admin por defecto "railboard" | vulnerabilidad confirmada | crítico |
-| 3 | Upload de archivos sin validación de contenido | configuración insegura | alto |
-| 4 | Sin rate limit en /api | configuración insegura | medio |
-| 5 | SQLite sin cifrar | riesgo potencial | medio |
-| 6 | CORS permite cualquier localhost:* en no-prod | configuración insegura | medio |
-| 7 | Sin protección CSRF | riesgo potencial | medio |
-| 8 | Helmet parcialmente desactivado (crossOriginResourcePolicy: cross-origin) | buena práctica ausente | bajo |
-| 9 | Uploads servidos a cualquier usuario sin auth | riesgo potencial | medio |
+| #   | Hallazgo                                                                  | Tipo                      | Severidad |
+| --- | ------------------------------------------------------------------------- | ------------------------- | --------- |
+| 1   | HTTP Basic Auth sin HTTPS                                                 | vulnerabilidad confirmada | crítico   |
+| 2   | Password admin por defecto "railboard"                                    | vulnerabilidad confirmada | crítico   |
+| 3   | Upload de archivos sin validación de contenido                            | configuración insegura    | alto      |
+| 4   | Sin rate limit en /api                                                    | configuración insegura    | medio     |
+| 5   | SQLite sin cifrar                                                         | riesgo potencial          | medio     |
+| 6   | CORS permite cualquier localhost:* en no-prod                             | configuración insegura    | medio     |
+| 7   | Sin protección CSRF                                                       | riesgo potencial          | medio     |
+| 8   | Helmet parcialmente desactivado (crossOriginResourcePolicy: cross-origin) | buena práctica ausente    | bajo      |
+| 9   | Uploads servidos a cualquier usuario sin auth                             | riesgo potencial          | medio     |
 
 ---
 
@@ -101,13 +101,13 @@
 
 ## Controles de seguridad existentes
 
-| Control | Detalle | Efectividad |
-|---------|---------|-------------|
-| Helmet security headers | `helmet()` con `crossOriginResourcePolicy: cross-origin` | Parcial (un header desactivado) |
-| CORS restriction | Origen permitido es `CORS_ORIGIN` o `localhost:5173` (cualquier puerto local en dev) | Buena en prod, demasiado permisiva en dev |
-| Rate limiting en /admin | 1000 req/min (dev) / 120 req/min (prod) en general, 30 req/min en write | Buena, pero no cubre /api |
-| Input validation (multer) | Extensión y mimetype para imágenes y audio | Superficie solo, no valida contenido real |
-| File size limits | 15MB (nginx), 10MB (imágenes multer), 5MB (audio multer) | Correcto |
+| Control                   | Detalle                                                                              | Efectividad                               |
+| ------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------- |
+| Helmet security headers   | `helmet()` con `crossOriginResourcePolicy: cross-origin`                             | Parcial (un header desactivado)           |
+| CORS restriction          | Origen permitido es `CORS_ORIGIN` o `localhost:5173` (cualquier puerto local en dev) | Buena en prod, demasiado permisiva en dev |
+| Rate limiting en /admin   | 1000 req/min (dev) / 120 req/min (prod) en general, 30 req/min en write              | Buena, pero no cubre /api                 |
+| Input validation (multer) | Extensión y mimetype para imágenes y audio                                           | Superficie solo, no valida contenido real |
+| File size limits          | 15MB (nginx), 10MB (imágenes multer), 5MB (audio multer)                             | Correcto                                  |
 
 ---
 

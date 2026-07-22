@@ -2,7 +2,7 @@
 
 **Fecha:** 30 Mayo 2026  
 **Objetivo:** Revisión de seguridad práctica para proyecto hobby ferroviario  
-**Entorno esperado:** Local, red doméstica, encuentros modulares, posible VPS pequeño  
+**Entorno esperado:** Local, red doméstica, encuentros modulares, posible VPS pequeño
 
 ---
 
@@ -10,51 +10,55 @@
 
 Railboard es un proyecto bien construido para su propósito. Los riesgos son **bajos en entornos locales/domésticos** pero **altos si se expone en Internet sin cambios**. El riesgo principal es la falta total de autenticación: cualquiera que descubra la URL puede modificar el panel de una estación, crear o eliminar trenes, borrar la base de datos completa y subir archivos arbitrarios (logos).
 
-**Puntuación de riesgo general:**  
-- Entorno local: **1/10** (seguro por aislamiento de red)  
-- Encuentro modular (red local compartida): **3/10**  
+**Puntuación de riesgo general:**
+
+- Entorno local: **1/10** (seguro por aislamiento de red)
+- Encuentro modular (red local compartida): **3/10**
 - Internet/VPS sin cambios: **8/10**
 
 ---
 
 ## Tabla de Riesgos
 
-| # | Riesgo | Impacto | Probabilidad | Prioridad |
-|---|--------|---------|-------------|-----------|
-| 1 | Ausencia total de autenticación | Alto | Alta en Internet | **CRÍTICO** |
-| 2 | Subida de archivos sin validar | Alto | Media | **ALTO** |
-| 3 | CORS abierto (`app.use(cors())`) | Medio | Alta en Internet | **ALTO** |
-| 4 | Sin rate limiting en endpoints | Medio | Alta | **ALTO** |
-| 5 | Borrado masivo sin protección (`DELETE /api/trains`) | Alto | Baja (intencional) | **ALTO** |
-| 6 | Sin cabeceras de seguridad HTTP | Medio | Media en Internet | **MEDIO** |
-| 7 | Archivos subidos en repositorio Git | Medio | Alta | **MEDIO** |
-| 8 | Base de datos SQLite incluida en Git | Medio | Alta | **MEDIO** |
-| 9 | URL de logo con espacios en `api.ts` (bug) | Bajo | Alta | **BAJO** |
-| 10 | Manejo de errores sin sanitización | Bajo | Media | **BAJO** |
-| 11 | Posible XSS en observaciones/paradas | Bajo | Baja (React escapa por defecto) | **BAJO** |
-| 12 | Token de API expuesto sin prefijo VITE_ | Bajo | Alta | **BAJO** |
+| #   | Riesgo                                               | Impacto | Probabilidad                    | Prioridad   |
+| --- | ---------------------------------------------------- | ------- | ------------------------------- | ----------- |
+| 1   | Ausencia total de autenticación                      | Alto    | Alta en Internet                | **CRÍTICO** |
+| 2   | Subida de archivos sin validar                       | Alto    | Media                           | **ALTO**    |
+| 3   | CORS abierto (`app.use(cors())`)                     | Medio   | Alta en Internet                | **ALTO**    |
+| 4   | Sin rate limiting en endpoints                       | Medio   | Alta                            | **ALTO**    |
+| 5   | Borrado masivo sin protección (`DELETE /api/trains`) | Alto    | Baja (intencional)              | **ALTO**    |
+| 6   | Sin cabeceras de seguridad HTTP                      | Medio   | Media en Internet               | **MEDIO**   |
+| 7   | Archivos subidos en repositorio Git                  | Medio   | Alta                            | **MEDIO**   |
+| 8   | Base de datos SQLite incluida en Git                 | Medio   | Alta                            | **MEDIO**   |
+| 9   | URL de logo con espacios en `api.ts` (bug)           | Bajo    | Alta                            | **BAJO**    |
+| 10  | Manejo de errores sin sanitización                   | Bajo    | Media                           | **BAJO**    |
+| 11  | Posible XSS en observaciones/paradas                 | Bajo    | Baja (React escapa por defecto) | **BAJO**    |
+| 12  | Token de API expuesto sin prefijo VITE_              | Bajo    | Alta                            | **BAJO**    |
 
 ---
 
 ## 1. Superficie de Exposición
 
 ### Estado actual
+
 Todas las rutas son completamente públicas:
 
-| Ruta Frontend | Acceso | Contenido |
-|--------------|--------|-----------|
-| `/` | Público | Display de trenes (lectura) |
-| `/admin` | **Sin protección** | Configuración, estilos, borrado masivo, seed data |
-| `/trains` | **Sin protección** | CRUD completo de trenes, reordenación |
-| `/train-settings` | **Sin protección** | CRUD de operadores y tipos de tren |
+| Ruta Frontend     | Acceso             | Contenido                                         |
+| ----------------- | ------------------ | ------------------------------------------------- |
+| `/`               | Público            | Display de trenes (lectura)                       |
+| `/admin`          | **Sin protección** | Configuración, estilos, borrado masivo, seed data |
+| `/trains`         | **Sin protección** | CRUD completo de trenes, reordenación             |
+| `/train-settings` | **Sin protección** | CRUD de operadores y tipos de tren                |
 
 ### Riesgos
 
 **En encuentro modular (red WiFi compartida):**
+
 - Cualquier asistente con conocimientos básicos puede abrir `http://<ip>:5173/admin` y cambiar la configuración
 - Pueden borrar todos los trenes o llenar el panel con datos falsos
 
 **En Internet/VPS:**
+
 - Escáneres automáticos encontrarán los endpoints en minutos
 - Un script de 5 líneas puede llamar `DELETE /api/trains` y vaciar toda la BD
 - Pueden usarse los endpoints de subida de archivos para almacenar contenido arbitrario
@@ -95,10 +99,12 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use(cors());
 
 // Recomendado
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:5173",
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-}));
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN || "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  }),
+);
 ```
 
 ### 2.3 Cabeceras HTTP
@@ -121,7 +127,7 @@ app.use(helmet());
 ```javascript
 // routes.js:528
 r.put("/config", (req, res) => {
-  setConfig(req.body || {});  // Cualquier cosa del body se guarda
+  setConfig(req.body || {}); // Cualquier cosa del body se guarda
   ping();
   res.json(getConfig());
 });
@@ -145,6 +151,7 @@ export function setConfig(patch) {
 ```
 
 **Recomendación:**
+
 ```javascript
 // Middleware global de errores (antes del listen)
 app.use((err, _req, res, _next) => {
@@ -169,7 +176,7 @@ npm install express-rate-limit
 import rateLimit from "express-rate-limit";
 
 const apiLimiter = rateLimit({
-  windowMs: 60 * 1000,  // 1 minuto
+  windowMs: 60 * 1000, // 1 minuto
   max: 100,
   message: { error: "Demasiadas peticiones" },
 });
@@ -230,6 +237,7 @@ r.delete("/trains", (_req, res) => {
 ```
 
 **Recomendación:**
+
 ```javascript
 r.delete("/trains", (req, res) => {
   // En modo autenticado esto estaría bien,
@@ -306,11 +314,11 @@ export function broadcast(payload) {
 
 ### 4.2 Riesgos
 
-| Riesgo | Realidad |
-|--------|----------|
-| Conexiones no autenticadas | Cualquiera puede conectarse al WS y recibir todas las actualizaciones → **Esto es intencional y correcto para el display público** |
-| Spam/flooding | El servidor WS **no recibe mensajes** de clientes. Solo emite. No hay riesgo de flooding desde el WS. **Bien diseñado.** |
-| Clientes maliciosos reciben datos | Leer el flujo de cambios no da capacidad de modificar datos. **Riesgo bajo.** |
+| Riesgo                            | Realidad                                                                                                                           |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Conexiones no autenticadas        | Cualquiera puede conectarse al WS y recibir todas las actualizaciones → **Esto es intencional y correcto para el display público** |
+| Spam/flooding                     | El servidor WS **no recibe mensajes** de clientes. Solo emite. No hay riesgo de flooding desde el WS. **Bien diseñado.**           |
+| Clientes maliciosos reciben datos | Leer el flujo de cambios no da capacidad de modificar datos. **Riesgo bajo.**                                                      |
 
 ### 4.3 Conclusión sobre WebSocket
 
@@ -448,12 +456,12 @@ Para entornos donde no se puede configurar el proxy:
 
 **Recomendación para cada escenario:**
 
-| Escenario | Opción recomendada |
-|-----------|-------------------|
-| Solo localhost | No hacer nada (riesgo 1/10) |
-| Red doméstica | Opción A en Nginx/Caddy |
-| Encuentro modular | Opción B (token en localStorage) |
-| VPS/Internet | Opción A (Basic Auth en Nginx) + HTTPS |
+| Escenario         | Opción recomendada                     |
+| ----------------- | -------------------------------------- |
+| Solo localhost    | No hacer nada (riesgo 1/10)            |
+| Red doméstica     | Opción A en Nginx/Caddy                |
+| Encuentro modular | Opción B (token en localStorage)       |
+| VPS/Internet      | Opción A (Basic Auth en Nginx) + HTTPS |
 
 ---
 
@@ -474,11 +482,11 @@ VITE_API_URL=https://railboard.midominio.com/api
 
 ### 7.2 Puertos
 
-| Puerto | Servicio | Exponer en Internet |
-|--------|----------|---------------------|
-| 5173 | Vite dev server | **NUNCA** |
-| 4000 | Express backend | Solo tras proxy inverso |
-| 80/443 | Nginx/Caddy | Sí (HTTPS) |
+| Puerto | Servicio        | Exponer en Internet     |
+| ------ | --------------- | ----------------------- |
+| 5173   | Vite dev server | **NUNCA**               |
+| 4000   | Express backend | Solo tras proxy inverso |
+| 80/443 | Nginx/Caddy     | Sí (HTTPS)              |
 
 **Regla de oro:** Nunca expongas el puerto de desarrollo de Vite (5173) ni Express directo (4000). Usa siempre un proxy inverso.
 
@@ -559,12 +567,12 @@ Backend: 0 vulnerabilities
 
 ### 8.2 Paquetes Recomendados
 
-| Paquete | Propósito | Prioridad |
-|---------|-----------|-----------|
-| `helmet` | Cabeceras de seguridad HTTP | **Alta** |
-| `express-rate-limit` | Rate limiting | **Alta** |
-| `express-basic-auth` | Autenticación simple | **Media** |
-| `zod` o `joi` | Validación de esquemas | **Baja** |
+| Paquete              | Propósito                   | Prioridad |
+| -------------------- | --------------------------- | --------- |
+| `helmet`             | Cabeceras de seguridad HTTP | **Alta**  |
+| `express-rate-limit` | Rate limiting               | **Alta**  |
+| `express-basic-auth` | Autenticación simple        | **Media** |
+| `zod` o `joi`        | Validación de esquemas      | **Baja**  |
 
 ### 8.3 `react-beautiful-dnd`
 
@@ -576,24 +584,24 @@ Backend: 0 vulnerabilities
 
 ### Actores
 
-| Actor | Descripción |
-|-------|-------------|
-| **Usuario normal** | Mira el display público, no tiene intención maliciosa |
-| **Curioso en red local** | Asistente a encuentro que encuentra el panel admin |
-| **Scraper automático** | Bot que escanea Internet en busca de endpoints abiertos |
-| **Atacante malicioso** | Persona con intención de causar daño |
-| **Niño en encuentro** | Niño que toca botones por accidente o curiosidad |
+| Actor                    | Descripción                                             |
+| ------------------------ | ------------------------------------------------------- |
+| **Usuario normal**       | Mira el display público, no tiene intención maliciosa   |
+| **Curioso en red local** | Asistente a encuentro que encuentra el panel admin      |
+| **Scraper automático**   | Bot que escanea Internet en busca de endpoints abiertos |
+| **Atacante malicioso**   | Persona con intención de causar daño                    |
+| **Niño en encuentro**    | Niño que toca botones por accidente o curiosidad        |
 
 ### Matriz de Amenazas
 
-| Amenaza | Actor | Impacto | Probabilidad | Mitigación | Prioridad |
-|---------|-------|---------|-------------|------------|-----------|
-| Borrar todos los trenes | Curioso/Niño | Alto (pérdida de configuración) | Media en encuentro | Rate limiting + básica auth | **Alta** |
-| Modificar display (cambiar nombre, colores) | Curioso | Bajo (solo estético) | Alta en encuentro | Separar modo admin del público | **Media** |
-| Subir archivos maliciosos | Atacante | Alto (potencial RCE) | Baja | Validar MIME + extensiones | **Alta** |
-| Saturar BD con trenes aleatorios | Scraper | Medio (llenado de BD) | Baja | Rate limiting | **Alta** |
-| Acceder a BD desde Internet | Scraper | Bajo (BD no expuesta) | Baja | No exponer SQLite | **Baja** |
-| Modificar display desde Internet | Atacante | Medio (vandalismo) | Baja (si se despliega con auth) | Autenticación + HTTPS | **Alta** |
+| Amenaza                                     | Actor        | Impacto                         | Probabilidad                    | Mitigación                     | Prioridad |
+| ------------------------------------------- | ------------ | ------------------------------- | ------------------------------- | ------------------------------ | --------- |
+| Borrar todos los trenes                     | Curioso/Niño | Alto (pérdida de configuración) | Media en encuentro              | Rate limiting + básica auth    | **Alta**  |
+| Modificar display (cambiar nombre, colores) | Curioso      | Bajo (solo estético)            | Alta en encuentro               | Separar modo admin del público | **Media** |
+| Subir archivos maliciosos                   | Atacante     | Alto (potencial RCE)            | Baja                            | Validar MIME + extensiones     | **Alta**  |
+| Saturar BD con trenes aleatorios            | Scraper      | Medio (llenado de BD)           | Baja                            | Rate limiting                  | **Alta**  |
+| Acceder a BD desde Internet                 | Scraper      | Bajo (BD no expuesta)           | Baja                            | No exponer SQLite              | **Baja**  |
+| Modificar display desde Internet            | Atacante     | Medio (vandalismo)              | Baja (si se despliega con auth) | Autenticación + HTTPS          | **Alta**  |
 
 ---
 
@@ -636,22 +644,22 @@ Backend: 0 vulnerabilities
 
 ## Resumen de Hallazgos por Archivo
 
-| Archivo | Línea | Hallazgo | Severidad |
-|---------|-------|----------|-----------|
-| `backend/src/index.js:12` | `app.use(cors())` | CORS sin restricciones | **ALTO** |
-| `backend/src/index.js` | Sin helmet | Cabeceras HTTP faltantes | **MEDIO** |
-| `backend/src/index.js` | Sin rate limiting | Sin protección contra abuso | **ALTO** |
-| `backend/src/index.js` | Sin error handler | Trazas de error expuestas | **BAJO** |
-| `backend/src/routes.js` | Múltiples endpoints | Sin autenticación | **CRÍTICO** |
-| `backend/src/routes.js:528` | `setConfig(req.body)` | Sin validación de entrada | **MEDIO** |
-| `backend/src/routes.js:536` | `DELETE /api/trains` | Borrado masivo sin protección | **ALTO** |
-| `backend/src/routes.js:16-25` | `multer` sin `fileFilter` | Subida de archivos arbitrarios | **ALTO** |
-| `frontend/src/lib/api.ts:76` | `" / delay"` | Bug en URL (espacio) | **BAJO** |
-| `frontend/src/lib/api.ts:78` | `"/ / trains / "` | Bug en URL (espacio) | **BAJO** |
-| `.gitignore` | Línea 1-155 | Conflicto de merge sin resolver | **MEDIO** |
-| `backend/data.db-shm` | En repositorio | Archivo BD en Git | **MEDIO** |
-| `backend/data.db-wal` | En repositorio | Archivo BD en Git | **MEDIO** |
+| Archivo                       | Línea                     | Hallazgo                        | Severidad   |
+| ----------------------------- | ------------------------- | ------------------------------- | ----------- |
+| `backend/src/index.js:12`     | `app.use(cors())`         | CORS sin restricciones          | **ALTO**    |
+| `backend/src/index.js`        | Sin helmet                | Cabeceras HTTP faltantes        | **MEDIO**   |
+| `backend/src/index.js`        | Sin rate limiting         | Sin protección contra abuso     | **ALTO**    |
+| `backend/src/index.js`        | Sin error handler         | Trazas de error expuestas       | **BAJO**    |
+| `backend/src/routes.js`       | Múltiples endpoints       | Sin autenticación               | **CRÍTICO** |
+| `backend/src/routes.js:528`   | `setConfig(req.body)`     | Sin validación de entrada       | **MEDIO**   |
+| `backend/src/routes.js:536`   | `DELETE /api/trains`      | Borrado masivo sin protección   | **ALTO**    |
+| `backend/src/routes.js:16-25` | `multer` sin `fileFilter` | Subida de archivos arbitrarios  | **ALTO**    |
+| `frontend/src/lib/api.ts:76`  | `" / delay"`              | Bug en URL (espacio)            | **BAJO**    |
+| `frontend/src/lib/api.ts:78`  | `"/ / trains / "`         | Bug en URL (espacio)            | **BAJO**    |
+| `.gitignore`                  | Línea 1-155               | Conflicto de merge sin resolver | **MEDIO**   |
+| `backend/data.db-shm`         | En repositorio            | Archivo BD en Git               | **MEDIO**   |
+| `backend/data.db-wal`         | En repositorio            | Archivo BD en Git               | **MEDIO**   |
 
 ---
 
-*Auditoría generada para Railboard. Este es un proyecto hobby — implementa las correcciones críticas si lo expones en Internet, y las recomendaciones para encuentros según tu nivel de comodidad con el riesgo.*
+_Auditoría generada para Railboard. Este es un proyecto hobby — implementa las correcciones críticas si lo expones en Internet, y las recomendaciones para encuentros según tu nivel de comodidad con el riesgo._

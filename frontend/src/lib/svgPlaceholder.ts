@@ -4,15 +4,30 @@ function hashColor(name: string): string {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const colors = [
-    "#1A3254", "#7C1D2E", "#1F6FB2", "#2B6E3F", "#B25A1F",
-    "#5B1FB8", "#C2185B", "#F79646", "#3E8DCA", "#6B5B3E",
-    "#8B4513", "#4A6741", "#9B59B6", "#2C3E50", "#D35400",
+    "#1A3254",
+    "#7C1D2E",
+    "#1F6FB2",
+    "#2B6E3F",
+    "#B25A1F",
+    "#5B1FB8",
+    "#C2185B",
+    "#F79646",
+    "#3E8DCA",
+    "#6B5B3E",
+    "#8B4513",
+    "#4A6741",
+    "#9B59B6",
+    "#2C3E50",
+    "#D35400",
   ];
   return colors[Math.abs(hash) % colors.length];
 }
 
 function initials(name: string): string {
-  const words = name.trim().split(/[\s-]+/).filter(Boolean);
+  const words = name
+    .trim()
+    .split(/[\s-]+/)
+    .filter(Boolean);
   if (words.length >= 2) {
     return (words[0][0] + words[words.length - 1][0]).toUpperCase();
   }
@@ -29,7 +44,7 @@ export function svgPlaceholderDataUri(name: string, color?: string): string {
             font-family="Arial,sans-serif" font-size="36" font-weight="700" fill="#fff">
         ${text}
       </text>
-    </svg>`
+    </svg>`,
   )}`;
 }
 

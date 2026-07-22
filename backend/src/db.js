@@ -1,6 +1,8 @@
 import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import path from "path";
+import fs from "fs";
+import { runMigrations } from "./migrations.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dbPath = process.env.DB_PATH || path.resolve(__dirname, "../data.db");
@@ -9,125 +11,7 @@ export const db = new Database(dbPath);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS config (
-    key   TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS operators (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    name             TEXT NOT NULL UNIQUE,
-    logo_url         TEXT,
-    pre_announce_ogg TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS train_types (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    code             TEXT NOT NULL UNIQUE,
-    name             TEXT NOT NULL,
-    color            TEXT NOT NULL DEFAULT '#7c1d2e',
-    logo_url         TEXT,
-    pre_announce_ogg TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS places (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    name     TEXT NOT NULL UNIQUE,
-    logo_url TEXT
-  );
-
-  CREATE TABLE IF NOT EXISTS stations (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    name             TEXT NOT NULL,
-    short            TEXT NOT NULL DEFAULT '',
-    logo_url         TEXT,
-    pre_announce_ogg TEXT,
-    color            TEXT NOT NULL DEFAULT '#1A3254',
-    sort_order       INTEGER NOT NULL DEFAULT 0,
-    created_at       TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS station_display_configs (
-    station_id  INTEGER PRIMARY KEY REFERENCES stations(id) ON DELETE CASCADE,
-    config_json  TEXT NOT NULL DEFAULT '{}',
-    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS trains (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    number          TEXT NOT NULL,
-    operator_id     INTEGER REFERENCES operators(id)   ON DELETE SET NULL,
-    train_type_id   INTEGER REFERENCES train_types(id) ON DELETE SET NULL,
-    origin          TEXT NOT NULL,
-    destination     TEXT NOT NULL,
-    stops           TEXT NOT NULL DEFAULT '[]',
-    scheduled_time  TEXT NOT NULL,
-    expected_time   TEXT NOT NULL,
-    platform        TEXT NOT NULL DEFAULT '-',
-    sector          TEXT NOT NULL DEFAULT '-',
-    status          TEXT NOT NULL DEFAULT 'Scheduled',
-    sort_order      INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS train_icons (
-    id       INTEGER PRIMARY KEY AUTOINCREMENT,
-    name     TEXT NOT NULL UNIQUE,
-    icon_url TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-`);
-
-const hasSort = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "sort_order");
-if (!hasSort) {
-  db.exec("ALTER TABLE trains ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
-  db.exec("UPDATE trains SET sort_order = id");
-}
-
-const hasObservations = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "observations");
-if (!hasObservations) {
-  db.exec("ALTER TABLE trains ADD COLUMN observations TEXT DEFAULT ''");
-}
-
-const hasPlaceLogo = db.prepare("PRAGMA table_info('places')").all().some((c) => c.name === "logo_url");
-if (!hasPlaceLogo) {
-  db.exec("ALTER TABLE places ADD COLUMN logo_url TEXT");
-}
-
-const hasDisplayConfigs = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'station_display_configs'").get();
-if (!hasDisplayConfigs) {
-  db.exec(`
-    CREATE TABLE station_display_configs (
-      station_id  INTEGER PRIMARY KEY REFERENCES stations(id) ON DELETE CASCADE,
-      config_json  TEXT NOT NULL DEFAULT '{}',
-      updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
-    )
-  `);
-}
-
-const hasStationId = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "station_id");
-if (!hasStationId) {
-  db.exec("ALTER TABLE trains ADD COLUMN station_id INTEGER REFERENCES stations(id) ON DELETE SET NULL");
-}
-
-const hasOpPre = db.prepare("PRAGMA table_info('operators')").all().some((c) => c.name === "pre_announce_ogg");
-if (!hasOpPre) {
-  db.exec("ALTER TABLE operators ADD COLUMN pre_announce_ogg TEXT");
-  db.exec("ALTER TABLE train_types ADD COLUMN pre_announce_ogg TEXT");
-  db.exec("ALTER TABLE stations ADD COLUMN pre_announce_ogg TEXT");
-}
-
-const hasDestIcon = db.prepare("PRAGMA table_info('train_types')").all().some((c) => c.name === "destination_icon_url");
-if (!hasDestIcon) {
-  db.exec("ALTER TABLE train_types ADD COLUMN destination_icon_url TEXT");
-}
-
-const hasTrainCustomIcon = db.prepare("PRAGMA table_info('trains')").all().some((c) => c.name === "custom_icon_url");
-if (!hasTrainCustomIcon) {
-  db.exec("ALTER TABLE trains ADD COLUMN custom_icon_url TEXT");
-  db.exec("ALTER TABLE trains ADD COLUMN icon_mode TEXT DEFAULT 'destination'");
-}
+runMigrations(db);
 
 const DEFAULT_CONFIG = {
   platformMin: "1",
@@ -139,9 +23,7 @@ const DEFAULT_CONFIG = {
 };
 
 // Defaults
-const seedConfig = db.prepare(
-  "INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)"
-);
+const seedConfig = db.prepare("INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)");
 seedConfig.run("station_name", "MADRID PUERTA DE ATOCHA");
 seedConfig.run("mode", "departures"); // departures | arrivals
 seedConfig.run("displayMode", "multiple"); // single | multiple
@@ -151,16 +33,37 @@ seedConfig.run("platformAllowEmpty", "1");
 seedConfig.run("sectorMin", "A");
 seedConfig.run("sectorMax", "D");
 seedConfig.run("sectorAllowEmpty", "1");
-seedConfig.run("announce_departure", "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.");
-seedConfig.run("announce_arrival", "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.");
+seedConfig.run(
+  "announce_departure",
+  "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.",
+);
+seedConfig.run(
+  "announce_arrival",
+  "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.",
+);
 seedConfig.run("announce_templates_map", "{}");
-seedConfig.run("announce_presets", JSON.stringify([
-  { id: "welcome", label: "Bienvenida", text: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías." },
-  { id: "closing", label: "Cierre", text: "Atención. La estación va a cerrar. Asegúrense de recoger todas sus pertenencias." },
-  { id: "workshop", label: "Taller", text: "Atención. El taller de iniciación a la soldadura comenzará en 5 minutos en la sala contigua." },
-  { id: "delay-warning", label: "Retraso general", text: "Rogamos disculpen las molestias. Debido a la densidad de tráfico ferroviario, algunos trenes pueden sufrir retrasos." },
-  { id: "photo", label: "Foto", text: "Atención. Dentro de 10 minutos realizaremos la foto de grupo. Les rogamos se acerquen al área central." },
-]));
+seedConfig.run(
+  "announce_presets",
+  JSON.stringify([
+    { id: "welcome", label: "Bienvenida", text: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías." },
+    { id: "closing", label: "Cierre", text: "Atención. La estación va a cerrar. Asegúrense de recoger todas sus pertenencias." },
+    {
+      id: "workshop",
+      label: "Taller",
+      text: "Atención. El taller de iniciación a la soldadura comenzará en 5 minutos en la sala contigua.",
+    },
+    {
+      id: "delay-warning",
+      label: "Retraso general",
+      text: "Rogamos disculpen las molestias. Debido a la densidad de tráfico ferroviario, algunos trenes pueden sufrir retrasos.",
+    },
+    {
+      id: "photo",
+      label: "Foto",
+      text: "Atención. Dentro de 10 minutos realizaremos la foto de grupo. Les rogamos se acerquen al área central.",
+    },
+  ]),
+);
 seedConfig.run("tts_rate", "0.95");
 seedConfig.run("tts_pitch", "1");
 seedConfig.run("tts_volume", "1");
@@ -187,9 +90,7 @@ export function getConfig() {
 }
 
 export function setConfig(patch) {
-  const stmt = db.prepare(
-    "INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value"
-  );
+  const stmt = db.prepare("INSERT INTO config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
   for (const [k, v] of Object.entries(patch)) stmt.run(k, String(v));
 }
 
@@ -211,7 +112,8 @@ export function listTrains(stationId) {
                     tt.color             AS type_color,
                     tt.logo_url          AS type_logo,
                     tt.pre_announce_ogg  AS type_pre_announce,
-                    tt.destination_icon_url AS type_destination_icon,
+                     tt.destination_icon_url AS type_destination_icon,
+                     tt.announce_template  AS type_announce_template,
                     st.name              AS station_name,
                     st.short             AS station_short,
                     st.color             AS station_color,
@@ -274,7 +176,7 @@ export function updateTrain(id, t) {
        scheduled_time=@scheduled_time, expected_time=@expected_time,
        platform=@platform, sector=@sector, status=@status,
        observations=@observations, station_id=@station_id, custom_icon_url=@custom_icon_url, icon_mode=@icon_mode
-     WHERE id=@id`
+     WHERE id=@id`,
   ).run({
     id,
     number: next.number,
@@ -315,15 +217,16 @@ export function addMinutes(hhmm, minutes) {
 
 export const operators = {
   list: () => db.prepare("SELECT * FROM operators ORDER BY name").all(),
-  create: ({ name, logo_url }) =>
-    db
-      .prepare("INSERT INTO operators (name, logo_url) VALUES (?, ?)")
-      .run(name, logo_url || null),
+  create: ({ name, logo_url }) => db.prepare("INSERT INTO operators (name, logo_url) VALUES (?, ?)").run(name, logo_url || null),
   update: (id, { name, logo_url, pre_announce_ogg }) => {
     const cur = db.prepare("SELECT * FROM operators WHERE id = ?").get(id);
     if (!cur) return null;
-    db.prepare("UPDATE operators SET name=?, logo_url=?, pre_announce_ogg=? WHERE id=?")
-      .run(name ?? cur.name, logo_url !== undefined ? logo_url : cur.logo_url, pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg, id);
+    db.prepare("UPDATE operators SET name=?, logo_url=?, pre_announce_ogg=? WHERE id=?").run(
+      name ?? cur.name,
+      logo_url !== undefined ? logo_url : cur.logo_url,
+      pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
+      id,
+    );
     return db.prepare("SELECT * FROM operators WHERE id = ?").get(id);
   },
   remove: (id) => db.prepare("DELETE FROM operators WHERE id = ?").run(id),
@@ -331,25 +234,35 @@ export const operators = {
 
 export const trainTypes = {
   list: () => db.prepare("SELECT * FROM train_types ORDER BY code").all(),
-  create: ({ code, name, color, logo_url, pre_announce_ogg, destination_icon_url }) =>
+  create: ({ code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template }) =>
     db
       .prepare(
-        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg, destination_icon_url) VALUES (?, ?, ?, ?, ?, ?)"
+        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(code, name, color || "#7c1d2e", logo_url || null, pre_announce_ogg || null, destination_icon_url || null),
-  update: (id, { code, name, color, logo_url, pre_announce_ogg, destination_icon_url }) => {
+      .run(
+        code,
+        name,
+        color || "#7c1d2e",
+        logo_url || null,
+        pre_announce_ogg || null,
+        destination_icon_url || null,
+        announce_template || null,
+      ),
+  update: (id, { code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template }) => {
     const cur = db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
     if (!cur) return null;
-    db.prepare("UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=?, destination_icon_url=? WHERE id=?")
-      .run(
-        code ?? cur.code,
-        name ?? cur.name,
-        color ?? cur.color,
-        logo_url !== undefined ? logo_url : cur.logo_url,
-        pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
-        destination_icon_url !== undefined ? destination_icon_url : cur.destination_icon_url,
-        id,
-      );
+    db.prepare(
+      "UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=?, destination_icon_url=?, announce_template=? WHERE id=?",
+    ).run(
+      code ?? cur.code,
+      name ?? cur.name,
+      color ?? cur.color,
+      logo_url !== undefined ? logo_url : cur.logo_url,
+      pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
+      destination_icon_url !== undefined ? destination_icon_url : cur.destination_icon_url,
+      announce_template !== undefined ? announce_template : cur.announce_template,
+      id,
+    );
     return db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
   },
   remove: (id) => db.prepare("DELETE FROM train_types WHERE id = ?").run(id),
@@ -357,19 +270,15 @@ export const trainTypes = {
 
 export const places = {
   list: () => db.prepare("SELECT * FROM places ORDER BY name").all(),
-  create: ({ name, logo_url }) =>
-    db.prepare("INSERT INTO places (name, logo_url) VALUES (?, ?)").run(name, logo_url || null),
-  update: (id, { name, logo_url }) =>
-    db.prepare("UPDATE places SET name = ?, logo_url = ? WHERE id = ?").run(name, logo_url || null, id),
+  create: ({ name, logo_url }) => db.prepare("INSERT INTO places (name, logo_url) VALUES (?, ?)").run(name, logo_url || null),
+  update: (id, { name, logo_url }) => db.prepare("UPDATE places SET name = ?, logo_url = ? WHERE id = ?").run(name, logo_url || null, id),
   remove: (id) => db.prepare("DELETE FROM places WHERE id = ?").run(id),
 };
 
 export const trainIcons = {
   list: () => db.prepare("SELECT * FROM train_icons ORDER BY name").all(),
-  create: ({ name, icon_url }) =>
-    db.prepare("INSERT INTO train_icons (name, icon_url) VALUES (?, ?)").run(name, icon_url),
-  update: (id, { name, icon_url }) =>
-    db.prepare("UPDATE train_icons SET name = ?, icon_url = ? WHERE id = ?").run(name, icon_url, id),
+  create: ({ name, icon_url }) => db.prepare("INSERT INTO train_icons (name, icon_url) VALUES (?, ?)").run(name, icon_url),
+  update: (id, { name, icon_url }) => db.prepare("UPDATE train_icons SET name = ?, icon_url = ? WHERE id = ?").run(name, icon_url, id),
   remove: (id) => db.prepare("DELETE FROM train_icons WHERE id = ?").run(id),
 };
 
@@ -377,21 +286,21 @@ export const stations = {
   list: () => db.prepare("SELECT * FROM stations ORDER BY sort_order ASC, name ASC").all(),
   get: (id) => db.prepare("SELECT * FROM stations WHERE id = ?").get(id),
   create: ({ name, short, color, logo_url }) =>
-    db.prepare("INSERT INTO stations (name, short, color, logo_url) VALUES (?, ?, ?, ?)")
+    db
+      .prepare("INSERT INTO stations (name, short, color, logo_url) VALUES (?, ?, ?, ?)")
       .run(name, short || "", color || "#1A3254", logo_url || null),
   update: (id, { name, short, color, logo_url, sort_order, pre_announce_ogg }) => {
     const cur = db.prepare("SELECT * FROM stations WHERE id = ?").get(id);
     if (!cur) return null;
-    db.prepare("UPDATE stations SET name=?, short=?, color=?, logo_url=?, sort_order=?, pre_announce_ogg=? WHERE id=?")
-      .run(
-        name ?? cur.name,
-        short ?? cur.short,
-        color ?? cur.color,
-        logo_url !== undefined ? logo_url : cur.logo_url,
-        sort_order ?? cur.sort_order,
-        pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
-        id,
-      );
+    db.prepare("UPDATE stations SET name=?, short=?, color=?, logo_url=?, sort_order=?, pre_announce_ogg=? WHERE id=?").run(
+      name ?? cur.name,
+      short ?? cur.short,
+      color ?? cur.color,
+      logo_url !== undefined ? logo_url : cur.logo_url,
+      sort_order ?? cur.sort_order,
+      pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
+      id,
+    );
     return db.prepare("SELECT * FROM stations WHERE id = ?").get(id);
   },
   remove: (id) => db.prepare("DELETE FROM stations WHERE id = ?").run(id),
@@ -414,7 +323,9 @@ const parseConfigJson = (value) => {
 const SUPPORTED_DISPLAY_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
 
 const normalizeDisplayLanguage = (value) => {
-  const lang = String(value || "").toLowerCase().trim();
+  const lang = String(value || "")
+    .toLowerCase()
+    .trim();
   return SUPPORTED_DISPLAY_LANGUAGES.has(lang) ? lang : "es";
 };
 
@@ -446,7 +357,7 @@ const normalizeDisplayLanguages = (value, fallbackLanguage = "es") => {
 
 const normalizeStationDisplayConfig = (config) => {
   const primaryLanguage = normalizeDisplayLanguage(
-    config?.language || (Array.isArray(config?.languages) ? config.languages[0] : null) || "es"
+    config?.language || (Array.isArray(config?.languages) ? config.languages[0] : null) || "es",
   );
   const languages = normalizeDisplayLanguages(config?.languages || config?.language, primaryLanguage);
   return {
@@ -546,7 +457,9 @@ export const services = {
   },
 
   get: (id) => {
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT s.*,
              op.name           AS operator_name,
              tt.code           AS train_type_code,
@@ -560,25 +473,33 @@ export const services = {
       LEFT JOIN places org ON org.id = s.origin_place_id
       LEFT JOIN places dst ON dst.id = s.destination_place_id
       WHERE s.id = ?
-    `).get(id);
+    `,
+      )
+      .get(id);
   },
 
   create: ({ number, operator_id, train_type_id, origin_place_id, destination_place_id, notes }) => {
-    const info = db.prepare(`
+    const info = db
+      .prepare(
+        `
       INSERT INTO services (number, operator_id, train_type_id, origin_place_id, destination_place_id, notes, status)
       VALUES (?, ?, ?, ?, ?, ?, 'Scheduled')
-    `).run(number, operator_id || null, train_type_id || null, origin_place_id || null, destination_place_id || null, notes || null);
+    `,
+      )
+      .run(number, operator_id || null, train_type_id || null, origin_place_id || null, destination_place_id || null, notes || null);
     return services.get(info.lastInsertRowid);
   },
 
   update: (id, { status, notes }) => {
     const cur = services.get(id);
     if (!cur) return null;
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE services 
       SET status = ?, notes = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(status ?? cur.status, notes ?? cur.notes, id);
+    `,
+    ).run(status ?? cur.status, notes ?? cur.notes, id);
     return services.get(id);
   },
 
@@ -587,21 +508,25 @@ export const services = {
     if (!cur) return null;
 
     // Mark all stops as cancelled
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE service_stops 
       SET state = 'Cancelled', updated_at = datetime('now')
       WHERE service_id = ?
-    `).run(id);
+    `,
+    ).run(id);
 
     // Update service status
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE services 
       SET status = 'Cancelled', cancelled_at = datetime('now'), updated_at = datetime('now')
       WHERE id = ?
-    `).run(id);
+    `,
+    ).run(id);
 
     // Log event
-    serviceEvents.log(id, null, 'service_cancelled', { reason });
+    serviceEvents.log(id, null, "service_cancelled", { reason });
 
     return services.get(id);
   },
@@ -609,13 +534,15 @@ export const services = {
   complete: (id) => {
     const cur = services.get(id);
     if (!cur) return null;
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE services 
       SET status = 'Completed', completed_at = datetime('now'), updated_at = datetime('now')
       WHERE id = ?
-    `).run(id);
+    `,
+    ).run(id);
 
-    serviceEvents.log(id, null, 'service_completed', {});
+    serviceEvents.log(id, null, "service_completed", {});
     return services.get(id);
   },
 
@@ -626,7 +553,9 @@ export const services = {
 
 export const serviceStops = {
   listByService: (service_id) => {
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT ss.*,
              st.name           AS station_name,
              st.short          AS station_short,
@@ -645,11 +574,15 @@ export const serviceStops = {
       LEFT JOIN places dst ON dst.id = s.destination_place_id
       WHERE ss.service_id = ?
       ORDER BY ss.stop_number ASC
-    `).all(service_id);
+    `,
+      )
+      .all(service_id);
   },
 
   get: (id) => {
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT ss.*,
              st.name           AS station_name,
              st.short          AS station_short,
@@ -658,37 +591,52 @@ export const serviceStops = {
       JOIN stations st ON st.id = ss.station_id
       JOIN services s ON s.id = ss.service_id
       WHERE ss.id = ?
-    `).get(id);
+    `,
+      )
+      .get(id);
   },
 
   create: ({ service_id, station_id, stop_number, stop_type, arrival_scheduled, departure_scheduled, platform, sector, notes }) => {
-    const info = db.prepare(`
+    const info = db
+      .prepare(
+        `
       INSERT INTO service_stops 
       (service_id, station_id, stop_number, stop_type, arrival_scheduled, departure_scheduled, 
        arrival_expected, departure_expected, state, platform, sector, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Scheduled', ?, ?, ?)
-    `).run(
-      service_id, station_id, stop_number, stop_type,
-      arrival_scheduled || null, departure_scheduled || null,
-      arrival_scheduled || null, departure_scheduled || null,
-      platform || null, sector || null, notes || null
-    );
+    `,
+      )
+      .run(
+        service_id,
+        station_id,
+        stop_number,
+        stop_type,
+        arrival_scheduled || null,
+        departure_scheduled || null,
+        arrival_scheduled || null,
+        departure_scheduled || null,
+        platform || null,
+        sector || null,
+        notes || null,
+      );
     return serviceStops.get(info.lastInsertRowid);
   },
 
   update: (id, { platform, sector, notes, delay_locked }) => {
     const cur = serviceStops.get(id);
     if (!cur) return null;
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE service_stops 
       SET platform = ?, sector = ?, notes = ?, delay_locked = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(
+    `,
+    ).run(
       platform ?? cur.platform,
       sector ?? cur.sector,
       notes ?? cur.notes,
       delay_locked !== undefined ? delay_locked : cur.delay_locked,
-      id
+      id,
     );
     return serviceStops.get(id);
   },
@@ -697,11 +645,13 @@ export const serviceStops = {
     // newOrder is an array of service_stop IDs in new order
     db.transaction(() => {
       newOrder.forEach((stop_id, index) => {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE service_stops 
           SET stop_number = ?, updated_at = datetime('now')
           WHERE id = ?
-        `).run(index + 1, stop_id);
+        `,
+        ).run(index + 1, stop_id);
       });
     })();
 
@@ -720,23 +670,20 @@ export const serviceStops = {
 
     db.transaction(() => {
       // Update this stop
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE service_stops 
         SET state = 'Arrived', arrival_actual = ?, delay_minutes = ?, 
             arrival_expected = ?, platform = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(
-        actual_time,
-        delayMinutes,
-        actual_time,
-        platform !== undefined ? platform : cur.platform,
-        id
-      );
+      `,
+      ).run(actual_time, delayMinutes, actual_time, platform !== undefined ? platform : cur.platform, id);
 
       // Propagate delay to subsequent stops if not locked
       if (delayMinutes > 0) {
         const service_id = cur.service_id;
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE service_stops 
           SET delay_minutes = delay_minutes + ?,
               arrival_expected = datetime(arrival_expected, '+' || ? || ' minutes'),
@@ -745,11 +692,12 @@ export const serviceStops = {
           WHERE service_id = ? 
             AND stop_number > ?
             AND delay_locked = 0
-        `).run(delayMinutes, delayMinutes, delayMinutes, service_id, cur.stop_number);
+        `,
+        ).run(delayMinutes, delayMinutes, delayMinutes, service_id, cur.stop_number);
       }
 
       // Log event
-      serviceEvents.log(cur.service_id, id, 'stop_arrival', { actual_time, delay_minutes: delayMinutes });
+      serviceEvents.log(cur.service_id, id, "stop_arrival", { actual_time, delay_minutes: delayMinutes });
     })();
 
     return serviceStops.get(id);
@@ -761,33 +709,41 @@ export const serviceStops = {
 
     db.transaction(() => {
       // Update this stop
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE service_stops 
         SET state = 'Departed', departure_actual = ?, updated_at = datetime('now')
         WHERE id = ?
-      `).run(actual_time, id);
+      `,
+      ).run(actual_time, id);
 
       // Check if this is the last stop
-      const maxStop = db.prepare(`
+      const maxStop = db
+        .prepare(
+          `
         SELECT MAX(stop_number) as max_num 
         FROM service_stops 
         WHERE service_id = ?
-      `).get(cur.service_id);
+      `,
+        )
+        .get(cur.service_id);
 
       if (cur.stop_number === maxStop.max_num) {
         // Mark service as completed
         services.complete(cur.service_id);
       } else {
         // Mark service as in progress
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE services 
           SET status = 'In Progress', started_at = CASE WHEN started_at IS NULL THEN datetime('now') ELSE started_at END
           WHERE id = ?
-        `).run(cur.service_id);
+        `,
+        ).run(cur.service_id);
       }
 
       // Log event
-      serviceEvents.log(cur.service_id, id, 'stop_departure', { actual_time });
+      serviceEvents.log(cur.service_id, id, "stop_departure", { actual_time });
     })();
 
     return serviceStops.get(id);
@@ -797,13 +753,15 @@ export const serviceStops = {
     const cur = serviceStops.get(id);
     if (!cur) return null;
 
-    db.prepare(`
+    db.prepare(
+      `
       UPDATE service_stops 
       SET state = 'Passed', arrival_actual = ?, departure_actual = ?, updated_at = datetime('now')
       WHERE id = ?
-    `).run(actual_time, actual_time, id);
+    `,
+    ).run(actual_time, actual_time, id);
 
-    serviceEvents.log(cur.service_id, id, 'stop_passed', { actual_time });
+    serviceEvents.log(cur.service_id, id, "stop_passed", { actual_time });
     return serviceStops.get(id);
   },
 
@@ -814,17 +772,20 @@ export const serviceStops = {
     db.transaction(() => {
       // Update this stop's delay
       const newDelay = cur.delay_minutes + minutes;
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE service_stops 
         SET delay_minutes = ?,
             arrival_expected = datetime(arrival_expected, '+' || ? || ' minutes'),
             departure_expected = datetime(departure_expected, '+' || ? || ' minutes'),
             updated_at = datetime('now')
         WHERE id = ?
-      `).run(newDelay, minutes, minutes, id);
+      `,
+      ).run(newDelay, minutes, minutes, id);
 
       // Propagate to subsequent stops if not locked
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE service_stops 
         SET delay_minutes = delay_minutes + ?,
             arrival_expected = datetime(arrival_expected, '+' || ? || ' minutes'),
@@ -833,10 +794,11 @@ export const serviceStops = {
         WHERE service_id = ? 
           AND stop_number > ?
           AND delay_locked = 0
-      `).run(minutes, minutes, minutes, cur.service_id, cur.stop_number);
+      `,
+      ).run(minutes, minutes, minutes, cur.service_id, cur.stop_number);
 
       // Log event
-      serviceEvents.log(cur.service_id, id, 'delay_added', { minutes, reason, affected_stops: 'see DB' });
+      serviceEvents.log(cur.service_id, id, "delay_added", { minutes, reason, affected_stops: "see DB" });
     })();
 
     return serviceStops.get(id);
@@ -853,11 +815,13 @@ export const serviceStops = {
       // Reorder remaining stops
       const remaining = serviceStops.listByService(cur.service_id);
       remaining.forEach((stop, idx) => {
-        db.prepare(`
+        db.prepare(
+          `
           UPDATE service_stops 
           SET stop_number = ? 
           WHERE id = ?
-        `).run(idx + 1, stop.id);
+        `,
+        ).run(idx + 1, stop.id);
       });
     })();
   },
@@ -865,18 +829,232 @@ export const serviceStops = {
 
 export const serviceEvents = {
   log: (service_id, stop_id, event_type, details) => {
-    db.prepare(`
+    db.prepare(
+      `
       INSERT INTO service_events (service_id, stop_id, event_type, details)
       VALUES (?, ?, ?, ?)
-    `).run(service_id, stop_id || null, event_type, JSON.stringify(details));
+    `,
+    ).run(service_id, stop_id || null, event_type, JSON.stringify(details));
   },
 
   listByService: (service_id, limit = 100) => {
-    return db.prepare(`
+    return db
+      .prepare(
+        `
       SELECT * FROM service_events 
       WHERE service_id = ?
       ORDER BY created_at DESC
       LIMIT ?
-    `).all(service_id, limit);
+    `,
+      )
+      .all(service_id, limit);
   },
+};
+
+// ---- ANNOUNCEMENT CONFIG ----
+
+export const announcementConfig = {
+  getStationConfig: (stationId) => {
+    return db.prepare("SELECT * FROM station_announcement_config WHERE station_id = ?").get(stationId);
+  },
+
+  setStationConfig: (stationId, patch) => {
+    const existing = announcementConfig.getStationConfig(stationId);
+    if (existing) {
+      const sets = [];
+      const params = [];
+      const allowed = ["languages", "sound_mode", "delay_after_sound_ms", "delay_between_languages_ms", "sound_volume", "speech_volume", "auto_announce_enabled", "tts_provider", "tts_voice_map", "tts_rate", "tts_pitch"];
+      for (const field of allowed) {
+        if (patch[field] !== undefined) {
+          sets.push(`${field} = ?`);
+          params.push(field === "languages" || field === "tts_voice_map" ? JSON.stringify(patch[field]) : patch[field]);
+        }
+      }
+      if (sets.length > 0) {
+        sets.push("updated_at = datetime('now')");
+        params.push(stationId);
+        db.prepare(`UPDATE station_announcement_config SET ${sets.join(", ")} WHERE station_id = ?`).run(...params);
+      }
+    } else {
+      db.prepare(
+        `INSERT INTO station_announcement_config (station_id, languages, sound_mode, delay_after_sound_ms, delay_between_languages_ms, sound_volume, speech_volume, auto_announce_enabled, tts_provider, tts_voice_map, tts_rate, tts_pitch)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).run(
+        stationId,
+        JSON.stringify(patch.languages || ["ca", "es", "en"]),
+        patch.sound_mode || "SINGLE",
+        patch.delay_after_sound_ms ?? 600,
+        patch.delay_between_languages_ms ?? 1000,
+        patch.sound_volume ?? 1.0,
+        patch.speech_volume ?? 1.0,
+        patch.auto_announce_enabled ?? 1,
+        patch.tts_provider || "browser",
+        JSON.stringify(patch.tts_voice_map || {}),
+        patch.tts_rate ?? 0.95,
+        patch.tts_pitch ?? 1.0,
+      );
+    }
+    return announcementConfig.getStationConfig(stationId);
+  },
+};
+
+// ---- AUDIO ASSETS ----
+
+export const audioAssets = {
+  list: (filters = {}) => {
+    let sql = "SELECT * FROM audio_assets WHERE 1=1";
+    const params = [];
+    if (filters.asset_type) { sql += " AND asset_type = ?"; params.push(filters.asset_type); }
+    if (filters.format) { sql += " AND format = ?"; params.push(filters.format); }
+    if (filters.enabled !== undefined) { sql += " AND enabled = ?"; params.push(filters.enabled ? 1 : 0); }
+    sql += " ORDER BY name ASC";
+    return db.prepare(sql).all(...params);
+  },
+  get: (id) => db.prepare("SELECT * FROM audio_assets WHERE id = ?").get(id),
+  create: (data) => {
+    const info = db.prepare(
+      `INSERT INTO audio_assets (name, asset_type, format, file_path, original_filename, duration_ms, bitrate, sample_rate, channels, volume_db, default_volume, normalized)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`
+    ).run(
+      data.name, data.asset_type || "CUSTOM", data.format, data.file_path,
+      data.original_filename || null, data.duration_ms || null, data.bitrate || null,
+      data.sample_rate || null, data.channels || null, data.volume_db || null,
+      data.default_volume ?? 1.0,
+    );
+    return audioAssets.get(info.lastInsertRowid);
+  },
+  update: (id, updates) => {
+    const cur = audioAssets.get(id);
+    if (!cur) return null;
+    const allowed = ["name", "asset_type", "format", "file_path", "duration_ms", "bitrate", "sample_rate", "channels", "volume_db", "normalized", "default_volume", "waveform_data", "metadata_json", "enabled"];
+    const sets = [];
+    const params = [];
+    for (const field of allowed) {
+      if (updates[field] !== undefined) {
+        sets.push(`${field} = ?`);
+        params.push(updates[field]);
+      }
+    }
+    if (sets.length === 0) return cur;
+    sets.push("updated_at = datetime('now')");
+    params.push(id);
+    db.prepare(`UPDATE audio_assets SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+    return audioAssets.get(id);
+  },
+  remove: (id) => {
+    const asset = audioAssets.get(id);
+    if (!asset) return;
+    if (asset.file_path) {
+      const fullPath = path.resolve(path.dirname(path.resolve(fileURLToPath(import.meta.url), "../uploads")), path.basename(asset.file_path.replace("/uploads/", "")));
+      try { fs.unlinkSync(fullPath); } catch {}
+    }
+    db.prepare("DELETE FROM audio_assets WHERE id = ?").run(id);
+  },
+  conversions: {
+    list: (assetId) => db.prepare("SELECT * FROM audio_asset_conversions WHERE asset_id = ? ORDER BY format").all(assetId),
+    add: (assetId, format, filePath) => db.prepare("INSERT INTO audio_asset_conversions (asset_id, format, file_path) VALUES (?, ?, ?)").run(assetId, format, filePath),
+  },
+};
+
+// ---- ANNOUNCEMENT SOUND PROFILES ----
+
+export const soundProfiles = {
+  list: () => db.prepare("SELECT * FROM announcement_sound_profiles ORDER BY name").all(),
+  get: (id) => db.prepare("SELECT * FROM announcement_sound_profiles WHERE id = ?").get(id),
+  create: (data) => {
+    const info = db.prepare(
+      `INSERT INTO announcement_sound_profiles (name, station_id, company, operator_id, train_type_id, commercial_service, service_type, default_sound_id, delay_after_sound_ms, sound_volume, speech_volume, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
+    ).run(
+      data.name, data.station_id || null, data.company || null, data.operator_id || null,
+      data.train_type_id || null, data.commercial_service || null, data.service_type || null,
+      data.default_sound_id || null, data.delay_after_sound_ms ?? 600,
+      data.sound_volume ?? 1.0, data.speech_volume ?? 1.0,
+    );
+    return soundProfiles.get(info.lastInsertRowid);
+  },
+  update: (id, updates) => {
+    const cur = soundProfiles.get(id);
+    if (!cur) return null;
+    const allowed = ["name", "station_id", "company", "operator_id", "train_type_id", "commercial_service", "service_type", "default_sound_id", "delay_after_sound_ms", "sound_volume", "speech_volume", "enabled"];
+    const sets = [];
+    const params = [];
+    for (const field of allowed) {
+      if (updates[field] !== undefined) {
+        sets.push(`${field} = ?`);
+        params.push(updates[field]);
+      }
+    }
+    if (sets.length === 0) return cur;
+    sets.push("updated_at = datetime('now')");
+    params.push(id);
+    db.prepare(`UPDATE announcement_sound_profiles SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+    return soundProfiles.get(id);
+  },
+  remove: (id) => db.prepare("DELETE FROM announcement_sound_profiles WHERE id = ?").run(id),
+};
+
+// ---- ANNOUNCEMENT SOUND RULES ----
+
+export const soundRules = {
+  list: () =>
+    db.prepare(
+      `SELECT r.*, a.name AS asset_name, a.file_path AS asset_path
+       FROM announcement_sound_rules r
+       LEFT JOIN audio_assets a ON a.id = r.sound_id
+       ORDER BY r.priority ASC`
+    ).all(),
+  get: (id) => db.prepare("SELECT * FROM announcement_sound_rules WHERE id = ?").get(id),
+  create: (data) => {
+    const info = db.prepare(
+      `INSERT INTO announcement_sound_rules (priority, match_config, sound_id, profile_id, event_type, sound_mode, delay_after_sound_ms, delay_between_languages_ms, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
+    ).run(
+      data.priority ?? 0,
+      JSON.stringify(data.match_config || {}),
+      data.sound_id || null,
+      data.profile_id || null,
+      data.event_type || null,
+      data.sound_mode || "SINGLE",
+      data.delay_after_sound_ms ?? 600,
+      data.delay_between_languages_ms ?? 1000,
+    );
+    return soundRules.get(info.lastInsertRowid);
+  },
+  update: (id, updates) => {
+    const cur = soundRules.get(id);
+    if (!cur) return null;
+    const sets = [];
+    const params = [];
+    const allowed = ["priority", "sound_id", "profile_id", "event_type", "sound_mode", "delay_after_sound_ms", "delay_between_languages_ms", "enabled"];
+    for (const field of allowed) {
+      if (updates[field] !== undefined) {
+        sets.push(`${field} = ?`);
+        params.push(updates[field]);
+      }
+    }
+    if (updates.match_config !== undefined) {
+      sets.push("match_config = ?");
+      params.push(JSON.stringify(updates.match_config));
+    }
+    if (sets.length === 0) return cur;
+    params.push(id);
+    db.prepare(`UPDATE announcement_sound_rules SET ${sets.join(", ")} WHERE id = ?`).run(...params);
+    return soundRules.get(id);
+  },
+  remove: (id) => db.prepare("DELETE FROM announcement_sound_rules WHERE id = ?").run(id),
+};
+
+// ---- PLACE TTS PRONUNCIATIONS ----
+
+export const placeTtsPronunciations = {
+  list: () => db.prepare("SELECT * FROM place_tts_pronunciations ORDER BY display_name, language").all(),
+  get: (displayName, language) => db.prepare("SELECT * FROM place_tts_pronunciations WHERE display_name = ? AND language = ?").get(displayName, language),
+  set: (displayName, language, pronunciation) => {
+    db.prepare(
+      "INSERT OR REPLACE INTO place_tts_pronunciations (display_name, language, pronunciation) VALUES (?, ?, ?)"
+    ).run(displayName, language, pronunciation);
+    return placeTtsPronunciations.get(displayName, language);
+  },
+  remove: (id) => db.prepare("DELETE FROM place_tts_pronunciations WHERE id = ?").run(id),
 };

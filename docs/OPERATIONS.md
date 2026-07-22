@@ -279,40 +279,42 @@ Añadir un catch-all error middleware que loguee JSON estructurado:
 
 ```javascript
 app.use((err, req, res, next) => {
-  console.log(JSON.stringify({
-    level: "error",
-    timestamp: new Date().toISOString(),
-    method: req.method,
-    path: req.path,
-    status: err.status || 500,
-    message: err.message,
-    stack: process.env.NODE_ENV !== "production" ? err.stack : undefined
-  }));
+  console.log(
+    JSON.stringify({
+      level: "error",
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      status: err.status || 500,
+      message: err.message,
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined,
+    }),
+  );
   res.status(err.status || 500).json({ error: "Internal Server Error" });
 });
 ```
 
 ### Métricas propuestas (futuro)
 
-| Métrica | Fuente | Para |
-|---------|--------|------|
-| `trains.count` | DB | Saber cuánta capacidad se usa |
-| `ws.connections` | ws.js | Usuarios conectados en tiempo real |
-| `http.requests.total` | Middleware | Volumen de tráfico |
-| `http.requests.errors` | Middleware | Tasa de error |
-| `disk.uploads.free` | df | Espacio disponible para subidas |
-| `disk.data.free` | df | Espacio disponible para DB |
+| Métrica                | Fuente     | Para                               |
+| ---------------------- | ---------- | ---------------------------------- |
+| `trains.count`         | DB         | Saber cuánta capacidad se usa      |
+| `ws.connections`       | ws.js      | Usuarios conectados en tiempo real |
+| `http.requests.total`  | Middleware | Volumen de tráfico                 |
+| `http.requests.errors` | Middleware | Tasa de error                      |
+| `disk.uploads.free`    | df         | Espacio disponible para subidas    |
+| `disk.data.free`       | df         | Espacio disponible para DB         |
 
 ---
 
 ## Alertas propuestas
 
-| # | Condición | Acción |
-|---|-----------|--------|
-| 1 | Health check falla 3 veces consecutivas | Reiniciar backend, notificar |
-| 2 | Error SQLite en los logs | Comprobar integridad DB, restaurar backup |
-| 3 | Espacio en `/app/uploads` < 100 MB | Limpiar archivos antiguos, alertar |
-| 4 | Espacio en `/app/data` < 100 MB | Comprimir backups antiguos, alertar |
+| #   | Condición                               | Acción                                    |
+| --- | --------------------------------------- | ----------------------------------------- |
+| 1   | Health check falla 3 veces consecutivas | Reiniciar backend, notificar              |
+| 2   | Error SQLite en los logs                | Comprobar integridad DB, restaurar backup |
+| 3   | Espacio en `/app/uploads` < 100 MB      | Limpiar archivos antiguos, alertar        |
+| 4   | Espacio en `/app/data` < 100 MB         | Comprimir backups antiguos, alertar       |
 
 ---
 
@@ -417,13 +419,13 @@ docker compose logs backend | grep -i "websocket\|ws"
 
 ## Variables de entorno
 
-| Variable | Valor por defecto | Descripción |
-|----------|-------------------|-------------|
-| `PORT` | `4000` | Puerto del backend (docker) |
-| `DB_PATH` | `/app/data/data.db` | Ruta absoluta a la base de datos SQLite |
-| `CORS_ORIGIN` | `http://localhost` | Origen permitido para CORS |
-| `ADMIN_PASSWORD` | `railboard` | Contraseña de admin (⚠️ cambiar en producción) |
-| `NODE_ENV` | (vacío) | `production` activa optimizaciones |
-| `RATE_LIMIT_MAX` | `120` | Máximo de peticiones por minuto |
-| `VITE_API_URL` | (vacío) | URL de la API para el frontend |
-| `HOST_PORT` | `80` | Puerto publicado del contenedor frontend |
+| Variable         | Valor por defecto   | Descripción                                    |
+| ---------------- | ------------------- | ---------------------------------------------- |
+| `PORT`           | `4000`              | Puerto del backend (docker)                    |
+| `DB_PATH`        | `/app/data/data.db` | Ruta absoluta a la base de datos SQLite        |
+| `CORS_ORIGIN`    | `http://localhost`  | Origen permitido para CORS                     |
+| `ADMIN_PASSWORD` | `railboard`         | Contraseña de admin (⚠️ cambiar en producción) |
+| `NODE_ENV`       | (vacío)             | `production` activa optimizaciones             |
+| `RATE_LIMIT_MAX` | `120`               | Máximo de peticiones por minuto                |
+| `VITE_API_URL`   | (vacío)             | URL de la API para el frontend                 |
+| `HOST_PORT`      | `80`                | Puerto publicado del contenedor frontend       |

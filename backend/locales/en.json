@@ -1,0 +1,190 @@
+{
+  "meta": {
+    "language": "en",
+    "name": "English",
+    "bcp47": "en-US",
+    "natural": "english"
+  },
+  "time": {
+    "hours_12h": ["twelve", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven"],
+    "minutes": ["oh", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three", "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight", "twenty-nine", "thirty", "thirty-one", "thirty-two", "thirty-three", "thirty-four", "thirty-five", "thirty-six", "thirty-seven", "thirty-eight", "thirty-nine", "forty", "forty-one", "forty-two", "forty-three", "forty-four", "forty-five", "forty-six", "forty-seven", "forty-eight", "forty-nine", "fifty", "fifty-one", "fifty-two", "fifty-three", "fifty-four", "fifty-five", "fifty-six", "fifty-seven", "fifty-eight", "fifty-nine"],
+    "am": "a.m.",
+    "pm": "p.m.",
+    "midnight": "midnight",
+    "noon": "noon",
+    "hour": "",
+    "minute": "minutes",
+    "minute_singular": "minute",
+    "and": "",
+    "format": "H12"
+  },
+  "conjunctions": {
+    "and": "and",
+    "or": "or",
+    "comma": ", ",
+    "except": "except",
+    "including": "including",
+    "only": "only"
+  },
+  "attention": {
+    "default": "Attention.",
+    "important": "Attention please.",
+    "emergency": "Attention. Emergency.",
+    "gentle": "Ladies and gentlemen, your attention please."
+  },
+  "blocks": {
+    "operator": "{operator}",
+    "service": "{service}",
+    "line": "{line}",
+    "destination": "service to {destination}",
+    "origin": "service from {origin}",
+    "departure_time": "departing at {time}",
+    "arrival_time": "arriving at {time}",
+    "platform": "platform {platform}",
+    "sector": "sector {sector}",
+    "platform_sector": "platform {platform}, sector {sector}",
+    "accessible_train": "Accessible train.",
+    "not_accessible_train": "",
+    "composition": "This train is formed of {cars} coaches.",
+    "cancelled": "has been cancelled",
+    "cancelled_reason": "has been cancelled due to {reason}",
+    "delayed": "is delayed by approximately {minutes} minutes",
+    "delayed_reason": "is delayed by approximately {minutes} minutes due to {reason}",
+    "platform_changed": "will depart from platform {platform}",
+    "platform_changed_sector": "will depart from platform {platform}, sector {sector}",
+    "standing_at_platform": "Standing at platform {platform}",
+    "standing_at_platform_sector": "Standing at platform {platform}, sector {sector}",
+    "ready_for_boarding": "Ready for boarding.",
+    "boarding": "Now boarding.",
+    "ready_to_depart": "Ready to depart.",
+    "imminent_departure": "About to depart.",
+    "departing": "The train is now departing.",
+    "departed": "has departed",
+    "arriving": "is now arriving",
+    "at_platform": "is at platform",
+    "terminates_here": "This train terminates here.",
+    "all_change": "All passengers must leave the train."
+  },
+  "service_intro": {
+    "commuter": "{line}",
+    "regional": "{service_type}",
+    "long_distance": "{operator} {service_type}",
+    "high_speed": "{operator} {service_type}",
+    "default": "{service_type}"
+  },
+  "events": {
+    "TRAIN_ANNOUNCEMENT": {
+      "departure": "Attention. {service_intro} {destination}, {platform_sector}.",
+      "arrival": "Attention. {service_intro} {origin}, {platform_sector}.",
+      "compact_departure": "{line} {destination}, platform {platform}.",
+      "compact_arrival": "{line} from {origin}, platform {platform}."
+    },
+    "TRAIN_IMMINENT_DEPARTURE": {
+      "default": "{service_intro} {destination}. About to depart.",
+      "standing": "{is_at_platform} {service_intro} to {destination}. About to depart."
+    },
+    "TRAIN_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} to {destination}. Ready to depart."
+    },
+    "TRAIN_DELAYED": {
+      "default": "Attention. {service_intro} to {destination} {delayed}.",
+      "with_platform": "Attention. {service_intro} to {destination}, {platform_sector}, {delayed}."
+    },
+    "TRAIN_CANCELLED": {
+      "default": "Attention. {service_intro} to {destination} {cancelled}. We apologise for the inconvenience."
+    },
+    "PLATFORM_CHANGE": {
+      "default": "Attention. {service_intro} to {destination} {platform_changed}. Please check the information boards.",
+      "with_sector": "Attention. {service_intro} to {destination} {platform_changed_sector}. Please check the information boards."
+    },
+    "TRAIN_APPROACHING": {
+      "default": "Attention. The next service to arrive is {service_intro} to {destination}, {platform_sector}."
+    },
+    "TRAIN_AT_PLATFORM": {
+      "default": "Attention. {service_intro} to {destination} is at platform {platform}.",
+      "accessible": "Attention. {service_intro} to {destination} is at platform {platform}. Accessible train."
+    },
+    "TRAIN_BOARDING": {
+      "default": "Attention. {service_intro} to {destination}, {platform_sector}. Now boarding.",
+      "accessible": "Attention. {service_intro} to {destination}, {platform_sector}. Now boarding. Accessible train."
+    },
+    "TRAIN_DEPARTED": {
+      "default": "Attention. {service_intro} to {destination} has departed from platform {platform}."
+    },
+    "LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT": {
+      "default": "{service_intro} service to {destination}, departing at {time}, {platform_sector}.",
+      "with_stops": "{service_intro} service to {destination}, departing at {time}, {platform_sector}. {stopping_pattern}.",
+      "with_fare": "{service_intro} service to {destination}, departing at {time}, {platform_sector}. {stopping_pattern}. {fare_restriction}.",
+      "fare_restricted": "Commuter tickets and passes are not valid on this service.",
+      "fare_restricted_regional": "Commuter and regional tickets and passes are not valid on this service."
+    },
+    "LONG_DISTANCE_BOARDING": {
+      "default": "{service_intro} service to {destination}. Now boarding at {platform_sector}."
+    },
+    "LONG_DISTANCE_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} service to {destination}, departing at {time}. Ready to depart."
+    },
+    "LONG_DISTANCE_IMMINENT_DEPARTURE": {
+      "default": "{is_at_platform} {service_intro} service to {destination}. About to depart."
+    },
+    "TRAIN_STANDING_BY": {
+      "default": "{is_at_platform} {service_intro} service to {destination}.",
+      "with_stops": "{is_at_platform} {service_intro} service to {destination}. {stopping_pattern}.",
+      "fare_restricted": "{is_at_platform} {service_intro} service to {destination}. {fare_restriction}."
+    },
+    "SERVICE_DISRUPTION": {
+      "default": "Attention. Due to {reason}, there are disruptions to services. We apologise for the inconvenience."
+    },
+    "GENERAL_INFORMATION": {
+      "default": "Attention. {message}"
+    },
+    "TRAIN_TERMINATES_HERE": {
+      "default": "Attention. {service_intro} to {destination} terminates here. All passengers must leave the train."
+    }
+  },
+  "stopping_patterns": {
+    "ALL_STATIONS": "This train calls at all stations",
+    "DIRECT": "This is a direct service",
+    "SEMI_FAST": "This train calls at principal stations only",
+    "ALL_EXCEPT": "This train calls at all stations except {stations}",
+    "ONLY_STOPS_AT": "This train only calls at {stations}",
+    "CUSTOM": "{description}",
+    "intermediate": "This train calls at {stations}"
+  },
+  "fare_restrictions": {
+    "commuter_tickets_not_accepted": "commuter tickets",
+    "commuter_passes_not_accepted": "commuter passes",
+    "regional_tickets_not_accepted": "regional tickets",
+    "regional_passes_not_accepted": "regional passes",
+    "reservation_required": "reservation required",
+    "supplement_required": "supplement required",
+    "specific_ticket_required": "specific ticket required",
+    "none_accepted": "Commuter and regional tickets and passes are not valid on this service",
+    "some_not_accepted": "{items} are not valid on this service",
+    "not_valid": "not valid on this service",
+    "nor": "or"
+  },
+  "closing_messages": {
+    "long_distance": "{operator} wish you a pleasant journey.",
+    "renfe_long_distance": "Renfe wishes you a pleasant journey.",
+    "operator": "{operator} wishes you a pleasant journey.",
+    "none": ""
+  },
+  "accessibility": {
+    "accessible": "Accessible train.",
+    "wheelchair_space": "Wheelchair space available.",
+    "priority_seating": "Priority seating.",
+    "visual_aids": "Visual aids on board.",
+    "audio_aids": "Audio aids on board."
+  },
+  "pre_recorded_fragments": {
+    "attention": "Attention",
+    "platform": "platform",
+    "departure": "departure",
+    "arrival": "arrival",
+    "cancelled": "cancelled",
+    "delayed": "delayed",
+    "accessible": "accessible train",
+    "boarding": "boarding"
+  }
+}

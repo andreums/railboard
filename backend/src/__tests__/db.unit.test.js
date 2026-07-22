@@ -14,9 +14,21 @@ beforeAll(async () => {
 
 afterAll(() => {
   delete process.env.DB_PATH;
-  try { fs.unlinkSync(dbPath); } catch { /* ignore */ }
-  try { fs.unlinkSync(dbPath + "-wal"); } catch { /* ignore */ }
-  try { fs.unlinkSync(dbPath + "-shm"); } catch { /* ignore */ }
+  try {
+    fs.unlinkSync(dbPath);
+  } catch {
+    /* ignore */
+  }
+  try {
+    fs.unlinkSync(dbPath + "-wal");
+  } catch {
+    /* ignore */
+  }
+  try {
+    fs.unlinkSync(dbPath + "-shm");
+  } catch {
+    /* ignore */
+  }
 });
 
 describe("Config", () => {

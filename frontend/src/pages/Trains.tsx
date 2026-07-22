@@ -1,28 +1,36 @@
 import { useEffect, useState } from "react";
 import {
-  api, connectWS,
-  type Config, type DisplaySummary, type Operator, type Place, type Station, type Train, type TrainType,
+  api,
+  connectWS,
+  type Config,
+  type DisplaySummary,
+  type Operator,
+  type Place,
+  type Station,
+  type Train,
+  type TrainType,
 } from "../lib/api";
-import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
-  DragEndEvent,
-} from "@dnd-kit/core";
-import {
-  arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 
-const STATUSES: Train["status"][] = [
-  "Scheduled", "Boarding", "Delayed", "Departed", "Arrived", "Cancelled",
-];
+const STATUSES: Train["status"][] = ["Scheduled", "Boarding", "Delayed", "Departed", "Arrived", "Cancelled"];
 
 const EMPTY: Partial<Train> = {
-  number: "", origin: "Madrid Puerta de Atocha", destination: "",
-  stops: [], scheduled_time: "12:00", expected_time: "12:00",
-  platform: "", sector: "", observations: "", status: "Scheduled",
-  operator_id: null, train_type_id: null,
+  number: "",
+  origin: "Madrid Puerta de Atocha",
+  destination: "",
+  stops: [],
+  scheduled_time: "12:00",
+  expected_time: "12:00",
+  platform: "",
+  sector: "",
+  observations: "",
+  status: "Scheduled",
+  operator_id: null,
+  train_type_id: null,
 };
 
 export default function Trains() {
@@ -38,11 +46,21 @@ export default function Trains() {
 
   const refresh = async () => {
     const [c, t, op, tt, pl, st, displays] = await Promise.all([
-      api.getConfig(), api.listTrains(), api.listOperators(),
-      api.listTrainTypes(), api.listPlaces(),
-      api.listStations(), api.listDisplays(),
+      api.getConfig(),
+      api.listTrains(),
+      api.listOperators(),
+      api.listTrainTypes(),
+      api.listPlaces(),
+      api.listStations(),
+      api.listDisplays(),
     ]);
-    setConfig(c); setTrains(t); setOperators(op); setTrainTypes(tt); setPlaces(pl); setStations(st); setDisplaySummaries(displays);
+    setConfig(c);
+    setTrains(t);
+    setOperators(op);
+    setTrainTypes(tt);
+    setPlaces(pl);
+    setStations(st);
+    setDisplaySummaries(displays);
   };
 
   useEffect(() => {
@@ -53,12 +71,17 @@ export default function Trains() {
     };
   }, []);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const defaultStationId = (): number | undefined => {
+    if (!stations.length) return undefined;
+    const found = config?.station_name
+      ? stations.find((s) => s.name.includes(config.station_name) || config.station_name.includes(s.name))
+      : null;
+    return (found ?? stations[0]).id;
+  };
 
-  const trainIds = trains.map(t => String(t.id));
+  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+
+  const trainIds = trains.map((t) => String(t.id));
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -67,7 +90,7 @@ export default function Trains() {
     const newIndex = trainIds.indexOf(String(over.id));
     const newTrains = arrayMove(trains, oldIndex, newIndex);
     setTrains(newTrains);
-    api.reorderTrains(newTrains.map(t => t.id));
+    api.reorderTrains(newTrains.map((t) => t.id));
   };
 
   const clearAllTrains = async () => {
@@ -78,7 +101,8 @@ export default function Trains() {
 
   const speak = (text: string) => {
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = "es-ES"; u.rate = 0.95;
+    u.lang = "es-ES";
+    u.rate = 0.95;
     window.speechSynthesis.speak(u);
   };
 
@@ -86,10 +110,12 @@ export default function Trains() {
     const place = config?.mode === "arrivals" ? t.origin : t.destination;
     const action = config?.mode === "arrivals" ? "procedente de" : "con destino a";
     const platform = t.platform && t.platform !== "-" ? t.platform : "sin vía asignada";
-    const sector = t.sector && t.sector !== "-" ? t.sector : "sin sector";
+    const isCommuter = /^(C(-\d+)?|R\d+[A-Z]?)$/i.test(t.type_code || "");
+    const numberText = isCommuter ? "" : ` ${t.number}`;
+    const sectorText = t.sector && t.sector !== "-" ? `, sector ${t.sector}` : "";
     speak(
-      `Atención. Tren ${t.type_name || ""} ${t.number}, ${action} ${place}, ` +
-      `efectuará su ${config?.mode === "arrivals" ? "llegada" : "salida"} por la vía ${platform}, sector ${sector}.`
+      `Atención. Tren ${t.type_name || ""}${numberText}, ${action} ${place}, ` +
+        `efectuará su ${config?.mode === "arrivals" ? "llegada" : "salida"} por la vía ${platform}${sectorText}.`,
     );
   };
 
@@ -101,11 +127,19 @@ export default function Trains() {
         <h1 className="font-display text-4xl tracking-wide">RailBoard · Trenes</h1>
         <div className="flex gap-4 items-center text-sm">
           <span className="text-board-dim">Editar:</span>
-          <a href="/train-settings" className="text-board-amber underline">Operadores</a>
-          <a href="/train-settings" className="text-board-amber underline">Tipos de tren</a>
+          <a href="/train-settings" className="text-board-amber underline">
+            Operadores
+          </a>
+          <a href="/train-settings" className="text-board-amber underline">
+            Tipos de tren
+          </a>
           <span className="text-board-dim">|</span>
-          <a href="/admin" className="text-board-amber underline">Configuración</a>
-          <a href="/" target="_blank" className="text-board-amber underline">Pantalla pública →</a>
+          <a href="/admin" className="text-board-amber underline">
+            Configuración
+          </a>
+          <a href="/" target="_blank" className="text-board-amber underline">
+            Pantalla pública →
+          </a>
         </div>
       </header>
 
@@ -113,7 +147,14 @@ export default function Trains() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="font-display text-2xl">Trenes ({trains.length})</h2>
           <div className="flex gap-2">
-            <button onClick={() => { api.generateRandomTrain().then(refresh); }} className="bg-board-amber hover:bg-yellow-500 text-board-bg font-bold px-4 py-2 rounded text-sm">+ Tren random</button>
+            <button
+              onClick={() => {
+                api.generateRandomTrain(defaultStationId()).then(refresh);
+              }}
+              className="bg-board-amber hover:bg-yellow-500 text-board-bg font-bold px-4 py-2 rounded text-sm"
+            >
+              + Tren random
+            </button>
             <button
               onClick={() => setReorderMode(!reorderMode)}
               className={`px-3 py-1 rounded font-bold ${reorderMode ? "bg-board-green text-white" : "bg-white/10 text-board-dim"}`}
@@ -126,10 +167,7 @@ export default function Trains() {
             >
               + Nuevo
             </button>
-            <button
-              onClick={clearAllTrains}
-              className="bg-board-red text-white px-3 py-1 rounded font-bold"
-            >
+            <button onClick={clearAllTrains} className="bg-board-red text-white px-3 py-1 rounded font-bold">
               Borrar todos
             </button>
           </div>
@@ -153,21 +191,23 @@ export default function Trains() {
             {trains.length === 0 ? (
               <div className="text-board-dim text-sm py-4">Sin trenes</div>
             ) : (
-              trains.map((train) => (
-                <TrainListRow key={train.id} train={train} announce={announce} refresh={refresh} onEdit={setEditing} />
-              ))
+              trains.map((train) => <TrainListRow key={train.id} train={train} announce={announce} refresh={refresh} onEdit={setEditing} />)
             )}
           </div>
         )}
-
       </section>
 
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setEditing(null)}>
-          <div className="bg-board-row rounded-lg p-6 w-full max-w-4xl max-h-[90vh] mx-4 border border-white/10 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="bg-board-row rounded-lg p-6 w-full max-w-4xl max-h-[90vh] mx-4 border border-white/10 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex justify-between items-center mb-4 sticky top-0 bg-board-row">
               <h3 className="font-display text-2xl">{editing?.id ? "Editar tren" : "Nuevo tren"}</h3>
-              <button onClick={() => setEditing(null)} className="text-board-dim hover:text-white text-2xl leading-none">✕</button>
+              <button onClick={() => setEditing(null)} className="text-board-dim hover:text-white text-2xl leading-none">
+                ✕
+              </button>
             </div>
             <TrainForm
               value={editing}
@@ -199,23 +239,21 @@ function formatPlatform(train: Train) {
   if (!platform && !sector) return "—";
   if (!platform) return `Sector ${sector}`;
   if (!sector) return platform;
-  return /^\d+$/.test(platform) && /^\d+$/.test(sector)
-    ? `${platform}-${sector}`
-    : `${platform}${sector}`;
+  return /^\d+$/.test(platform) && /^\d+$/.test(sector) ? `${platform}-${sector}` : `${platform}${sector}`;
 }
 
 function CommuterBadge({ code, color }: { code: string; color?: string | null }) {
   const label = code.toUpperCase();
   return (
-    <svg viewBox="0 0 100.1 54.6" aria-label={label} role="img" className="h-8 w-[60px]">
-      <rect x="0" y="0" width="100.1" height="54.6" rx="14" fill={color || "#c2185b"} />
+    <svg viewBox="0 0 100.1 54.6" aria-label={label} role="img" className="h-5 w-[38px]">
+      <rect x="0" y="0" width="100.1" height="54.6" rx="11" fill={color || "#c2185b"} />
       <text
         x="50"
         y="50%"
         textAnchor="middle"
         dominantBaseline="central"
         fontFamily="Oswald, Arial, sans-serif"
-        fontSize={label.length > 3 ? 25 : 28}
+        fontSize={label.length > 3 ? 17 : 19}
         fontWeight="700"
         fill="#fff"
       >
@@ -256,9 +294,13 @@ function TrainSummary({ train }: { train: Train }) {
         <div className="text-lg font-bold" title={`${train.origin} → ${train.destination}`}>
           {train.origin} → {train.destination}
         </div>
-        <div className="text-sm text-board-dim" title={stopsText}>{stopsText}</div>
+        <div className="text-sm text-board-dim" title={stopsText}>
+          {stopsText}
+        </div>
         {train.observations && (
-          <div className="text-sm text-board-green" title={train.observations}>{train.observations}</div>
+          <div className="text-sm text-board-green" title={train.observations}>
+            {train.observations}
+          </div>
         )}
         <div className="mt-1 text-xs text-board-dim">{meta}</div>
       </div>
@@ -268,7 +310,7 @@ function TrainSummary({ train }: { train: Train }) {
           <CommuterBadge code={train.type_code} color={train.type_color} />
         ) : (
           <span
-            className="inline-flex min-w-14 items-center justify-center rounded px-2 py-1 text-sm font-bold text-white"
+            className="inline-flex min-w-10 items-center justify-center rounded px-1.5 py-0.5 text-xs font-bold text-white"
             style={{ backgroundColor: train.type_color || "rgba(255,255,255,0.1)" }}
           >
             {train.type_code || "—"}
@@ -287,7 +329,12 @@ function TrainSummary({ train }: { train: Train }) {
   );
 }
 
-function TrainListRow({ train, announce, refresh, onEdit }: {
+function TrainListRow({
+  train,
+  announce,
+  refresh,
+  onEdit,
+}: {
   train: Train;
   announce: (t: Train) => void;
   refresh: () => void;
@@ -297,15 +344,48 @@ function TrainListRow({ train, announce, refresh, onEdit }: {
     <div className="bg-black/20 rounded p-3 flex gap-4 items-center">
       <TrainSummary train={train} />
       <div className="flex shrink-0 gap-3 items-center">
-        <button onClick={(e) => { e.preventDefault(); announce(train); }} className="text-board-green text-lg" title="Anunciar">🔊</button>
-        <button onClick={(e) => { e.preventDefault(); onEdit(train); }} className="text-board-amber text-lg" title="Editar">Editar</button>
-        <button onClick={(e) => { e.preventDefault(); if (confirm("¿Eliminar tren?")) api.deleteTrain(train.id).then(refresh); }} className="text-board-red text-xl leading-none" title="Eliminar">✕</button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            announce(train);
+          }}
+          className="text-board-green text-lg"
+          title="Anunciar"
+        >
+          🔊
+        </button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            onEdit(train);
+          }}
+          className="text-board-amber text-lg"
+          title="Editar"
+        >
+          Editar
+        </button>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            if (confirm("¿Eliminar tren?")) api.deleteTrain(train.id).then(refresh);
+          }}
+          className="text-board-red text-xl leading-none"
+          title="Eliminar"
+        >
+          ✕
+        </button>
       </div>
     </div>
   );
 }
 
-function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
+function TrainRow({
+  train,
+  announce,
+  refresh,
+  STATUSES,
+  onEdit,
+}: {
   train: Train;
   announce: (t: Train) => void;
   refresh: () => void;
@@ -334,26 +414,45 @@ function TrainRow({ train, announce, refresh, STATUSES, onEdit }: {
       }}
     >
       {/* Drag handle */}
-      <span {...attributes} {...listeners} className="cursor-grab text-board-dim text-lg select-none">⠿</span>
+      <span {...attributes} {...listeners} className="cursor-grab text-board-dim text-lg select-none">
+        ⠿
+      </span>
 
       <TrainSummary train={train} />
 
       {/* Actions */}
       <div className="flex shrink-0 gap-2">
-        <button onClick={() => announce(train)} className="text-board-green text-lg" title="Anunciar">🔊</button>
-        <button onClick={() => onEdit(train)} className="text-board-amber text-lg" title="Editar">✏️</button>
+        <button onClick={() => announce(train)} className="text-board-green text-lg" title="Anunciar">
+          🔊
+        </button>
+        <button onClick={() => onEdit(train)} className="text-board-amber text-lg" title="Editar">
+          ✏️
+        </button>
         <button
-          onClick={() => { if (confirm("¿Eliminar tren?")) api.deleteTrain(train.id).then(refresh); }}
+          onClick={() => {
+            if (confirm("¿Eliminar tren?")) api.deleteTrain(train.id).then(refresh);
+          }}
           className="text-board-red text-lg"
           title="Eliminar"
-        >✕</button>
+        >
+          ✕
+        </button>
       </div>
     </div>
   );
 }
 
 function TrainForm({
-  value, operators, trainTypes, places, stations, stationDisplays, config, announce, onSave, onCancel,
+  value,
+  operators,
+  trainTypes,
+  places,
+  stations,
+  stationDisplays,
+  config,
+  announce,
+  onSave,
+  onCancel,
 }: {
   value: Partial<Train>;
   operators: Operator[];
@@ -419,46 +518,72 @@ function TrainForm({
   const sectorOptions = buildSectorOptions(selectedDisplayConfig, []);
   const currentPlatform = v.platform && v.platform !== "-" ? String(v.platform) : "";
   const currentSector = v.sector && v.sector !== "-" ? String(v.sector) : "";
-  const effectivePlatformOptions = currentPlatform && !platformOptions.includes(currentPlatform)
-    ? [...platformOptions, currentPlatform]
-    : platformOptions;
-  const effectiveSectorOptions = currentSector && !sectorOptions.includes(currentSector)
-    ? [...sectorOptions, currentSector]
-    : sectorOptions;
+  const effectivePlatformOptions =
+    currentPlatform && !platformOptions.includes(currentPlatform) ? [...platformOptions, currentPlatform] : platformOptions;
+  const effectiveSectorOptions =
+    currentSector && !sectorOptions.includes(currentSector) ? [...sectorOptions, currentSector] : sectorOptions;
 
   return (
     <div className="grid grid-cols-2 gap-3">
       <datalist id={dataListId}>
-        {placeNames.map((n) => <option key={n} value={n} />)}
+        {placeNames.map((n) => (
+          <option key={n} value={n} />
+        ))}
       </datalist>
 
       <Field label="Número">
         <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.number || ""} onChange={(e) => set("number", e.target.value)} />
       </Field>
       <Field label="Operador">
-        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.operator_id ?? ""}
-          onChange={(e) => set("operator_id", e.target.value ? Number(e.target.value) : null)}>
+        <select
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          value={v.operator_id ?? ""}
+          onChange={(e) => set("operator_id", e.target.value ? Number(e.target.value) : null)}
+        >
           <option value="">—</option>
-          {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          {operators.map((o) => (
+            <option key={o.id} value={o.id}>
+              {o.name}
+            </option>
+          ))}
         </select>
       </Field>
       <Field label="Tipo">
-        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.train_type_id ?? ""}
-          onChange={(e) => set("train_type_id", e.target.value ? Number(e.target.value) : null)}>
+        <select
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          value={v.train_type_id ?? ""}
+          onChange={(e) => set("train_type_id", e.target.value ? Number(e.target.value) : null)}
+        >
           <option value="">—</option>
-          {trainTypes.map((t) => <option key={t.id} value={t.id}>{t.code} — {t.name}</option>)}
+          {trainTypes.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.code} — {t.name}
+            </option>
+          ))}
         </select>
       </Field>
       <Field label="Estado">
-        <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.status} onChange={(e) => set("status", e.target.value as Train["status"])}>
-          {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+        <select
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          value={v.status}
+          onChange={(e) => set("status", e.target.value as Train["status"])}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </select>
       </Field>
       <Field label="Origen">
         <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.origin || ""} onChange={(e) => set("origin", e.target.value)} />
       </Field>
       <Field label="Destino">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" value={v.destination || ""} onChange={(e) => set("destination", e.target.value)} />
+        <input
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          value={v.destination || ""}
+          onChange={(e) => set("destination", e.target.value)}
+        />
       </Field>
       <Field label="Estación / Display" wide>
         <select
@@ -475,24 +600,25 @@ function TrainForm({
         </select>
       </Field>
       <Field label="Hora programada">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" type="time" value={v.scheduled_time || ""} onChange={(e) => set("scheduled_time", e.target.value)} />
+        <input
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          type="time"
+          value={v.scheduled_time || ""}
+          onChange={(e) => set("scheduled_time", e.target.value)}
+        />
       </Field>
       <Field label="Hora estimada">
-        <input className="bg-black/40 rounded px-3 py-2 w-full" type="time" value={v.expected_time || ""} onChange={(e) => set("expected_time", e.target.value)} />
+        <input
+          className="bg-black/40 rounded px-3 py-2 w-full"
+          type="time"
+          value={v.expected_time || ""}
+          onChange={(e) => set("expected_time", e.target.value)}
+        />
       </Field>
       <Field label="Retraso (minutos)">
-        <input
-          className="bg-black/40 rounded px-3 py-2 w-full opacity-75 cursor-not-allowed"
-          type="number"
-          value={delayMinutes}
-          readOnly
-        />
+        <input className="bg-black/40 rounded px-3 py-2 w-full opacity-75 cursor-not-allowed" type="number" value={delayMinutes} readOnly />
         <div className="text-board-dim text-xs mt-1">Calculado automáticamente</div>
-        {delayMinutes > 0 && (
-          <div className="text-board-red text-sm mt-1">
-            Estimada: {estimatedFromDelay}
-          </div>
-        )}
+        {delayMinutes > 0 && <div className="text-board-red text-sm mt-1">Estimada: {estimatedFromDelay}</div>}
       </Field>
       <Field label="Vía">
         <select className="bg-black/40 rounded px-3 py-2 w-full" value={v.platform || ""} onChange={(e) => set("platform", e.target.value)}>
@@ -532,9 +658,15 @@ function TrainForm({
       </Field>
 
       <div className="col-span-2 flex gap-2 justify-end mt-2">
-        <button onClick={onCancel} className="px-4 py-2 rounded bg-white/10">Cancelar</button>
+        <button onClick={onCancel} className="px-4 py-2 rounded bg-white/10">
+          Cancelar
+        </button>
         {v.id && (
-          <button onClick={() => announce(v as Train)} className="px-4 py-2 rounded bg-board-green text-board-bg font-bold" title="Escuchar anuncio en megafonía">
+          <button
+            onClick={() => announce(v as Train)}
+            className="px-4 py-2 rounded bg-board-green text-board-bg font-bold"
+            title="Escuchar anuncio en megafonía"
+          >
             🔊 Escuchar
           </button>
         )}

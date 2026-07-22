@@ -26,14 +26,12 @@ console.log(`✓ Creado: ${filename}`);
 
 // Update all cercanías train types to use generic Renfe icon
 const allTypes = trainTypes.list();
-const cercaniasTypes = allTypes.filter(t =>
-  t.name.includes("Cercanías") || t.name.includes("cercanías")
-);
+const cercaniasTypes = allTypes.filter((t) => t.name.includes("Cercanías") || t.name.includes("cercanías"));
 
 console.log(`Actualizando ${cercaniasTypes.length} líneas Renfe...`);
-cercaniasTypes.forEach(type => {
+cercaniasTypes.forEach((type) => {
   trainTypes.update(type.id, {
-    destination_icon_url: `/uploads/destination-icons/${filename}`
+    destination_icon_url: `/uploads/destination-icons/${filename}`,
   });
   console.log(`  ✓ ${type.code}: ${type.name}`);
 });

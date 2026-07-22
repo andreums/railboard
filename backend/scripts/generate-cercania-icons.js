@@ -7,14 +7,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Get all cercanías types from DB
 const allTypes = trainTypes.list();
-const cercaniasTypes = allTypes.filter(t =>
-  t.name.includes("Cercanías") || t.name.includes("cercanías")
-);
+const cercaniasTypes = allTypes.filter((t) => t.name.includes("Cercanías") || t.name.includes("cercanías"));
 
-const linesToGenerate = cercaniasTypes.map(t => ({
+const linesToGenerate = cercaniasTypes.map((t) => ({
   code: t.code,
   color: t.color,
-  id: t.id
+  id: t.id,
 }));
 
 const uploadsDir = path.join(__dirname, "../uploads/destination-icons");
@@ -48,7 +46,7 @@ linesToGenerate.forEach(({ code, color, id }) => {
 
   // Update DB
   trainTypes.update(id, {
-    destination_icon_url: `/uploads/destination-icons/${filename}`
+    destination_icon_url: `/uploads/destination-icons/${filename}`,
   });
   console.log(`  → BD actualizada: ${code}`);
 });

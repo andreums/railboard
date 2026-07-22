@@ -24,13 +24,13 @@
 
 ## Requisitos del sistema
 
-| Herramienta | Versión mínima | Para |
-|-------------|----------------|------|
-| **Docker** | 24+ | Ejecución en producción y desarrollo |
-| **Docker Compose** | v2.24+ | Orquestación de contenedores |
-| **Git** | 2.40+ | Control de versiones |
-| **Node.js** | 20 LTS (>=18) | Desarrollo local sin Docker |
-| **npm** | 10+ | Gestión de dependencias |
+| Herramienta        | Versión mínima | Para                                 |
+| ------------------ | -------------- | ------------------------------------ |
+| **Docker**         | 24+            | Ejecución en producción y desarrollo |
+| **Docker Compose** | v2.24+         | Orquestación de contenedores         |
+| **Git**            | 2.40+          | Control de versiones                 |
+| **Node.js**        | 20 LTS (>=18)  | Desarrollo local sin Docker          |
+| **npm**            | 10+            | Gestión de dependencias              |
 
 > **Nota:** Si usas macOS con Apple Silicon, asegúrate de que Docker Desktop utilice Rosetta 2 o que las imágenes tengan soporte nativo para ARM64.
 
@@ -73,9 +73,9 @@ El primer build puede tardar 2-3 minutos (instalación de dependencias npm + com
 
 ### Paso 4: Acceder a la aplicación
 
-| URL | Qué encontrarás |
-|-----|-----------------|
-| http://localhost | Panel público de salidas/llegadas |
+| URL                    | Qué encontrarás                                                       |
+| ---------------------- | --------------------------------------------------------------------- |
+| http://localhost       | Panel público de salidas/llegadas                                     |
 | http://localhost/admin | Panel de administración (usuario: `admin`, contraseña: la del `.env`) |
 
 ### Paso 5: Cargar datos de demostración
@@ -120,13 +120,13 @@ VITE_API_URL=http://localhost:4000
 
 ### URLs en modo desarrollo
 
-| URL | Qué encontrarás |
-|-----|-----------------|
-| http://localhost:5173 | Panel público (dev mode) |
-| http://localhost:5173/admin | Admin (dev mode) |
-| http://localhost:4000/health | Health check del backend |
-| http://localhost:4000/api/stations/1/board | API de datos del panel |
-| ws://localhost:4000/ws | WebSocket para actualizaciones en tiempo real |
+| URL                                        | Qué encontrarás                               |
+| ------------------------------------------ | --------------------------------------------- |
+| http://localhost:5173                      | Panel público (dev mode)                      |
+| http://localhost:5173/admin                | Admin (dev mode)                              |
+| http://localhost:4000/health               | Health check del backend                      |
+| http://localhost:4000/api/stations/1/board | API de datos del panel                        |
+| ws://localhost:4000/ws                     | WebSocket para actualizaciones en tiempo real |
 
 ---
 
@@ -174,12 +174,12 @@ cd backend && npm test
 docker compose exec backend npm test
 ```
 
-| Suite | Archivo | Tipo |
-|-------|---------|------|
-| DB unit tests | `src/__tests__/db.unit.test.js` | Unitario (temp DB) |
-| Helpers unit tests | `src/__tests__/helpers.unit.test.js` | Unitario |
-| E2E API | `src/__tests__/e2e.test.js` | Integración |
-| Routes integration | `src/__tests__/routes.integration.test.js` | Integración |
+| Suite              | Archivo                                    | Tipo               |
+| ------------------ | ------------------------------------------ | ------------------ |
+| DB unit tests      | `src/__tests__/db.unit.test.js`            | Unitario (temp DB) |
+| Helpers unit tests | `src/__tests__/helpers.unit.test.js`       | Unitario           |
+| E2E API            | `src/__tests__/e2e.test.js`                | Integración        |
+| Routes integration | `src/__tests__/routes.integration.test.js` | Integración        |
 
 ### Frontend (21 tests)
 
@@ -187,11 +187,11 @@ docker compose exec backend npm test
 cd frontend && npm test
 ```
 
-| Suite | Archivo | Tipo |
-|-------|---------|------|
-| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | Unitario (8 tests) |
-| Clock | `src/components/__tests__/Clock.test.tsx` | Unitario (3 tests) |
-| i18n | `src/lib/__tests__/i18n.test.ts` | Unitario (10 tests) |
+| Suite      | Archivo                                        | Tipo                |
+| ---------- | ---------------------------------------------- | ------------------- |
+| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | Unitario (8 tests)  |
+| Clock      | `src/components/__tests__/Clock.test.tsx`      | Unitario (3 tests)  |
+| i18n       | `src/lib/__tests__/i18n.test.ts`               | Unitario (10 tests) |
 
 ### Modo watch
 
@@ -343,19 +343,19 @@ cd frontend && npm run preview     # Preview de la build
 
 ## Resolución de problemas comunes
 
-| Problema | Causa probable | Solución |
-|----------|----------------|----------|
-| `Cannot find native binding` | `@rolldown/binding-darwin-arm64` no instalado | `npm install @rolldown/binding-darwin-arm64` (opcional, no necesario para producción) |
-| `EMFILE: too many open files` | `node --watch` en macOS | Usar `node src/index.js` sin watch, o aumentar `ulimit -n` |
-| DB corrupta o inconsistente | Corte durante escritura, migración fallida | `docker compose down && docker volume rm railboard_db-data && docker compose up` (pérdida de datos!) |
-| No se ven trenes en el panel | Base de datos vacía | Ejecutar `docker compose exec backend node src/seed.js` |
-| Error de conexión WebSocket | Backend no accesible | Comprobar que `docker compose ps` muestra `railboard-backend` como `healthy` |
-| Error 502 de Nginx | Backend no preparado cuando Nginx intenta conectar | Esperar 10s y refrescar; comprobar `docker compose logs backend` |
-| `Port 80 already in use` | Otro servicio en el puerto 80 | Cambiar `HOST_PORT=8080` en `.env` y acceder a `http://localhost:8080` |
-| Login admin no funciona | Contraseña incorrecta | Comprobar `ADMIN_PASSWORD` en el `.env`; si está vacío, se usa `railboard` por defecto |
-| `npm install` falla con `gyp ERR!` | Faltan build tools (macOS Xcode CLI, Linux build-essential) | Instalar Xcode CLI: `xcode-select --install`; o `apt install build-essential python3` en Linux |
-| Error `VITE_API_URL` no definido | Falta `.env` en el frontend | Crear `frontend/.env` con `VITE_API_URL=http://localhost:4000` |
-| El Service Worker no se actualiza | Caché del navegador | Abrir DevTools → Application → Clear storage, o hacer hard refresh (Cmd+Shift+R) |
+| Problema                           | Causa probable                                              | Solución                                                                                             |
+| ---------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `Cannot find native binding`       | `@rolldown/binding-darwin-arm64` no instalado               | `npm install @rolldown/binding-darwin-arm64` (opcional, no necesario para producción)                |
+| `EMFILE: too many open files`      | `node --watch` en macOS                                     | Usar `node src/index.js` sin watch, o aumentar `ulimit -n`                                           |
+| DB corrupta o inconsistente        | Corte durante escritura, migración fallida                  | `docker compose down && docker volume rm railboard_db-data && docker compose up` (pérdida de datos!) |
+| No se ven trenes en el panel       | Base de datos vacía                                         | Ejecutar `docker compose exec backend node src/seed.js`                                              |
+| Error de conexión WebSocket        | Backend no accesible                                        | Comprobar que `docker compose ps` muestra `railboard-backend` como `healthy`                         |
+| Error 502 de Nginx                 | Backend no preparado cuando Nginx intenta conectar          | Esperar 10s y refrescar; comprobar `docker compose logs backend`                                     |
+| `Port 80 already in use`           | Otro servicio en el puerto 80                               | Cambiar `HOST_PORT=8080` en `.env` y acceder a `http://localhost:8080`                               |
+| Login admin no funciona            | Contraseña incorrecta                                       | Comprobar `ADMIN_PASSWORD` en el `.env`; si está vacío, se usa `railboard` por defecto               |
+| `npm install` falla con `gyp ERR!` | Faltan build tools (macOS Xcode CLI, Linux build-essential) | Instalar Xcode CLI: `xcode-select --install`; o `apt install build-essential python3` en Linux       |
+| Error `VITE_API_URL` no definido   | Falta `.env` en el frontend                                 | Crear `frontend/.env` con `VITE_API_URL=http://localhost:4000`                                       |
+| El Service Worker no se actualiza  | Caché del navegador                                         | Abrir DevTools → Application → Clear storage, o hacer hard refresh (Cmd+Shift+R)                     |
 
 ---
 
@@ -403,15 +403,15 @@ export default function StatusPill({ status }: { status: string }) {
 
 Prefijo obligatorio según el tipo de cambio:
 
-| Prefijo | Uso |
-|---------|-----|
-| `feat:` | Nueva funcionalidad |
-| `fix:` | Corrección de error |
+| Prefijo     | Uso                                           |
+| ----------- | --------------------------------------------- |
+| `feat:`     | Nueva funcionalidad                           |
+| `fix:`      | Corrección de error                           |
 | `refactor:` | Cambio de código que no corrige ni añade nada |
-| `test:` | Añadir o modificar tests |
-| `docs:` | Documentación |
-| `chore:` | Mantenimiento (dependencias, CI, config) |
-| `security:` | Mejora de seguridad |
+| `test:`     | Añadir o modificar tests                      |
+| `docs:`     | Documentación                                 |
+| `chore:`    | Mantenimiento (dependencias, CI, config)      |
+| `security:` | Mejora de seguridad                           |
 
 ### Base de datos
 
@@ -439,15 +439,15 @@ Consulta [ROADMAP.md](./ROADMAP.md) para el estado actual y las iniciativas en c
 
 ## Documentación relacionada
 
-| Documento | Contenido |
-|-----------|-----------|
-| [README.md](./README.md) | Visión general del proyecto, stack, instalación básica |
-| [ROADMAP.md](./ROADMAP.md) | Hoja de ruta técnica, fases, riesgos, quick wins |
-| [ANALYSIS.md](./ANALYSIS.md) | Análisis técnica completa del repositorio |
-| [STATUS.md](./STATUS.md) | Estado actual del proyecto (última sesión) |
-| [CHANGELOG.md](./CHANGELOG.md) | Registro de cambios por sesión |
-| [docs/index.md](./docs/index.md) | Documentación del proyecto |
-| [docs/api.md](./docs/api.md) | Documentación de la API REST |
+| Documento                        | Contenido                                              |
+| -------------------------------- | ------------------------------------------------------ |
+| [README.md](./README.md)         | Visión general del proyecto, stack, instalación básica |
+| [ROADMAP.md](./ROADMAP.md)       | Hoja de ruta técnica, fases, riesgos, quick wins       |
+| [ANALYSIS.md](./ANALYSIS.md)     | Análisis técnica completa del repositorio              |
+| [STATUS.md](./STATUS.md)         | Estado actual del proyecto (última sesión)             |
+| [CHANGELOG.md](./CHANGELOG.md)   | Registro de cambios por sesión                         |
+| [docs/index.md](./docs/index.md) | Documentación del proyecto                             |
+| [docs/api.md](./docs/api.md)     | Documentación de la API REST                           |
 
 ---
 

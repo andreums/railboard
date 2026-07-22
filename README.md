@@ -3,16 +3,19 @@
 Aplicación web para paneles informativos de estaciones de tren, con display público en tiempo real y panel de administración.
 
 **Stack**
+
 - **Frontend:** React 18 + TypeScript + Vite + Tailwind CSS
 - **Backend:** Node.js + Express + SQLite (better-sqlite3) + WebSocket
 - **Comunicación:** REST API + WebSocket para actualizaciones en tiempo real
 
 **Estructura**
+
 - **frontend/**: Aplicación React SPA (código en `frontend/src/`).
 - **backend/**: Servidor Express + SQLite (código en `backend/src/`).
 - **docs/**: Documentación del proyecto — ver [docs/index.md](docs/index.md#L1-L42) y [docs/api.md](docs/api.md).
 
 **Páginas principales**
+
 - **/**: `Display` — Panel público de llegadas/salidas.
 - **/admin**: `Admin` — Configuración de estación y lugares.
 - **/trains**: `Trains` — Gestión de trenes (drag & drop).
@@ -62,10 +65,12 @@ npm start
 ```
 
 **API y WebSocket**
+
 - Ver la documentación de la API en [docs/api.md](docs/api.md).
 - Implementación del servidor WebSocket: [backend/src/ws.js](backend/src/ws.js).
 
 **Archivos clave**
+
 - Punto de entrada backend: [backend/src/index.js](backend/src/index.js)
 - Esquema y acceso a datos: [backend/src/db.js](backend/src/db.js)
 - Rutas y lógica: [backend/src/routes.js](backend/src/routes.js)
@@ -73,17 +78,22 @@ npm start
 - SPA: [frontend/src/main.tsx](frontend/src/main.tsx)
 
 **Contribuir**
+
 - Crea un fork/branch, haz commits claros y abre un pull request.
 - Añade tests o pasos de verificación si introduces cambios funcionales.
 
 **Repositorio remoto**
+
 - Remote origin configurado: https://github.com/andreums/railboard.git
 
 **Licencia**
+
 - No indicada en el repositorio. Añade un fichero `LICENSE` si quieres especificarla.
 
 ---
+
 Para más detalles y decisiones arquitectónicas, consulta la carpeta `docs/`.
+
 # RailBoard — Model Railway Departure Board
 
 A local-first web app that simulates a modern Spanish-style railway station
@@ -166,34 +176,34 @@ npm run dev      # http://localhost:5173
 
 Open:
 
-- **Public display** — http://localhost:5173/  (press F11 for fullscreen)
-- **Admin panel**   — http://localhost:5173/admin
+- **Public display** — http://localhost:5173/ (press F11 for fullscreen)
+- **Admin panel** — http://localhost:5173/admin
 
 The frontend talks to the backend via `VITE_API_URL` (defaults to
 `http://localhost:4000`). Set it in `frontend/.env` if you change the port.
 
 ## REST API (summary)
 
-| Method | Path                       | Purpose                       |
-| ------ | -------------------------- | ----------------------------- |
-| GET    | /api/config                | Get station config            |
-| PUT    | /api/config                | Update station config         |
-| GET    | /api/trains                | List trains                   |
-| POST   | /api/trains                | Create train                  |
-| PUT    | /api/trains/:id            | Update train                  |
-| PATCH  | /api/trains/:id/status     | Change status                 |
-| PATCH  | /api/trains/:id/delay      | Add delay (minutes)           |
-| PATCH  | /api/trains/:id/platform   | Change platform / sector      |
-| DELETE | /api/trains/:id            | Delete train                  |
-| GET    | /api/operators             | List operators                |
-| POST   | /api/operators             | Create operator (multipart)   |
-| DELETE | /api/operators/:id         | Delete operator               |
-| GET    | /api/train-types           | List train types              |
-| POST   | /api/train-types           | Create train type (multipart) |
-| DELETE | /api/train-types/:id       | Delete train type             |
-| GET    | /api/places                | List places                   |
-| POST   | /api/places                | Create place                  |
-| DELETE | /api/places/:id            | Delete place                  |
+| Method | Path                     | Purpose                       |
+| ------ | ------------------------ | ----------------------------- |
+| GET    | /api/config              | Get station config            |
+| PUT    | /api/config              | Update station config         |
+| GET    | /api/trains              | List trains                   |
+| POST   | /api/trains              | Create train                  |
+| PUT    | /api/trains/:id          | Update train                  |
+| PATCH  | /api/trains/:id/status   | Change status                 |
+| PATCH  | /api/trains/:id/delay    | Add delay (minutes)           |
+| PATCH  | /api/trains/:id/platform | Change platform / sector      |
+| DELETE | /api/trains/:id          | Delete train                  |
+| GET    | /api/operators           | List operators                |
+| POST   | /api/operators           | Create operator (multipart)   |
+| DELETE | /api/operators/:id       | Delete operator               |
+| GET    | /api/train-types         | List train types              |
+| POST   | /api/train-types         | Create train type (multipart) |
+| DELETE | /api/train-types/:id     | Delete train type             |
+| GET    | /api/places              | List places                   |
+| POST   | /api/places              | Create place                  |
+| DELETE | /api/places/:id          | Delete place                  |
 
 All mutations broadcast `{ type: "update" }` over the WebSocket so the
 public display refreshes immediately.
@@ -201,5 +211,7 @@ public display refreshes immediately.
 ## License
 
 MIT — have fun at your event.
+
 # railboard
+
 A small hobby web app for managing railway station display boards in model railway setups.

@@ -8,10 +8,11 @@ const STATIONS = [
   { name: "Bilbao Abando", short: "Bilbao", color: "#264653" },
 ];
 
-const normalize = (v) => String(v || "")
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .toLowerCase();
+const normalize = (v) =>
+  String(v || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
 
 const stationByNeedle = [
   { needle: "madrid", stationName: "Madrid Puerta de Atocha" },
@@ -83,7 +84,9 @@ function report(stationRows) {
   for (const tr of trains) counts.set(tr.station_id, (counts.get(tr.station_id) || 0) + 1);
 
   console.log("\n✅ Configuración multiestación aplicada\n");
-  for (const st of stationRows.filter((s) => STATIONS.some((cfg) => normalize(cfg.name) === normalize(s.name))).sort((a, b) => a.sort_order - b.sort_order)) {
+  for (const st of stationRows
+    .filter((s) => STATIONS.some((cfg) => normalize(cfg.name) === normalize(s.name)))
+    .sort((a, b) => a.sort_order - b.sort_order)) {
     const count = counts.get(st.id) || 0;
     console.log(`- [${st.id}] ${st.name} (${st.short}) -> ${count} trenes`);
     console.log(`  Display: http://localhost:5173/display/${st.id}`);

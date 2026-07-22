@@ -24,18 +24,23 @@ backend/
 ### Tablas
 
 **config** — Pares clave-valor de configuración.
+
 - `key` (TEXT, PK), `value` (TEXT)
 
 **operators** — Operadores ferroviarios.
+
 - `id` (INTEGER, PK), `name` (TEXT, UNIQUE), `logo_url` (TEXT)
 
 **train_types** — Tipos de tren (AVE, Cercanías, etc.).
+
 - `id` (INTEGER, PK), `code` (TEXT, UNIQUE), `name` (TEXT), `color` (TEXT), `logo_url` (TEXT)
 
 **places** — Estaciones/lugares.
+
 - `id` (INTEGER, PK), `name` (TEXT, UNIQUE), `logo_url` (TEXT)
 
 **trains** — Trenes en el panel.
+
 - `id` (INTEGER, PK), `number` (TEXT), `operator_id` (FK→operators), `train_type_id` (FK→train_types)
 - `origin`, `destination`, `stops` (JSON TEXT)
 - `scheduled_time`, `expected_time` (HH:MM)
@@ -57,15 +62,15 @@ Se ejecutan automáticamente al iniciar (`db.js`). Detecta columnas faltantes v�
 
 Ver `api.md` para el detalle completo de endpoints. Principales:
 
-| Grupo | Endpoints |
-|-------|-----------|
-| Config | GET, PUT `/api/config` |
-| Trains | GET, POST, PUT, DELETE `/api/trains` |
-| Operadores | GET, POST, PUT, DELETE `/api/operators` |
-| Tipos | GET, POST, PUT, DELETE `/api/train-types` |
-| Lugares | GET, POST, PUT, DELETE `/api/places` |
+| Grupo      | Endpoints                                        |
+| ---------- | ------------------------------------------------ |
+| Config     | GET, PUT `/api/config`                           |
+| Trains     | GET, POST, PUT, DELETE `/api/trains`             |
+| Operadores | GET, POST, PUT, DELETE `/api/operators`          |
+| Tipos      | GET, POST, PUT, DELETE `/api/train-types`        |
+| Lugares    | GET, POST, PUT, DELETE `/api/places`             |
 | Especiales | `/api/seed-trains`, `/api/generate-random-train` |
-| Health | GET `/health` |
+| Health     | GET `/health`                                    |
 
 ### Archivos estáticos
 
@@ -90,6 +95,7 @@ Servidor WebSocket en la misma conexión HTTP. Los clientes se conectan a `ws://
 ### Generación aleatoria de trenes
 
 `POST /api/generate-random-train` usa 15 rutas Rodalia predefinidas con:
+
 - Selección aleatoria de ruta, operador y tipo
 - Generación realista de número de tren
 - Probabilidad de retraso/cancelación según tipo (AVE 5%, Cercanías 20%)
@@ -102,8 +108,8 @@ Servidor WebSocket en la misma conexión HTTP. Los clientes se conectan a `ws://
 
 ## Scripts
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Servidor con `--watch` (reinicio automático) |
-| `npm start` | Servidor producción |
-| `npm run seed` | Pobla BD con datos demo |
+| Comando        | Descripción                                  |
+| -------------- | -------------------------------------------- |
+| `npm run dev`  | Servidor con `--watch` (reinicio automático) |
+| `npm start`    | Servidor producción                          |
+| `npm run seed` | Pobla BD con datos demo                      |

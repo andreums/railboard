@@ -115,7 +115,7 @@
 - **Categoría:** Deuda de observabilidad
 - **Componente afectado:** Todo el proyecto (backend)
 - **Descripción:** Se utiliza `console.log` y `console.error` sin ninguna estructura, niveles, o formato. No hay una librería de logging, ni logs rotativos, ni correlación de peticiones.
-- **Evidencia:** Ocurrencias de `console.log` en `backend/src/routes.js` (línea 88 por ejemplo: `console.log(\`rateLimit max=${rateLimitMax}...\`)`), `backend/src/index.js` líneas 86-88, `backend/src/seed.js` líneas 69, 206.
+- **Evidencia:** Ocurrencias de `console.log` en `backend/src/routes.js` (línea 88 por ejemplo: `console.log(\`rateLimit max=${rateLimitMax}...\`)`), `backend/src/index.js`líneas 86-88,`backend/src/seed.js` líneas 69, 206.
 - **Origen:** Falta de infraestructura de observabilidad.
 - **Impacto actual:** Difícil depurar errores en producción. Sin trazabilidad.
 - **Riesgo futuro:** Imposibilidad de diagnosticar problemas complejos.
@@ -196,19 +196,19 @@
 
 ## Matriz de Priorización
 
-| ID | Deuda | Severidad | Esfuerzo | Prio | Justificación |
-|----|-------|-----------|----------|------|---------------|
-| DT-001 | Admin.tsx monolítico | Crítica | L | 1 | Bloquea el desarrollo, revisiones lentas, regresiones frecuentes |
-| DT-005 | Sin tests frontend | Crítica | XL | 1 | Sin red de seguridad; riesgo alto de regresión en cada cambio |
-| DT-007 | Auth básica HTTP | Crítica | S | 2 | Credenciales en claro, contraseña por defecto conocida |
-| DT-010 | Sin backup DB | Crítica | XS | 2 | Pérdida total de datos posible |
-| DT-002 | routes.js monolítico | Alta | M | 3 | Testing difícil, modificaciones arriesgadas |
-| DT-008 | Upload sin validación | Alta | XS | 3 | Potencial RCE por contenido malicioso |
-| DT-003 | Migraciones inline | Media | S | 4 | Dos fuentes de verdad para el esquema |
-| DT-009 | Logs no estructurados | Media | XS | 4 | Sin observabilidad en producción |
-| DT-012 | Sin gestor de estado | Media | M | 4 | Rendimiento degradado, re-fetches innecesarios |
-| DT-014 | SW sin versionado | Baja | S | 5 | Cache obsoleta, bajo impacto |
-| DT-006 | Sin linting/format | Media | XS | 5 | Inconsistencias de estilo, sin calidad de código |
-| DT-004 | Tipos duplicados | Baja | XS | 6 | Riesgo de divergencia, baja probabilidad |
-| DT-011 | Valores mágicos | Baja | XS | 6 | Errores sutiles, bajo impacto |
-| DT-013 | routeService.ts código muerto | Baja | XS | 6 | Confusión, no afecta el funcionamiento |
+| ID     | Deuda                         | Severidad | Esfuerzo | Prio | Justificación                                                    |
+| ------ | ----------------------------- | --------- | -------- | ---- | ---------------------------------------------------------------- |
+| DT-001 | Admin.tsx monolítico          | Crítica   | L        | 1    | Bloquea el desarrollo, revisiones lentas, regresiones frecuentes |
+| DT-005 | Sin tests frontend            | Crítica   | XL       | 1    | Sin red de seguridad; riesgo alto de regresión en cada cambio    |
+| DT-007 | Auth básica HTTP              | Crítica   | S        | 2    | Credenciales en claro, contraseña por defecto conocida           |
+| DT-010 | Sin backup DB                 | Crítica   | XS       | 2    | Pérdida total de datos posible                                   |
+| DT-002 | routes.js monolítico          | Alta      | M        | 3    | Testing difícil, modificaciones arriesgadas                      |
+| DT-008 | Upload sin validación         | Alta      | XS       | 3    | Potencial RCE por contenido malicioso                            |
+| DT-003 | Migraciones inline            | Media     | S        | 4    | Dos fuentes de verdad para el esquema                            |
+| DT-009 | Logs no estructurados         | Media     | XS       | 4    | Sin observabilidad en producción                                 |
+| DT-012 | Sin gestor de estado          | Media     | M        | 4    | Rendimiento degradado, re-fetches innecesarios                   |
+| DT-014 | SW sin versionado             | Baja      | S        | 5    | Cache obsoleta, bajo impacto                                     |
+| DT-006 | Sin linting/format            | Media     | XS       | 5    | Inconsistencias de estilo, sin calidad de código                 |
+| DT-004 | Tipos duplicados              | Baja      | XS       | 6    | Riesgo de divergencia, baja probabilidad                         |
+| DT-011 | Valores mágicos               | Baja      | XS       | 6    | Errores sutiles, bajo impacto                                    |
+| DT-013 | routeService.ts código muerto | Baja      | XS       | 6    | Confusión, no afecta el funcionamiento                           |

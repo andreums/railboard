@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
-import { announceTrain } from "../lib/tts";
+import { announceTrain, getAnnouncementTemplate } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
@@ -38,9 +38,7 @@ const formatPlatform = (train: Train) => {
   if (!platform && !sector) return "—";
   if (!platform) return `Sector ${sector}`;
   if (!sector) return platform;
-  return /^\d+$/.test(platform) && /^\d+$/.test(sector)
-    ? `${platform}-${sector}`
-    : `${platform}${sector}`;
+  return /^\d+$/.test(platform) && /^\d+$/.test(sector) ? `${platform}-${sector}` : `${platform}${sector}`;
 };
 
 export default function DisplayConfigPage() {
@@ -104,11 +102,10 @@ export default function DisplayConfigPage() {
 
   const displayedStation = current?.station || null;
   const displayedConfig = localConfig || current?.config || null;
-  const displayName = stationNameDraft.trim() || displayedConfig?.station_name?.trim() || displayedStation?.short || displayedStation?.name || "—";
+  const displayName =
+    stationNameDraft.trim() || displayedConfig?.station_name?.trim() || displayedStation?.short || displayedStation?.name || "—";
   const displayedLanguages = useMemo(() => {
-    const langs = displayedConfig?.languages?.length
-      ? displayedConfig.languages
-      : [(displayedConfig?.language as Language) ?? "es"];
+    const langs = displayedConfig?.languages?.length ? displayedConfig.languages : [(displayedConfig?.language as Language) ?? "es"];
     return Array.from(new Set(langs.map((language) => language as Language))).filter(Boolean);
   }, [displayedConfig]);
   const displayPlatformOptions = buildPlatformOptions(displayedConfig, []);
@@ -132,9 +129,7 @@ export default function DisplayConfigPage() {
   };
 
   const toggleDisplayLanguage = (language: Language, checked: boolean) => {
-    const next = checked
-      ? Array.from(new Set([...displayedLanguages, language]))
-      : displayedLanguages.filter((item) => item !== language);
+    const next = checked ? Array.from(new Set([...displayedLanguages, language])) : displayedLanguages.filter((item) => item !== language);
     setDisplayLanguages(next.length ? next : [language]);
   };
 
@@ -211,13 +206,26 @@ export default function DisplayConfigPage() {
     if (!displayedStation || !displayedConfig) return;
     try {
       setAnnouncingId(train.id);
-      announceTrain(
-        train as any,
-        {
-          ...(globalConfig || {}),
-          ...(displayedConfig || {}),
-        }
-      );
+      announceTrain(train as any, {
+        ...(globalConfig || {}),
+        ...(displayedConfig || {}),
+      });
+    } finally {
+      window.setTimeout(() => setAnnouncingId((current) => (current === train.id ? null : current)), 1000);
+    }
+  };
+
+  const announceRowWithStops = async (train: Train) => {
+    if (!displayedStation || !displayedConfig) return;
+    try {
+      setAnnouncingId(train.id);
+      const mergedConfig = { ...(globalConfig || {}), ...(displayedConfig || {}) };
+      const mode = mergedConfig.mode === "arrivals" ? "arrivals" : "departures";
+      const baseTemplate = train.type_announce_template || getAnnouncementTemplate(mergedConfig, mode);
+      const stopsSuffix = train.stops?.length
+        ? ` ${{ es: "Paradas", ca: "Parades", en: "Stops", fr: "Arrêts", eu: "Geldialdiak", gl: "Paradas" }[mergedConfig.language as string] || "Paradas"}: ${train.stops.join(", ")}.`
+        : "";
+      announceTrain(train as any, mergedConfig, baseTemplate + stopsSuffix);
     } finally {
       window.setTimeout(() => setAnnouncingId((current) => (current === train.id ? null : current)), 1000);
     }
@@ -247,7 +255,7 @@ export default function DisplayConfigPage() {
             observations: "",
             status: "Scheduled",
             station_id: displayedStation.id,
-          }
+          },
     );
     setEditingStopsText((train?.stops || []).join("\n"));
   };
@@ -279,12 +287,14 @@ export default function DisplayConfigPage() {
     }
   };
 
-  const modalPlatformOptions = editingTrain?.platform && !displayPlatformOptions.includes(editingTrain.platform)
-    ? [...displayPlatformOptions, editingTrain.platform]
-    : displayPlatformOptions;
-  const modalSectorOptions = editingTrain?.sector && !displaySectorOptions.includes(editingTrain.sector)
-    ? [...displaySectorOptions, editingTrain.sector]
-    : displaySectorOptions;
+  const modalPlatformOptions =
+    editingTrain?.platform && !displayPlatformOptions.includes(editingTrain.platform)
+      ? [...displayPlatformOptions, editingTrain.platform]
+      : displayPlatformOptions;
+  const modalSectorOptions =
+    editingTrain?.sector && !displaySectorOptions.includes(editingTrain.sector)
+      ? [...displaySectorOptions, editingTrain.sector]
+      : displaySectorOptions;
 
   if (loading) {
     return (
@@ -340,7 +350,10 @@ export default function DisplayConfigPage() {
               <p className="text-slate-400">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleAddDisplay} className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition">
+              <button
+                onClick={handleAddDisplay}
+                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition"
+              >
                 + Añadir display
               </button>
               <Link to="/admin" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
@@ -361,7 +374,12 @@ export default function DisplayConfigPage() {
                     <p className="text-sm text-slate-400">{display.station.name}</p>
                   </div>
                   {display.station.logo_url && (
-                    <img src={fileUrl(display.station.logo_url)!} alt={display.station.name} className="w-10 h-10 object-contain" onError={(e) => handleImgError(e, display.station.name)} />
+                    <img
+                      src={fileUrl(display.station.logo_url)!}
+                      alt={display.station.name}
+                      className="w-10 h-10 object-contain"
+                      onError={(e) => handleImgError(e, display.station.name)}
+                    />
                   )}
                 </div>
                 <div className="mt-4 text-sm text-slate-300">
@@ -396,7 +414,12 @@ export default function DisplayConfigPage() {
           <div>
             <div className="flex items-center gap-3">
               {displayedStation.logo_url && (
-                <img src={fileUrl(displayedStation.logo_url)!} alt={displayedStation.name} className="w-10 h-10 object-contain" onError={(e) => handleImgError(e, displayedStation.name)} />
+                <img
+                  src={fileUrl(displayedStation.logo_url)!}
+                  alt={displayedStation.name}
+                  className="w-10 h-10 object-contain"
+                  onError={(e) => handleImgError(e, displayedStation.name)}
+                />
               )}
               <div>
                 <h1 className="text-2xl font-bold">{displayName}</h1>
@@ -429,9 +452,7 @@ export default function DisplayConfigPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.id
-                    ? "bg-amber-500 text-black"
-                    : "bg-transparent text-slate-300 hover:bg-white/10"
+                  activeTab === tab.id ? "bg-amber-500 text-black" : "bg-transparent text-slate-300 hover:bg-white/10"
                 }`}
               >
                 {tab.label}
@@ -444,350 +465,446 @@ export default function DisplayConfigPage() {
           {activeTab === "config" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold">Configuración del display</h2>
-                <p className="text-sm text-slate-400">La configuración se guarda de forma independiente para esta estación.</p>
-                <p className="text-xs text-amber-300 mt-1">
-                  Modo global: {displayMode === "single" ? "solo un display" : "múltiples displays"}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Link
-                  to={`/display/${displayedStation.id}`}
-                  target="_blank"
-                  className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10"
-                >
-                  Ver display
-                </Link>
-                <button
-                  onClick={save}
-                  disabled={saving || busy}
-                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
-                >
-                  {saving ? "Guardando..." : "Guardar"}
-                </button>
-              </div>
-            </div>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h2 className="text-lg sm:text-xl font-bold">Configuración del display</h2>
+                    <p className="text-sm text-slate-400">La configuración se guarda de forma independiente para esta estación.</p>
+                    <p className="text-xs text-amber-300 mt-1">
+                      Modo global: {displayMode === "single" ? "solo un display" : "múltiples displays"}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Link
+                      to={`/display/${displayedStation.id}`}
+                      target="_blank"
+                      className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10"
+                    >
+                      Ver display
+                    </Link>
+                    <button
+                      onClick={save}
+                      disabled={saving || busy}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                    >
+                      {saving ? "Guardando..." : "Guardar"}
+                    </button>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre de la estación</label>
-                <input
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={stationNameDraft}
-                  onChange={(e) => setStationNameDraft(e.target.value)}
-                />
-                <p className="mt-1 text-[11px] text-slate-400">Este es el unico nombre del display y se sincroniza con la base de datos.</p>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Modo</label>
-                <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.mode || "departures"} onChange={(e) => update({ mode: e.target.value as Config["mode"] })}>
-                  <option value="departures">Salidas</option>
-                  <option value="arrivals">Llegadas</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Región / ciudad</label>
-                <select
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={displayedConfig?.routeRegion || ""}
-                  onChange={(e) => update({ routeRegion: e.target.value })}
-                >
-                  <option value="">Todas las regiones</option>
-                  {routeRegions.map((region) => (
-                    <option key={region} value={region}>
-                      {region}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idiomas</label>
-                <div className="flex flex-wrap gap-2 mb-3">
-                  {displayedLanguages.map((language) => (
-                    <span key={language} className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 border border-amber-300/30 px-3 py-1 text-xs font-semibold text-amber-200">
-                      {LANGUAGES[language]}
-                    </span>
-                  ))}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre de la estación</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={stationNameDraft}
+                      onChange={(e) => setStationNameDraft(e.target.value)}
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Este es el unico nombre del display y se sincroniza con la base de datos.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Modo</label>
+                    <select
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.mode || "departures"}
+                      onChange={(e) => update({ mode: e.target.value as Config["mode"] })}
+                    >
+                      <option value="departures">Salidas</option>
+                      <option value="arrivals">Llegadas</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Región / ciudad</label>
+                    <select
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.routeRegion || ""}
+                      onChange={(e) => update({ routeRegion: e.target.value })}
+                    >
+                      <option value="">Todas las regiones</option>
+                      {routeRegions.map((region) => (
+                        <option key={region} value={region}>
+                          {region}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idiomas</label>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {displayedLanguages.map((language) => (
+                        <span
+                          key={language}
+                          className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 border border-amber-300/30 px-3 py-1 text-xs font-semibold text-amber-200"
+                        >
+                          {LANGUAGES[language]}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {Object.entries(LANGUAGES).map(([code, name]) => {
+                        const language = code as Language;
+                        const active = displayedLanguages.includes(language);
+                        return (
+                          <label
+                            key={code}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${active ? "border-amber-400/60 bg-amber-400/10 text-white" : "border-white/10 bg-black/30 text-slate-300 hover:bg-white/5"}`}
+                          >
+                            <input type="checkbox" checked={active} onChange={(e) => toggleDisplayLanguage(language, e.target.checked)} />
+                            <span>{name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-2">
+                      El primer idioma es el principal. Los anuncios y las voces pueden usar cualquiera de los idiomas seleccionados.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Logo URL</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.logo_url || ""}
+                      onChange={(e) => update({ logo_url: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {Object.entries(LANGUAGES).map(([code, name]) => {
-                    const language = code as Language;
-                    const active = displayedLanguages.includes(language);
-                    return (
-                      <label
-                        key={code}
-                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${active ? "border-amber-400/60 bg-amber-400/10 text-white" : "border-white/10 bg-black/30 text-slate-300 hover:bg-white/5"}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={(e) => toggleDisplayLanguage(language, e.target.checked)}
-                        />
-                        <span>{name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                <p className="text-xs text-slate-400 mt-2">El primer idioma es el principal. Los anuncios y las voces pueden usar cualquiera de los idiomas seleccionados.</p>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Logo URL</label>
-                <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.logo_url || ""} onChange={(e) => update({ logo_url: e.target.value })} />
-              </div>
-            </div>
-          </div>
-          </section>
+            </section>
           )}
 
           {activeTab === "platforms" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-            <h3 className="text-lg font-bold mb-4">Vías y sectores</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía mínima</label>
-                <input
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={displayedConfig?.platformMin || "1"}
-                  onChange={(e) => update({ platformMin: e.target.value })}
-                />
+                <h3 className="text-lg font-bold mb-4">Vías y sectores</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía mínima</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.platformMin || "1"}
+                      onChange={(e) => update({ platformMin: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía máxima</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.platformMax || "8"}
+                      onChange={(e) => update({ platformMax: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={displayedConfig?.platformAllowEmpty !== false}
+                      onChange={(e) => update({ platformAllowEmpty: e.target.checked })}
+                    />
+                    Permitir sin vía
+                  </label>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector mínimo</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.sectorMin || "A"}
+                      onChange={(e) => update({ sectorMin: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector máximo</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.sectorMax || "D"}
+                      onChange={(e) => update({ sectorMax: e.target.value })}
+                    />
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={displayedConfig?.sectorAllowEmpty !== false}
+                      onChange={(e) => update({ sectorAllowEmpty: e.target.checked })}
+                    />
+                    Permitir sin sector
+                  </label>
+                  <label className="flex items-center gap-3 text-slate-100 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={displayedConfig?.showDestinationIcon !== false}
+                      onChange={(e) => update({ showDestinationIcon: e.target.checked })}
+                    />
+                    Mostrar icono antes del destino
+                  </label>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía máxima</label>
-                <input
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={displayedConfig?.platformMax || "8"}
-                  onChange={(e) => update({ platformMax: e.target.value })}
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={displayedConfig?.platformAllowEmpty !== false}
-                  onChange={(e) => update({ platformAllowEmpty: e.target.checked })}
-                />
-                Permitir sin vía
-              </label>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector mínimo</label>
-                <input
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={displayedConfig?.sectorMin || "A"}
-                  onChange={(e) => update({ sectorMin: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector máximo</label>
-                <input
-                  className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
-                  value={displayedConfig?.sectorMax || "D"}
-                  onChange={(e) => update({ sectorMax: e.target.value })}
-                />
-              </div>
-              <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
-                <input
-                  type="checkbox"
-                  checked={displayedConfig?.sectorAllowEmpty !== false}
-                  onChange={(e) => update({ sectorAllowEmpty: e.target.checked })}
-                />
-                Permitir sin sector
-              </label>
-              <label className="flex items-center gap-3 text-slate-100 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={displayedConfig?.showDestinationIcon !== false}
-                  onChange={(e) => update({ showDestinationIcon: e.target.checked })}
-                />
-                Mostrar icono antes del destino
-              </label>
-            </div>
-          </div>
-          </section>
+            </section>
           )}
 
           {activeTab === "style" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
               <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-            <h3 className="text-lg font-bold mb-4">Estilo y reloj</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fondo</label>
-                <input type="color" className="w-full bg-black/40 rounded-lg px-2 py-1 h-10" value={displayedConfig?.bgColor || "#050a14"} onChange={(e) => update({ bgColor: e.target.value })} />
+                <h3 className="text-lg font-bold mb-4">Estilo y reloj</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fondo</label>
+                    <input
+                      type="color"
+                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      value={displayedConfig?.bgColor || "#050a14"}
+                      onChange={(e) => update({ bgColor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Cabecera</label>
+                    <input
+                      type="color"
+                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      value={displayedConfig?.headerBgColor || "#BFEFD5"}
+                      onChange={(e) => update({ headerBgColor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Texto cabecera</label>
+                    <input
+                      type="color"
+                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      value={displayedConfig?.headerTextColor || "#102341"}
+                      onChange={(e) => update({ headerTextColor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila principal</label>
+                    <input
+                      type="color"
+                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      value={displayedConfig?.rowBgColor || "#1A3254"}
+                      onChange={(e) => update({ rowBgColor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila alterna</label>
+                    <input
+                      type="color"
+                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      value={displayedConfig?.altBgColor || "#102341"}
+                      onChange={(e) => update({ altBgColor: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Reloj</label>
+                    <select
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.clockMode || "real"}
+                      onChange={(e) => update({ clockMode: e.target.value as Config["clockMode"] })}
+                    >
+                      <option value="real">Sistema</option>
+                      <option value="fake">Ficticio</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Hora ficticia</label>
+                    <input
+                      type="time"
+                      step="1"
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.clockFakeTime || "12:00:00"}
+                      onChange={(e) => update({ clockFakeTime: e.target.value })}
+                      disabled={(displayedConfig?.clockMode || "real") !== "fake"}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Avance</label>
+                    <select
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.clockFakeStepSeconds || "1"}
+                      onChange={(e) => update({ clockFakeStepSeconds: e.target.value })}
+                      disabled={(displayedConfig?.clockMode || "real") !== "fake"}
+                    >
+                      {["1", "2", "5", "10", "15"].map((seconds) => (
+                        <option key={seconds} value={seconds}>
+                          {seconds}s / segundo
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Pie</label>
+                    <input
+                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      value={displayedConfig?.footerText || ""}
+                      onChange={(e) => update({ footerText: e.target.value })}
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Cabecera</label>
-                <input type="color" className="w-full bg-black/40 rounded-lg px-2 py-1 h-10" value={displayedConfig?.headerBgColor || "#BFEFD5"} onChange={(e) => update({ headerBgColor: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Texto cabecera</label>
-                <input type="color" className="w-full bg-black/40 rounded-lg px-2 py-1 h-10" value={displayedConfig?.headerTextColor || "#102341"} onChange={(e) => update({ headerTextColor: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila principal</label>
-                <input type="color" className="w-full bg-black/40 rounded-lg px-2 py-1 h-10" value={displayedConfig?.rowBgColor || "#1A3254"} onChange={(e) => update({ rowBgColor: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila alterna</label>
-                <input type="color" className="w-full bg-black/40 rounded-lg px-2 py-1 h-10" value={displayedConfig?.altBgColor || "#102341"} onChange={(e) => update({ altBgColor: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Reloj</label>
-                <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.clockMode || "real"} onChange={(e) => update({ clockMode: e.target.value as Config["clockMode"] })}>
-                  <option value="real">Sistema</option>
-                  <option value="fake">Ficticio</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Hora ficticia</label>
-                <input type="time" step="1" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.clockFakeTime || "12:00:00"} onChange={(e) => update({ clockFakeTime: e.target.value })} disabled={(displayedConfig?.clockMode || "real") !== "fake"} />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Avance</label>
-                <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.clockFakeStepSeconds || "1"} onChange={(e) => update({ clockFakeStepSeconds: e.target.value })} disabled={(displayedConfig?.clockMode || "real") !== "fake"}>
-                  {["1", "2", "5", "10", "15"].map((seconds) => (
-                    <option key={seconds} value={seconds}>{seconds}s / segundo</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Pie</label>
-                <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={displayedConfig?.footerText || ""} onChange={(e) => update({ footerText: e.target.value })} />
-              </div>
-            </div>
-          </div>
-          </section>
+            </section>
           )}
 
           {activeTab === "trains" && (
             <section className="space-y-4 h-full overflow-hidden">
               <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-full flex flex-col min-h-0">
-            <div className="flex items-center justify-between gap-3 mb-4">
-              <div>
-                <h3 className="text-lg font-bold">Trenes del display</h3>
-                <p className="text-sm text-slate-400">{trains.length} trenes asociados</p>
-              </div>
-              <div className="flex flex-wrap gap-2 justify-end">
-                <button onClick={() => openTrainEditor()} disabled={busy || trainSaving} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60">
-                  Añadir tren
-                </button>
-                <button onClick={generateTrain} disabled={busy} className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-60">
-                  Generar
-                </button>
-                <button onClick={exportTrains} disabled={busy} className="px-4 py-2 rounded-lg border border-white/10 text-slate-200 hover:bg-white/10 font-semibold disabled:opacity-60">
-                  Exportar trenes
-                </button>
-                <button onClick={clearTrains} disabled={busy} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-60">
-                  Vaciar
-                </button>
-              </div>
-            </div>
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold">Trenes del display</h3>
+                    <p className="text-sm text-slate-400">{trains.length} trenes asociados</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <button
+                      onClick={() => openTrainEditor()}
+                      disabled={busy || trainSaving}
+                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                    >
+                      Añadir tren
+                    </button>
+                    <button
+                      onClick={generateTrain}
+                      disabled={busy}
+                      className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-60"
+                    >
+                      Generar
+                    </button>
+                    <button
+                      onClick={exportTrains}
+                      disabled={busy}
+                      className="px-4 py-2 rounded-lg border border-white/10 text-slate-200 hover:bg-white/10 font-semibold disabled:opacity-60"
+                    >
+                      Exportar trenes
+                    </button>
+                    <button
+                      onClick={clearTrains}
+                      disabled={busy}
+                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-60"
+                    >
+                      Vaciar
+                    </button>
+                  </div>
+                </div>
 
-            {trains.length === 0 ? (
-              <div className="text-slate-400 text-sm py-4">No hay trenes para este display.</div>
-            ) : (
-              <div className="overflow-auto rounded-xl border border-white/10 flex-1 min-h-0">
-                <table className="w-full text-[13px]">
-                  <thead className="bg-black/30 border-b border-white/10 sticky top-0 z-10">
-                    <tr className="text-xs uppercase tracking-wide text-slate-400">
-                      <th className="text-left py-2 px-3">Hora</th>
-                      <th className="text-left py-2 px-3">Número</th>
-                      <th className="text-left py-2 px-3">Tipo</th>
-                      <th className="text-left py-2 px-3">Operador</th>
-                      <th className="text-left py-2 px-3">Destino</th>
-                      <th className="text-left py-2 px-3">Vía</th>
-                      <th className="text-center py-2 px-3">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5 text-sm">
-                    {trains.map((train) => (
-                      <tr key={train.id} className="hover:bg-white/5 transition">
-                        <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-200">
-                          <div className="flex flex-col gap-0.5">
-                            <div className="font-semibold text-xs">{train.scheduled_time}</div>
-                            {train.expected_time !== train.scheduled_time && (
-                              <div className="text-xs text-green-300">Est. {train.expected_time}</div>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 font-mono text-amber-300 font-semibold whitespace-nowrap">
-                          {train.number}
-                        </td>
-                        <td className="py-2 px-3 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5">
-                            {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                              <img src="https://info.adif.es/recursos/C01CERMAD.png?v=12" alt="Cercanías" style={{ height: "1.22em", width: "auto", flexShrink: 0, objectFit: "contain" }} onError={(e) => handleImgError(e, "Cercanías")} />
-                            )}
-                            {train.type_color ? (
+                {trains.length === 0 ? (
+                  <div className="text-slate-400 text-sm py-4">No hay trenes para este display.</div>
+                ) : (
+                  <div className="overflow-auto rounded-xl border border-white/10 flex-1 min-h-0">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-black/30 border-b border-white/10 sticky top-0 z-10">
+                        <tr className="text-xs uppercase tracking-wide text-slate-400">
+                          <th className="text-left py-2 px-3">Hora</th>
+                          <th className="text-left py-2 px-3">Número</th>
+                          <th className="text-left py-2 px-3">Tipo</th>
+                          <th className="text-left py-2 px-3">Operador</th>
+                          <th className="text-left py-2 px-3">Destino</th>
+                          <th className="text-left py-2 px-3">Vía</th>
+                          <th className="text-center py-2 px-3">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5 text-sm">
+                        {trains.map((train) => (
+                          <tr key={train.id} className="hover:bg-white/5 transition">
+                            <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-200">
+                              <div className="flex flex-col gap-0.5">
+                                <div className="font-semibold text-xs">{train.scheduled_time}</div>
+                                {train.expected_time !== train.scheduled_time && (
+                                  <div className="text-xs text-green-300">Est. {train.expected_time}</div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 font-mono text-amber-300 font-semibold whitespace-nowrap">{train.number}</td>
+                            <td className="py-2 px-3 whitespace-nowrap">
+                              <div className="flex items-center gap-1.5">
+                                {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
+                                  <img
+                                    src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
+                                    alt="Cercanías"
+                                    style={{ height: "1.22em", width: "auto", flexShrink: 0, objectFit: "contain" }}
+                                    onError={(e) => handleImgError(e, "Cercanías")}
+                                  />
+                                )}
+                                {train.type_color ? (
+                                  <span
+                                    className="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold text-white"
+                                    style={{ backgroundColor: train.type_color, minWidth: "3rem" }}
+                                  >
+                                    {train.type_code || "—"}
+                                  </span>
+                                ) : (
+                                  <span className="text-white text-xs">{train.type_code || "—"}</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 text-slate-200 whitespace-nowrap truncate max-w-[8rem]">
+                              {train.operator_name || "—"}
+                            </td>
+                            <td className="py-2 px-3 text-white">
+                              <div className="flex items-center gap-1.5 truncate">
+                                {train.type_destination_icon && (
+                                  <img
+                                    src={fileUrl(train.type_destination_icon) || ""}
+                                    alt=""
+                                    style={{ height: "1em", width: "auto", flexShrink: 0, objectFit: "contain" }}
+                                    onError={(e) => handleImgError(e, train.destination || "Destino")}
+                                  />
+                                )}
+                                <span className="truncate">{train.destination}</span>
+                              </div>
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap">
                               <span
-                                className="inline-flex items-center justify-center rounded px-2 py-0.5 text-xs font-bold text-white"
-                                style={{ backgroundColor: train.type_color, minWidth: "3rem" }}
+                                className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                  train.status === "Departed"
+                                    ? "bg-green-900/50 text-green-200"
+                                    : train.status === "Boarding"
+                                      ? "bg-amber-900/50 text-amber-200"
+                                      : train.status === "Delayed"
+                                        ? "bg-red-900/50 text-red-200"
+                                        : train.status === "Cancelled"
+                                          ? "bg-gray-900/50 text-gray-200"
+                                          : "bg-blue-900/50 text-blue-200"
+                                }`}
                               >
-                                {train.type_code || "—"}
+                                {formatPlatform(train)}
                               </span>
-                            ) : (
-                              <span className="text-white text-xs">{train.type_code || "—"}</span>
-                            )}
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 text-slate-200 whitespace-nowrap truncate max-w-[8rem]">
-                          {train.operator_name || "—"}
-                        </td>
-                        <td className="py-2 px-3 text-white">
-                          <div className="flex items-center gap-1.5 truncate">
-                            {train.type_destination_icon && (
-                              <img src={fileUrl(train.type_destination_icon) || ""} alt="" style={{ height: "1em", width: "auto", flexShrink: 0, objectFit: "contain" }} onError={(e) => handleImgError(e, train.destination || "Destino")} />
-                            )}
-                            <span className="truncate">{train.destination}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 whitespace-nowrap">
-                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                            train.status === "Departed" ? "bg-green-900/50 text-green-200" :
-                            train.status === "Boarding" ? "bg-amber-900/50 text-amber-200" :
-                            train.status === "Delayed" ? "bg-red-900/50 text-red-200" :
-                            train.status === "Cancelled" ? "bg-gray-900/50 text-gray-200" :
-                            "bg-blue-900/50 text-blue-200"
-                          }`}>
-                            {formatPlatform(train)}
-                          </span>
-                        </td>
-                        <td className="py-2 px-3 whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1">
-                            <button
-                              onClick={() => openTrainEditor(train)}
-                              disabled={busy || trainSaving}
-                              className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold disabled:opacity-60"
-                              title="Editar"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              onClick={() => announceRow(train)}
-                              disabled={announcingId === train.id}
-                              className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold disabled:opacity-60"
-                              title="Anunciar"
-                            >
-                              🔊
-                            </button>
-                            <button
-                              onClick={() => deleteTrain(train.id)}
-                              className="px-2 py-1 rounded bg-red-900/50 hover:bg-red-900 text-red-200 text-xs font-semibold"
-                              title="Eliminar"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap">
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  onClick={() => openTrainEditor(train)}
+                                  disabled={busy || trainSaving}
+                                  className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold disabled:opacity-60"
+                                  title="Editar"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  onClick={() => announceRow(train)}
+                                  disabled={announcingId === train.id}
+                                  className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold disabled:opacity-60"
+                                  title="Anunciar"
+                                >
+                                  🔊
+                                </button>
+                                <button
+                                  onClick={() => announceRowWithStops(train)}
+                                  disabled={announcingId === train.id}
+                                  className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold disabled:opacity-60"
+                                  title="Anunciar con paradas"
+                                >
+                                  🎤
+                                </button>
+                                <button
+                                  onClick={() => deleteTrain(train.id)}
+                                  className="px-2 py-1 rounded bg-red-900/50 hover:bg-red-900 text-red-200 text-xs font-semibold"
+                                  title="Eliminar"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          </section>
+            </section>
           )}
 
           {activeTab === "types" && (
@@ -795,52 +912,13 @@ export default function DisplayConfigPage() {
               <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-full flex flex-col">
                 <div className="mb-4">
                   <h3 className="text-lg font-bold">Tipos de tren</h3>
-                  <p className="text-sm text-slate-400">Edita icono para destino por tipo de tren</p>
+                  <p className="text-sm text-slate-400">Configura iconos y anuncios de megafonía por tipo de tren</p>
                 </div>
 
                 <div className="overflow-auto rounded-lg border border-white/10 flex-1 min-h-0">
                   <div className="grid gap-3 p-4">
                     {trainTypes.map((type) => (
-                      <div key={type.id} className="border border-white/10 rounded-lg p-4 bg-black/20 flex items-center gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
-                            {type.color && (
-                              <span
-                                className="inline-flex items-center justify-center rounded px-3 py-1 text-xs font-bold text-white min-w-12"
-                                style={{ backgroundColor: type.color }}
-                              >
-                                {type.code}
-                              </span>
-                            )}
-                            <span className="font-semibold text-white">{type.name}</span>
-                          </div>
-                          {type.destination_icon_url && (
-                            <div className="text-xs text-slate-400 mb-2">Icono: {type.destination_icon_url}</div>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            const input = document.createElement("input");
-                            input.type = "file";
-                            input.accept = "image/*";
-                            input.onchange = async (e) => {
-                              const file = (e.target as HTMLInputElement).files?.[0];
-                              if (file) {
-                                try {
-                                  await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, file);
-                                  await load();
-                                } catch (err) {
-                                  alert("Error al subir icono");
-                                }
-                              }
-                            };
-                            input.click();
-                          }}
-                          className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm whitespace-nowrap"
-                        >
-                          {type.destination_icon_url ? "Cambiar" : "Agregar"} icono
-                        </button>
-                      </div>
+                      <TypeCard key={type.id} type={type} onUpdated={load} />
                     ))}
                   </div>
                 </div>
@@ -851,8 +929,14 @@ export default function DisplayConfigPage() {
       </main>
 
       {editingTrain && (
-        <div className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => !trainSaving && setEditingTrain(null)}>
-          <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => !trainSaving && setEditingTrain(null)}
+        >
+          <div
+            className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-white/5">
               <div>
                 <h3 className="text-xl font-bold">{editingTrain.id ? "Editar tren" : "Añadir tren"}</h3>
@@ -871,11 +955,19 @@ export default function DisplayConfigPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Número</div>
-                  <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.number || ""} onChange={(e) => setEditingTrain({ ...editingTrain, number: e.target.value })} />
+                  <input
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.number || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, number: e.target.value })}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Estado</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.status || "Scheduled"} onChange={(e) => setEditingTrain({ ...editingTrain, status: e.target.value as Train["status"] })}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.status || "Scheduled"}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, status: e.target.value as Train["status"] })}
+                  >
                     <option value="Scheduled">Programado</option>
                     <option value="Boarding">Embarque</option>
                     <option value="Delayed">Retrasado</option>
@@ -886,36 +978,56 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Operador</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.operator_id ?? ""} onChange={(e) => setEditingTrain({ ...editingTrain, operator_id: e.target.value ? Number(e.target.value) : null })}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.operator_id ?? ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, operator_id: e.target.value ? Number(e.target.value) : null })}
+                  >
                     <option value="">—</option>
                     {operators.map((op) => (
-                      <option key={op.id} value={op.id}>{op.name}</option>
+                      <option key={op.id} value={op.id}>
+                        {op.name}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Tipo</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.train_type_id ?? ""} onChange={(e) => setEditingTrain({ ...editingTrain, train_type_id: e.target.value ? Number(e.target.value) : null })}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.train_type_id ?? ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, train_type_id: e.target.value ? Number(e.target.value) : null })}
+                  >
                     <option value="">—</option>
                     {trainTypes.map((type) => (
-                      <option key={type.id} value={type.id}>{type.code} — {type.name}</option>
+                      <option key={type.id} value={type.id}>
+                        {type.code} — {type.name}
+                      </option>
                     ))}
                   </select>
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Origen</div>
-                  <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.origin || ""} onChange={(e) => setEditingTrain({ ...editingTrain, origin: e.target.value })} />
+                  <input
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.origin || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, origin: e.target.value })}
+                  />
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Destino</div>
-                  <input className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.destination || ""} onChange={(e) => setEditingTrain({ ...editingTrain, destination: e.target.value })} />
+                  <input
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.destination || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, destination: e.target.value })}
+                  />
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Imagen personalizada destino</div>
                   <input
                     type="file"
                     accept="image/*"
-                    id={`train-icon-${editingTrain.id || 'new'}`}
+                    id={`train-icon-${editingTrain.id || "new"}`}
                     className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-400 focus:outline-none"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
@@ -926,14 +1038,16 @@ export default function DisplayConfigPage() {
                     }}
                   />
                   {editingTrain.custom_icon_url && (
-                    <div className="mt-2 text-xs text-slate-400">
-                      Imagen actual: {editingTrain.custom_icon_url}
-                    </div>
+                    <div className="mt-2 text-xs text-slate-400">Imagen actual: {editingTrain.custom_icon_url}</div>
                   )}
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Mostrar</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={trainIconMode} onChange={(e) => setTrainIconMode(e.target.value as typeof trainIconMode)}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={trainIconMode}
+                    onChange={(e) => setTrainIconMode(e.target.value as typeof trainIconMode)}
+                  >
                     <option value="none">No mostrar imagen</option>
                     <option value="custom">Imagen personalizada</option>
                     <option value="destination">Icono de destino (tipo tren)</option>
@@ -943,15 +1057,29 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Hora programada</div>
-                  <input type="time" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.scheduled_time || "12:00"} onChange={(e) => setEditingTrain({ ...editingTrain, scheduled_time: e.target.value })} />
+                  <input
+                    type="time"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.scheduled_time || "12:00"}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, scheduled_time: e.target.value })}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Hora estimada</div>
-                  <input type="time" className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.expected_time || "12:00"} onChange={(e) => setEditingTrain({ ...editingTrain, expected_time: e.target.value })} />
+                  <input
+                    type="time"
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.expected_time || "12:00"}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, expected_time: e.target.value })}
+                  />
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Vía</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.platform && editingTrain.platform !== "-" ? editingTrain.platform : ""} onChange={(e) => setEditingTrain({ ...editingTrain, platform: e.target.value })}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.platform && editingTrain.platform !== "-" ? editingTrain.platform : ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, platform: e.target.value })}
+                  >
                     {modalPlatformOptions.map((platform) => (
                       <option key={platform || "empty"} value={platform}>
                         {platform ? `Vía ${platform}` : "— Sin vía —"}
@@ -961,7 +1089,11 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Sector</div>
-                  <select className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white" value={editingTrain.sector && editingTrain.sector !== "-" ? editingTrain.sector : ""} onChange={(e) => setEditingTrain({ ...editingTrain, sector: e.target.value })}>
+                  <select
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    value={editingTrain.sector && editingTrain.sector !== "-" ? editingTrain.sector : ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, sector: e.target.value })}
+                  >
                     {modalSectorOptions.map((sector) => (
                       <option key={sector || "empty"} value={sector}>
                         {sector ? `Sector ${sector}` : "— Sin sector —"}
@@ -971,7 +1103,11 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Observaciones</div>
-                  <textarea className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white min-h-24 resize-y" value={editingTrain.observations || ""} onChange={(e) => setEditingTrain({ ...editingTrain, observations: e.target.value })} />
+                  <textarea
+                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white min-h-24 resize-y"
+                    value={editingTrain.observations || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, observations: e.target.value })}
+                  />
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Paradas intermedias</div>
@@ -985,10 +1121,18 @@ export default function DisplayConfigPage() {
               </div>
 
               <div className="flex items-center justify-end gap-2 mt-5">
-                <button onClick={() => setEditingTrain(null)} disabled={trainSaving} className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 disabled:opacity-60">
+                <button
+                  onClick={() => setEditingTrain(null)}
+                  disabled={trainSaving}
+                  className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 disabled:opacity-60"
+                >
                   Cancelar
                 </button>
-                <button onClick={saveTrain} disabled={trainSaving} className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60">
+                <button
+                  onClick={saveTrain}
+                  disabled={trainSaving}
+                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                >
                   {trainSaving ? "Guardando..." : "Guardar tren"}
                 </button>
               </div>
@@ -996,6 +1140,81 @@ export default function DisplayConfigPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void }) {
+  const [draft, setDraft] = useState(type.announce_template || "");
+
+  const saveTemplate = async () => {
+    try {
+      await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, undefined, draft || null);
+      onUpdated();
+    } catch (err) {
+      alert("Error al guardar la plantilla");
+    }
+  };
+
+  return (
+    <div className="border border-white/10 rounded-lg p-4 bg-black/20">
+      <div className="flex items-center justify-between gap-4 mb-3">
+        <div className="flex items-center gap-2 min-w-0">
+          {type.color && (
+            <span
+              className="inline-flex items-center justify-center rounded px-3 py-1 text-xs font-bold text-white min-w-12 shrink-0"
+              style={{ backgroundColor: type.color }}
+            >
+              {type.code}
+            </span>
+          )}
+          <span className="font-semibold text-white truncate">{type.name}</span>
+        </div>
+        <button
+          onClick={() => {
+            const input = document.createElement("input");
+            input.type = "file";
+            input.accept = "image/*";
+            input.onchange = async (e) => {
+              const file = (e.target as HTMLInputElement).files?.[0];
+              if (file) {
+                try {
+                  await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, file);
+                  onUpdated();
+                } catch (err) {
+                  alert("Error al subir icono");
+                }
+              }
+            };
+            input.click();
+          }}
+          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm whitespace-nowrap shrink-0"
+        >
+          {type.destination_icon_url ? "Cambiar" : "Agregar"} icono
+        </button>
+      </div>
+      {type.destination_icon_url && <div className="text-xs text-slate-400 mb-2">Icono: {type.destination_icon_url}</div>}
+      <div className="mt-3">
+        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Plantilla de megafonía (opcional)</label>
+        <textarea
+          className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm min-h-[4rem] resize-y"
+          placeholder="Ej: Atención. Tren {type_name}{number_text} con destino a {destination}, efectuará su salida por la vía {platform}{sector_text}. Paradas: {stops}."
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+        />
+        <p className="text-[11px] text-slate-500 mt-1">
+          Variables disponibles: {"{type_name}"}, {"{number_text}"}, {"{destination}"}, {"{platform}"}, {"{sector_text}"}, {"{stops}"},{" "}
+          {"{origin}"}, {"{operator}"}
+        </p>
+        {draft !== (type.announce_template || "") && (
+          <button
+            onClick={saveTemplate}
+            className="mt-2 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm"
+          >
+            Guardar plantilla
+          </button>
+        )}
+      </div>
     </div>
   );
 }

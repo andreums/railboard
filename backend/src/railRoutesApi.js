@@ -1,4 +1,5 @@
 import { Router } from "express";
+import logger from "./logger.js";
 import { listTrains, services, serviceStops, stations, getStationDisplayConfig, trainTypes } from "./db.js";
 import {
   getAllRoutes,
@@ -14,7 +15,6 @@ import {
 } from "./services/routeService.js";
 
 const r = Router();
-const WARN_PREFIX = "[station-board]";
 
 const toHHMM = (value) => {
   if (!value) return null;
@@ -49,7 +49,7 @@ const toSortMinutes = (hhmm) => {
 function validateRow(row, ctx) {
   const hasDirection = Boolean(row.destination || row.origin);
   if (!row.time || !row.number || !hasDirection || !row.platform || !row.status) {
-    console.warn(`${WARN_PREFIX} invalid row at ${ctx}`, row);
+    logger.warn({ ctx, row }, "invalid row");
     return false;
   }
   return true;
@@ -69,8 +69,10 @@ function buildRowsFromServices(stationId, mode) {
       const movement = classifyMovement(stop.stop_type);
       if (!modeAllows(mode, movement)) continue;
 
-      const timeBase = movement === "arrival" ? (stop.arrival_scheduled || stop.departure_scheduled) : (stop.departure_scheduled || stop.arrival_scheduled);
-      const expectedBase = movement === "arrival" ? (stop.arrival_expected || stop.departure_expected) : (stop.departure_expected || stop.arrival_expected);
+      const timeBase =
+        movement === "arrival" ? stop.arrival_scheduled || stop.departure_scheduled : stop.departure_scheduled || stop.arrival_scheduled;
+      const expectedBase =
+        movement === "arrival" ? stop.arrival_expected || stop.departure_expected : stop.departure_expected || stop.arrival_expected;
 
       const trainType = svc.train_type_id ? trainTypes.list().find((t) => t.id === svc.train_type_id) : null;
       const row = {
@@ -174,13 +176,12 @@ r.get("/stations/:stationId/board", (req, res) => {
   const trainRows = buildRowsFromTrains(stationId, mode);
   const serviceRows = trainRows.length === 0 ? buildRowsFromServices(stationId, mode) : [];
   const source = trainRows.length > 0 ? "trains" : "services";
-  const rows = (trainRows.length > 0 ? trainRows : serviceRows)
-    .sort((a, b) => {
-      const tA = toSortMinutes(a.expectedTime || a.time);
-      const tB = toSortMinutes(b.expectedTime || b.time);
-      if (tA !== tB) return tA - tB;
-      return String(a.number).localeCompare(String(b.number), "es");
-    });
+  const rows = (trainRows.length > 0 ? trainRows : serviceRows).sort((a, b) => {
+    const tA = toSortMinutes(a.expectedTime || a.time);
+    const tB = toSortMinutes(b.expectedTime || b.time);
+    if (tA !== tB) return tA - tB;
+    return String(a.number).localeCompare(String(b.number), "es");
+  });
 
   return res.json({
     station: {

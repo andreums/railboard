@@ -1,0 +1,110 @@
+{
+  "meta": {
+    "language": "gl",
+    "name": "Galego",
+    "bcp47": "gl-ES",
+    "natural": "galego"
+  },
+  "time": {
+    "hours": ["cero", "unha", "dúas", "tres", "catro", "cinco", "seis", "sete", "oito", "nove", "dez", "once", "doce", "trece", "catorce", "quince", "dezaseis", "dezasete", "dezaoito", "dezanove", "vinte", "vinte e unha", "vinte e dúas", "vinte e tres", "vinte e catro"],
+    "minutes": ["cero", "un", "dous", "tres", "catro", "cinco", "seis", "sete", "oito", "nove", "dez", "once", "doce", "trece", "catorce", "quince", "dezaseis", "dezasete", "dezaoito", "dezanove", "vinte", "vinte e un", "vinte e dous", "vinte e tres", "vinte e catro", "vinte e cinco", "vinte e seis", "vinte e sete", "vinte e oito", "vinte e nove", "trinta", "trinta e un", "trinta e dous", "trinta e tres", "trinta e catro", "trinta e cinco", "trinta e seis", "trinta e sete", "trinta e oito", "trinta e nove", "corenta", "corenta e un", "corenta e dous", "corenta e tres", "corenta e catro", "corenta e cinco", "corenta e seis", "corenta e sete", "corenta e oito", "corenta e nove", "cincuenta", "cincuenta e un", "cincuenta e dous", "cincuenta e tres", "cincuenta e catro", "cincuenta e cinco", "cincuenta e seis", "cincuenta e sete", "cincuenta e oito", "cincuenta e nove"],
+    "hour": "horas",
+    "hour_singular": "hora",
+    "minute": "minutos",
+    "minute_singular": "minuto",
+    "and": "e",
+    "format": "H24"
+  },
+  "conjunctions": {
+    "and": "e",
+    "or": "ou",
+    "comma": ", ",
+    "except": "excepto",
+    "only": "só"
+  },
+  "attention": {
+    "default": "Atención.",
+    "important": "Atención por favor.",
+    "emergency": "Atención. Emerxencia."
+  },
+  "blocks": {
+    "operator": "{operator}",
+    "service": "{service}",
+    "line": "{line}",
+    "destination": "con destino a {destination}",
+    "origin": "procedente de {origin}",
+    "departure_time": "con saída ás {time}",
+    "arrival_time": "con chegada ás {time}",
+    "platform": "pola vía {platform}",
+    "sector": "sector {sector}",
+    "platform_sector": "pola vía {platform}, sector {sector}",
+    "accessible_train": "Tren accesible.",
+    "cancelled": "foi cancelado",
+    "delayed": "presenta un atraso de {minutes} minutos",
+    "standing_at_platform": "Estacionado na vía {platform}",
+    "boarding": "Está realizando o embarque.",
+    "ready_to_depart": "Está a piques de efectuar a saída.",
+    "imminent_departure": "Vai efectuar a saída inmediatamente.",
+    "departed": "saíu",
+    "terminates_here": "Este tren finaliza aquí o seu percorrido."
+  },
+  "service_intro": {
+    "commuter": "{line},",
+    "regional": "{service_type},",
+    "long_distance": "{service_type} de {operator}",
+    "default": "{service_type}"
+  },
+  "events": {
+    "TRAIN_ANNOUNCEMENT": {
+      "departure": "Atención. {service_intro} con destino a {destination}, {platform_sector}.",
+      "compact_departure": "{line}, destino {destination}, vía {platform}."
+    },
+    "TRAIN_IMMINENT_DEPARTURE": {
+      "default": "{service_intro} con destino a {destination}. Vai efectuar a saída inmediatamente."
+    },
+    "TRAIN_DELAYED": {
+      "default": "Atención. {service_intro} con destino a {destination} {delayed}."
+    },
+    "TRAIN_CANCELLED": {
+      "default": "Atención. {service_intro} con destino a {destination} {cancelled}. Desculpen as molestias."
+    },
+    "PLATFORM_CHANGE": {
+      "default": "Atención. {service_intro} con destino a {destination} {platform_changed}. Consulten os paneis."
+    },
+    "LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT": {
+      "default": "{service_intro} con destino a {destination}, con saída ás {time}, {platform_sector}.",
+      "fare_restricted": "Para este tren non son válidos os billetes nin os abonos de Cercanías nin de servizos rexionais."
+    },
+    "TRAIN_STANDING_BY": {
+      "default": "{is_at_platform} {service_intro} con destino a {destination}."
+    },
+    "SERVICE_DISRUPTION": {
+      "default": "Atención. Debido a {reason}, estánse producindo alteracións no servizo. Desculpen as molestias."
+    },
+    "GENERAL_INFORMATION": {
+      "default": "Atención. {message}"
+    }
+  },
+  "stopping_patterns": {
+    "ALL_STATIONS": "Este tren para en todas as estacións",
+    "DIRECT": "Este tren é directo",
+    "ALL_EXCEPT": "Este tren para en todas as estacións excepto {stations}",
+    "ONLY_STOPS_AT": "Este tren só para en {stations}",
+    "intermediate": "Este tren efectúa parada en {stations}"
+  },
+  "fare_restrictions": {
+    "commuter_tickets_not_accepted": "billetes de Cercanías",
+    "commuter_passes_not_accepted": "abonos de Cercanías",
+    "regional_tickets_not_accepted": "billetes de servizos rexionais",
+    "regional_passes_not_accepted": "abonos de servizos rexionais",
+    "none_accepted": "Para este tren non son válidos os billetes nin os abonos de Cercanías nin de servizos rexionais",
+    "some_not_accepted": "Para este tren non son válidos {items}"
+  },
+  "closing_messages": {
+    "renfe_long_distance": "Renfe Longa Distancia deséxalles unha boa viaxe.",
+    "operator": "{operator} deséxalles unha boa viaxe."
+  },
+  "accessibility": {
+    "accessible": "Tren accesible."
+  }
+}

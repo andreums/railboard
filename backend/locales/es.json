@@ -1,0 +1,192 @@
+{
+  "meta": {
+    "language": "es",
+    "name": "Español",
+    "bcp47": "es-ES",
+    "natural": "castellano"
+  },
+  "time": {
+    "hours": ["cero", "una", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro"],
+    "minutes": ["cero", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve", "veinte", "veintiuno", "veintidós", "veintitrés", "veinticuatro", "veinticinco", "veintiséis", "veintisiete", "veintiocho", "veintinueve", "treinta", "treinta y uno", "treinta y dos", "treinta y tres", "treinta y cuatro", "treinta y cinco", "treinta y seis", "treinta y siete", "treinta y ocho", "treinta y nueve", "cuarenta", "cuarenta y uno", "cuarenta y dos", "cuarenta y tres", "cuarenta y cuatro", "cuarenta y cinco", "cuarenta y seis", "cuarenta y siete", "cuarenta y ocho", "cuarenta y nueve", "cincuenta", "cincuenta y uno", "cincuenta y dos", "cincuenta y tres", "cincuenta y cuatro", "cincuenta y cinco", "cincuenta y seis", "cincuenta y siete", "cincuenta y ocho", "cincuenta y nueve"],
+    "hour": "horas",
+    "hour_singular": "hora",
+    "minute": "minutos",
+    "minute_singular": "minuto",
+    "and": "y",
+    "in_the_morning": "",
+    "in_the_afternoon": "",
+    "in_the_evening": "",
+    "format": "H24"
+  },
+  "conjunctions": {
+    "and": "y",
+    "or": "o",
+    "comma": ", ",
+    "comma_and": " i ",
+    "except": "excepto",
+    "including": "incluyendo",
+    "only": "solamente"
+  },
+  "attention": {
+    "default": "Atención.",
+    "important": "Atención por favor.",
+    "emergency": "Atención. Emergencia.",
+    "gentle": "Señoras y señores, atención por favor."
+  },
+  "blocks": {
+    "operator": "{operator}",
+    "service": "{service}",
+    "line": "{line}",
+    "destination": "con destino a {destination}",
+    "origin": "procedente de {origin}",
+    "departure_time": "con salida a las {time}",
+    "arrival_time": "con llegada a las {time}",
+    "platform": "por la vía {platform}",
+    "sector": "sector {sector}",
+    "platform_sector": "por la vía {platform}, sector {sector}",
+    "accessible_train": "Tren accesible.",
+    "not_accessible_train": "",
+    "composition": "Tren compuesto por {cars} coches.",
+    "cancelled": "ha sido cancelado",
+    "cancelled_reason": "ha sido cancelado por {reason}",
+    "delayed": "presenta un retraso de {minutes} minutos",
+    "delayed_reason": "presenta un retraso de {minutes} minutos por {reason}",
+    "platform_changed": "efectuará su salida por la vía {platform}",
+    "platform_changed_sector": "efectuará su salida por la vía {platform}, sector {sector}",
+    "standing_at_platform": "Estacionado en vía {platform},",
+    "standing_at_platform_sector": "Estacionado en vía {platform}, sector {sector},",
+    "ready_for_boarding": "Está listo para el embarque.",
+    "boarding": "Está realizando el embarque.",
+    "ready_to_depart": "Está a punto de efectuar su salida.",
+    "imminent_departure": "Va a efectuar su salida inmediatamente.",
+    "departing": "El tren está saliendo.",
+    "departed": "ha salido",
+    "arriving": "está llegando",
+    "at_platform": "se encuentra en la vía",
+    "terminates_here": "Este tren finaliza aquí su recorrido.",
+    "all_change": "Rogamos a los viajeros desembarquen."
+  },
+  "service_intro": {
+    "commuter": "{line},",
+    "regional": "{service_type},",
+    "long_distance": "{service_type} de {operator}",
+    "high_speed": "{service_type} de {operator}",
+    "default": "{service_type}"
+  },
+  "events": {
+    "TRAIN_ANNOUNCEMENT": {
+      "departure": "Atención. {service_intro} con destino a {destination}, {platform_sector}.",
+      "arrival": "Atención. {service_intro} procedente de {origin}, {platform_sector}.",
+      "compact_departure": "{line}, destino {destination}, vía {platform}.",
+      "compact_arrival": "{line}, procedente de {origin}, vía {platform}."
+    },
+    "TRAIN_IMMINENT_DEPARTURE": {
+      "default": "{service_intro} con destino a {destination}. Va a efectuar su salida inmediatamente.",
+      "standing": "{is_at_platform} {service_intro} con destino a {destination}. Va a efectuar su salida."
+    },
+    "TRAIN_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} con destino a {destination}. Está a punto de efectuar su salida."
+    },
+    "TRAIN_DELAYED": {
+      "default": "Atención. {service_intro} con destino a {destination} {delayed}.",
+      "with_platform": "Atención. {service_intro} con destino a {destination}, {platform_sector}, {delayed}."
+    },
+    "TRAIN_CANCELLED": {
+      "default": "Atención. {service_intro} con destino a {destination} {cancelled}. Rogamos disculpen las molestias."
+    },
+    "PLATFORM_CHANGE": {
+      "default": "Atención. {service_intro} con destino a {destination} {platform_changed}. Rogamos consulten los paneles.",
+      "with_sector": "Atención. {service_intro} con destino a {destination} {platform_changed_sector}. Rogamos consulten los paneles."
+    },
+    "TRAIN_APPROACHING": {
+      "default": "Atención. Próxima llegada de {service_intro} con destino a {destination}, {platform_sector}."
+    },
+    "TRAIN_AT_PLATFORM": {
+      "default": "Atención. {service_intro} con destino a {destination} se encuentra en la vía {platform}.",
+      "accessible": "Atención. {service_intro} con destino a {destination} se encuentra en la vía {platform}. Tren accesible."
+    },
+    "TRAIN_BOARDING": {
+      "default": "Atención. {service_intro} con destino a {destination}, {platform_sector}. Está realizando el embarque.",
+      "accessible": "Atención. {service_intro} con destino a {destination}, {platform_sector}. Está realizando el embarque. Tren accesible."
+    },
+    "TRAIN_DEPARTED": {
+      "default": "Atención. {service_intro} con destino a {destination} ha salido de la vía {platform}."
+    },
+    "LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT": {
+      "default": "{service_intro} con destino a {destination}, con salida a las {time}, {platform_sector}.",
+      "with_stops": "{service_intro} con destino a {destination}, con salida a las {time}, {platform_sector}. {stopping_pattern}.",
+      "with_fare": "{service_intro} con destino a {destination}, con salida a las {time}, {platform_sector}. {stopping_pattern}. {fare_restriction}.",
+      "fare_restricted": "Para este tren no son válidos los billetes ni los abonos de Cercanías.",
+      "fare_restricted_regional": "Para este tren no son válidos los billetes ni los abonos de Cercanías ni de servicios regionales."
+    },
+    "LONG_DISTANCE_BOARDING": {
+      "default": "{service_intro} con destino a {destination}. Está realizando el embarque por {platform_sector}.",
+      "fare_restricted": "Para este tren no son válidos los billetes ni los abonos de Cercanías ni de servicios regionales."
+    },
+    "LONG_DISTANCE_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} con destino a {destination}, con salida a las {time}. Va a efectuar su salida."
+    },
+    "LONG_DISTANCE_IMMINENT_DEPARTURE": {
+      "default": "{is_at_platform} {service_intro} con destino a {destination}. Es a punto de sortir."
+    },
+    "TRAIN_STANDING_BY": {
+      "default": "{is_at_platform} {service_intro} con destino a {destination}.",
+      "with_stops": "{is_at_platform} {service_intro} con destino a {destination}. {stopping_pattern}.",
+      "fare_restricted": "{is_at_platform} {service_intro} con destino a {destination}. {fare_restriction}."
+    },
+    "SERVICE_DISRUPTION": {
+      "default": "Atención. Debido a {reason}, se están produciendo alteraciones en el servicio. Rogamos disculpen las molestias."
+    },
+    "GENERAL_INFORMATION": {
+      "default": "Atención. {message}"
+    },
+    "TRAIN_TERMINATES_HERE": {
+      "default": "Atención. {service_intro} con destino a {destination} finaliza aquí su recorrido. Rogamos a los viajeros desembarquen."
+    }
+  },
+  "stopping_patterns": {
+    "ALL_STATIONS": "Este tren para en todas las estaciones",
+    "DIRECT": "Este tren es directo",
+    "SEMI_FAST": "Este tren efectúa parada en las principales estaciones",
+    "ALL_EXCEPT": "Este tren para en todas las estaciones excepto {stations}",
+    "ONLY_STOPS_AT": "Este tren solo efectúa parada en {stations}",
+    "CUSTOM": "{description}",
+    "intermediate": "Este tren efectúa parada en {stations}"
+  },
+  "fare_restrictions": {
+    "commuter_tickets_not_accepted": "billetes de Cercanías",
+    "commuter_passes_not_accepted": "abonos de Cercanías",
+    "regional_tickets_not_accepted": "billetes de servicios regionales",
+    "regional_passes_not_accepted": "abonos de servicios regionales",
+    "reservation_required": "requiere reserva",
+    "supplement_required": "requiere suplemento",
+    "specific_ticket_required": "requiere billete específico",
+    "none_accepted": "Para este tren no son válidos los billetes ni los abonos de Cercanías ni de servicios regionales",
+    "some_not_accepted": "Para este tren no son válidos {items}",
+    "notice": "Para este tren no son válidos",
+    "nor": "ni"
+  },
+  "closing_messages": {
+    "long_distance": "{operator} Larga Distancia les desea un buen viaje.",
+    "renfe_long_distance": "Renfe Larga Distancia les desea un buen viaje.",
+    "operator": "{operator} les desea un buen viaje.",
+    "none": ""
+  },
+  "accessibility": {
+    "accessible": "Tren accesible.",
+    "wheelchair_space": "Espacio para silla de ruedas.",
+    "priority_seating": "Asientos prioritarios.",
+    "visual_aids": "Ayudas visuales a bordo.",
+    "audio_aids": "Ayudas auditivas a bordo."
+  },
+  "pre_recorded_fragments": {
+    "attention": "Atención",
+    "platform": "vía",
+    "departure": "salida",
+    "arrival": "llegada",
+    "cancelled": "cancelado",
+    "delayed": "retraso",
+    "accessible": "tren accesible",
+    "boarding": "embarque"
+  }
+}

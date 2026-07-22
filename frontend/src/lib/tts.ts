@@ -18,6 +18,7 @@ type Trainish = {
   status?: string | null;
   stops?: string[] | null;
   type_pre_announce?: string | null;
+  type_announce_template?: string | null;
   operator_pre_announce?: string | null;
   station_pre_announce?: string | null;
 };
@@ -59,28 +60,31 @@ type AnnouncementTemplates = {
 
 const DEFAULT_TEMPLATES: Record<string, AnnouncementTemplates> = {
   es: {
-    departures: "Atención. Tren {type_name} {number} con destino a {destination}, efectuará su salida por la vía {platform}, sector {sector}.",
-    arrivals: "Atención. Tren {type_name} {number} procedente de {origin}, efectuará su llegada por la vía {platform}, sector {sector}.",
+    departures:
+      "Atención. Tren {type_name}{number_text} con destino a {destination}, efectuará su salida por la vía {platform}{sector_text}.",
+    arrivals: "Atención. Tren {type_name}{number_text} procedente de {origin}, efectuará su llegada por la vía {platform}{sector_text}.",
   },
   ca: {
-    departures: "Atenció. Tren {type_name} {number} amb destinació a {destination}, efectuarà la seva sortida per la via {platform}, sector {sector}.",
-    arrivals: "Atenció. Tren {type_name} {number} procedent de {origin}, efectuarà la seva arribada per la via {platform}, sector {sector}.",
+    departures:
+      "Atenció. Tren {type_name}{number_text} amb destinació a {destination}, efectuarà la seva sortida per la via {platform}{sector_text}.",
+    arrivals:
+      "Atenció. Tren {type_name}{number_text} procedent de {origin}, efectuarà la seva arribada per la via {platform}{sector_text}.",
   },
   en: {
-    departures: "Attention. Train {type_name} {number} to {destination}, will depart from platform {platform}, sector {sector}.",
-    arrivals: "Attention. Train {type_name} {number} from {origin}, will arrive at platform {platform}, sector {sector}.",
+    departures: "Attention. Train {type_name}{number_text} to {destination}, will depart from platform {platform}{sector_text}.",
+    arrivals: "Attention. Train {type_name}{number_text} from {origin}, will arrive at platform {platform}{sector_text}.",
   },
   fr: {
-    departures: "Attention. Le train {type_name} {number} à destination de {destination} partira voie {platform}, secteur {sector}.",
-    arrivals: "Attention. Le train {type_name} {number} en provenance de {origin} arrivera voie {platform}, secteur {sector}.",
+    departures: "Attention. Le train {type_name}{number_text} à destination de {destination} partira voie {platform}{sector_text}.",
+    arrivals: "Attention. Le train {type_name}{number_text} en provenance de {origin} arrivera voie {platform}{sector_text}.",
   },
   eu: {
-    departures: "Adi. {destination} helmuga duen {type_name} {number} trena {platform} bidetik irtengo da, {sector} sektorean.",
-    arrivals: "Adi. {origin}tik datorren {type_name} {number} trena {platform} bidetik iritsiko da, {sector} sektorean.",
+    departures: "Adi. {destination} helmuga duen {type_name}{number_text} trena {platform} bidetik irtengo da{sector_text}.",
+    arrivals: "Adi. {origin}tik datorren {type_name}{number_text} trena {platform} bidetik iritsiko da{sector_text}.",
   },
   gl: {
-    departures: "Atención. O tren {type_name} {number} con destino a {destination} sairá pola vía {platform}, sector {sector}.",
-    arrivals: "Atención. O tren {type_name} {number} procedente de {origin} chegará pola vía {platform}, sector {sector}.",
+    departures: "Atención. O tren {type_name}{number_text} con destino a {destination} sairá pola vía {platform}{sector_text}.",
+    arrivals: "Atención. O tren {type_name}{number_text} procedente de {origin} chegará pola vía {platform}{sector_text}.",
   },
 };
 
@@ -88,18 +92,37 @@ const DEFAULT_PRESETS: AnnouncePreset[] = [
   { id: "welcome", label: "Bienvenida", text: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías." },
   { id: "closing", label: "Cierre", text: "Atención. La estación va a cerrar. Asegúrense de recoger todas sus pertenencias." },
   { id: "workshop", label: "Taller", text: "Atención. El taller de iniciación a la soldadura comenzará en 5 minutos en la sala contigua." },
-  { id: "delay-warning", label: "Retraso general", text: "Rogamos disculpen las molestias. Debido a la densidad de tráfico ferroviario, algunos trenes pueden sufrir retrasos." },
-  { id: "photo", label: "Foto", text: "Atención. Dentro de 10 minutos realizaremos la foto de grupo. Les rogamos se acerquen al área central." },
+  {
+    id: "delay-warning",
+    label: "Retraso general",
+    text: "Rogamos disculpen las molestias. Debido a la densidad de tráfico ferroviario, algunos trenes pueden sufrir retrasos.",
+  },
+  {
+    id: "photo",
+    label: "Foto",
+    text: "Atención. Dentro de 10 minutos realizaremos la foto de grupo. Les rogamos se acerquen al área central.",
+  },
 ];
 
 const SUPPORTED_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
 
+const SECTOR_TEXT_FORMATS: Record<string, string> = {
+  es: ", sector {sector}",
+  ca: ", sector {sector}",
+  en: ", sector {sector}",
+  fr: ", secteur {sector}",
+  eu: ", {sector} sektorean",
+  gl: ", sector {sector}",
+};
+
 function normalizeLanguageCode(value?: string | null) {
-  const lang = String(value || "").toLowerCase().trim();
+  const lang = String(value || "")
+    .toLowerCase()
+    .trim();
   return SUPPORTED_LANGUAGES.has(lang) ? lang : "es";
 }
 
-export function resolveDisplayLanguage(config: Configish | null, preferredLanguage?: string) {
+function parseLanguageList(config: Configish | null): string[] {
   const rawList = Array.isArray(config?.languages)
     ? config?.languages
     : typeof config?.languages === "string" && config.languages.trim().startsWith("[")
@@ -117,12 +140,20 @@ export function resolveDisplayLanguage(config: Configish | null, preferredLangua
           ? [config.languages]
           : [];
 
-  const normalized = rawList
+  return rawList
     .map((value) => normalizeLanguageCode(String(value)))
     .filter((value, index, arr) => arr.indexOf(value) === index);
+}
 
+export function resolveDisplayLanguage(config: Configish | null, preferredLanguage?: string) {
+  const normalized = parseLanguageList(config);
   const primary = normalizeLanguageCode(preferredLanguage || config?.language || normalized[0] || "es");
-  return normalized.includes(primary) ? primary : (normalized[0] || primary);
+  return normalized.includes(primary) ? primary : normalized[0] || primary;
+}
+
+export function resolveDisplayLanguages(config: Configish | null): string[] {
+  const list = parseLanguageList(config);
+  return list.length > 0 ? list : ["es"];
 }
 
 export function defaultPresets(): AnnouncePreset[] {
@@ -143,16 +174,24 @@ export function defaultTemplate(mode: string, language = "es"): string {
   return mode === "arrivals" ? templates.arrivals : templates.departures;
 }
 
-export function renderTemplate(template: string, train: Trainish): string {
+export function renderTemplate(template: string, train: Trainish, language?: string): string {
+  const lang = language ? normalizeLanguageCode(language) : "es";
+  const isCommuter = /^(C(-\d+)?|R\d+[A-Z]?)$/i.test(train.type_code || "");
+  const sectorValue = train.sector && train.sector !== "-" ? train.sector : "";
+  const sectorFormat = SECTOR_TEXT_FORMATS[lang] || SECTOR_TEXT_FORMATS.es;
+  const sectorText = sectorValue ? sectorFormat.replace("{sector}", sectorValue) : "";
+  const numberText = isCommuter || !train.number ? "" : ` ${train.number}`;
   const vars: Record<string, string> = {
-    number: train.number || "",
+    number: isCommuter ? "" : train.number || "",
+    number_text: numberText,
     type_name: train.type_name || "",
     type_code: train.type_code || "",
     operator: train.operator_name || "",
     origin: train.origin || "",
     destination: train.destination || "",
     platform: train.platform && train.platform !== "-" ? train.platform : "sin vía asignada",
-    sector: train.sector && train.sector !== "-" ? train.sector : "sin sector",
+    sector: sectorValue,
+    sector_text: sectorText,
     status: train.status || "",
     stops: train.stops?.join(", ") || "",
   };
@@ -177,7 +216,7 @@ export function getVoiceURIForLanguage(config: Configish | null, language?: stri
   if (bcp47) {
     const langPrefix = bcp47.split("-")[0];
     const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(v => v.lang.startsWith(langPrefix));
+    const match = voices.find((v) => v.lang.startsWith(langPrefix));
     if (match) return match.voiceURI;
   }
   return "";
@@ -196,7 +235,7 @@ export function getAnnouncementTemplate(config: Configish | null, mode: string, 
   return legacy || defaultTemplate(mode, lang);
 }
 
-export function speak(text: string, settings?: VoiceSettings, langCode?: string) {
+export function speak(text: string, settings?: VoiceSettings, langCode?: string): SpeechSynthesisUtterance {
   const u = new SpeechSynthesisUtterance(text);
   if (settings?.voiceURI) {
     const voices = window.speechSynthesis.getVoices();
@@ -208,6 +247,7 @@ export function speak(text: string, settings?: VoiceSettings, langCode?: string)
   u.pitch = settings?.pitch ?? 1;
   u.volume = settings?.volume ?? 1;
   window.speechSynthesis.speak(u);
+  return u;
 }
 
 export function speakWithConfig(text: string, config: Configish | null) {
@@ -216,29 +256,33 @@ export function speakWithConfig(text: string, config: Configish | null) {
 }
 
 function resolvePreAnnounce(train: Trainish): string | null {
-  return train.type_pre_announce
-    || train.operator_pre_announce
-    || train.station_pre_announce
-    || null;
+  return train.type_pre_announce || train.operator_pre_announce || train.station_pre_announce || null;
 }
 
 export function announceTrain(train: Trainish, config: Configish | null, template?: string) {
-  const lang = resolveDisplayLanguage(config);
+  const languages = resolveDisplayLanguages(config);
   const mode = config?.mode === "arrivals" ? "arrivals" : "departures";
-  const resolvedTemplate = template || getAnnouncementTemplate(config, mode, lang);
-  const text = renderTemplate(resolvedTemplate, train);
-  const vs = {
-    ...loadVoiceSettings(config),
-    voiceURI: getVoiceURIForLanguage(config, lang),
-  };
   const pre = resolvePreAnnounce(train);
-  const doSpeak = () => speak(text, vs, lang);
+
+  const speakIndex = (index: number) => {
+    if (index >= languages.length) return;
+    const lang = languages[index];
+    const resolvedTemplate = template || train.type_announce_template || getAnnouncementTemplate(config, mode, lang);
+    const text = renderTemplate(resolvedTemplate, train, lang);
+    const vs = {
+      ...loadVoiceSettings(config),
+      voiceURI: getVoiceURIForLanguage(config, lang),
+    };
+    const u = speak(text, vs, lang);
+    u.onend = () => speakIndex(index + 1);
+  };
+
   if (pre) {
     const audio = new Audio(pre.startsWith("http") ? pre : `${API_URL}${pre}`);
-    audio.onended = doSpeak;
-    audio.play().catch(doSpeak);
+    audio.onended = () => speakIndex(0);
+    audio.play().catch(() => speakIndex(0));
   } else {
-    doSpeak();
+    speakIndex(0);
   }
 }
 

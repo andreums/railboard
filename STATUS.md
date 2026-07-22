@@ -3,6 +3,7 @@
 ## ✅ Completado (Última Sesión)
 
 ### Feature: Generación de Trenes desde Rutas Ferroviarias
+
 - **57 rutas españolas** importadas (Renfe, Rodalies, Cercanías, Larga Distancia)
 - **Endpoint POST `/admin/trains/from-route/:code`** — crea tren con metadatos de ruta real
 - **UI RoutesPanel** — selector interactivo con filtros (región, servicio, operador)
@@ -10,11 +11,13 @@
 - **E2E script `ws_e2e_test.mjs`** — automatiza test de creación + validación
 
 ### Feature: UI Debug para WebSocket
+
 - **WSLogPanel** — widget que muestra eventos WebSocket en vivo (últimos 50)
 - Integrado en Admin tab "Rutas", bajo RoutesPanel
 - Ayuda a verificar que broadcast funciona correctamente
 
 ### UX: DisplayConfig Vertical
+
 - **Layout por defecto vertical** — configuración encima, trenes abajo
 - **Dos columnas solo en 2xl** (>1536px) — optimizado para tablet/laptop
 - **Tabla sin scroll forzado** — se adapta al ancho disponible
@@ -24,20 +27,20 @@
 
 ## 🎯 Estado de Funcionalidades Core
 
-| Función | Estado | Detalles |
-|---------|--------|----------|
-| Display público (llegadas/salidas) | ✅ | Renderiza en tiempo real, múltiples displays |
-| Admin panel (11 tabs) | ✅ | Estación, Displays, Trenes, Rutas, Operadores, etc. |
-| CRUD Operadores | ✅ | Create/read/edit/delete con logo |
-| CRUD Tipos de tren | ✅ | Create/read/edit/delete |
-| Generación aleatoria | ✅ | 1 tren, panel (8), automática (intervalo) |
-| **Generación desde rutas** | ✅ | NEW — desde metadatos de 57 rutas españolas |
-| WebSocket real-time | ✅ | Broadcast de cambios, event listeners |
-| **WebSocket debug** | ✅ | NEW — WSLogPanel para ver eventos |
-| Multiidioma (6 idiomas) | ✅ | ES, CA, EN, FR, EU, GL |
-| TTS Anuncio | ✅ | Text-to-speech por navegador |
-| Drag & Drop trenes | ✅ | Reordenar entre displays |
-| Configuración por display | ✅ | Colores, idioma, reloj, pie, logo |
+| Función                            | Estado | Detalles                                            |
+| ---------------------------------- | ------ | --------------------------------------------------- |
+| Display público (llegadas/salidas) | ✅     | Renderiza en tiempo real, múltiples displays        |
+| Admin panel (11 tabs)              | ✅     | Estación, Displays, Trenes, Rutas, Operadores, etc. |
+| CRUD Operadores                    | ✅     | Create/read/edit/delete con logo                    |
+| CRUD Tipos de tren                 | ✅     | Create/read/edit/delete                             |
+| Generación aleatoria               | ✅     | 1 tren, panel (8), automática (intervalo)           |
+| **Generación desde rutas**         | ✅     | NEW — desde metadatos de 57 rutas españolas         |
+| WebSocket real-time                | ✅     | Broadcast de cambios, event listeners               |
+| **WebSocket debug**                | ✅     | NEW — WSLogPanel para ver eventos                   |
+| Multiidioma (6 idiomas)            | ✅     | ES, CA, EN, FR, EU, GL                              |
+| TTS Anuncio                        | ✅     | Text-to-speech por navegador                        |
+| Drag & Drop trenes                 | ✅     | Reordenar entre displays                            |
+| Configuración por display          | ✅     | Colores, idioma, reloj, pie, logo                   |
 
 ---
 
@@ -54,6 +57,7 @@
 ## 🚀 Cómo Probar Nuevas Features
 
 ### 1. Generación desde Rutas
+
 ```bash
 # Backend
 cd backend && node src/index.js
@@ -67,6 +71,7 @@ cd frontend && npm run dev
 ```
 
 ### 2. Verificar WebSocket Broadcast
+
 ```bash
 # En Admin tab "Rutas":
 # → Scroll a "WSLogPanel" (arriba muestra eventos)
@@ -74,6 +79,7 @@ cd frontend && npm run dev
 ```
 
 ### 3. E2E Automático
+
 ```bash
 cd backend
 node scripts/ws_e2e_test.mjs C-1
@@ -85,6 +91,7 @@ node scripts/ws_e2e_test.mjs C-1
 ## 📁 Archivos Nuevos/Modificados (Última Sesión)
 
 ### Creados
+
 - `backend/src/data/railboard_routes.json` — 57 rutas españolas
 - `backend/scripts/ws_e2e_test.mjs` — test E2E con WebSocket
 - `frontend/src/components/admin/RoutesPanel.tsx` — selector de rutas
@@ -92,6 +99,7 @@ node scripts/ws_e2e_test.mjs C-1
 - `docs/PROGRESS.md` — este documento de progreso
 
 ### Modificados
+
 - `backend/src/routes.js` — añadido `POST /admin/trains/from-route/:code`
 - `backend/src/ws.js` — broadcast de `{type: "update"}`
 - `frontend/src/pages/Admin.tsx` — integración de RoutesPanel + WSLogPanel

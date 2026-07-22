@@ -1,23 +1,26 @@
-const CACHE = "railboard-v1";
+const CACHE_PREFIX = "railboard";
 const STATIC_ASSETS = /\.(js|css|png|jpg|jpeg|gif|ico|svg|woff2?|ttf|eot)$/;
 const API_PATHS = /^\/(admin|api)\//;
 
+const SW_VERSION = new URL(self.location.href).searchParams.get("v") || "0";
+const CACHE = `${CACHE_PREFIX}-v${SW_VERSION}`;
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE).then((cache) =>
-      cache.addAll(["/", "/manifest.json", "/fonts/fonts.css"])
-    )
-  );
+  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(["/", "/manifest.json", "/fonts/fonts.css"])));
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
-    )
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE).map((k) => caches.delete(k)))),
   );
   self.clients.claim();
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener("fetch", (event) => {

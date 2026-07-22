@@ -9,24 +9,29 @@ Dashboard y presentación del backend de RailBoard construido con **Tailwind CSS
 ## 📊 Características
 
 ### Navegación Principal
+
 - **Resumen**: Información general del sistema
 - **Estadísticas**: Contadores en vivo de trenes, operadores, tipos, destinos
 - **API**: Documentación interactiva de todos los endpoints
 - **Config**: Configuración actual del sistema
 
 ### Estadísticas en Vivo
+
 - Número de trenes registrados
 - Operadores disponibles
 - Tipos de tren configurados
 - Destinos registrados
 
 ### Explorador de API
+
 Directamente desde el dashboard puedes:
+
 - Ver todos los endpoints disponibles
 - Probar endpoints con un clic
 - Consultar respuestas en JSON
 
 ### Información de Sistema
+
 - Estado de la conexión
 - Uptime en tiempo real
 - Estado del WebSocket
@@ -42,6 +47,7 @@ Directamente desde el dashboard puedes:
 ## 🔐 Autenticación
 
 El dashboard hace requests autenticadas a las APIs usando:
+
 ```
 Authorization: Basic admin:railboard
 ```
@@ -61,4 +67,4 @@ Authorization: Basic admin:railboard
 
 ---
 
-*Construido con Node.js + Express + Tailwind CSS*
+_Construido con Node.js + Express + Tailwind CSS_

@@ -10,37 +10,37 @@
 
 ### Backend (72 tests, todos pasando)
 
-| Suite | Fichero | Tipo |
-|-------|--------|------|
-| DB CRUD | `backend/src/__tests__/db.unit.test.js` | Unitarios (SQLite temporal) |
-| Helpers | `backend/src/__tests__/helpers.unit.test.js` | Unitarios (funciones puras) |
-| API E2E | `backend/src/__tests__/e2e.test.js` | E2E (supertest + DB temp) |
+| Suite              | Fichero                                            | Tipo                              |
+| ------------------ | -------------------------------------------------- | --------------------------------- |
+| DB CRUD            | `backend/src/__tests__/db.unit.test.js`            | Unitarios (SQLite temporal)       |
+| Helpers            | `backend/src/__tests__/helpers.unit.test.js`       | Unitarios (funciones puras)       |
+| API E2E            | `backend/src/__tests__/e2e.test.js`                | E2E (supertest + DB temp)         |
 | Routes integración | `backend/src/__tests__/routes.integration.test.js` | Integración (Express + supertest) |
 
 ### Frontend (21 tests, todos pasando)
 
-| Suite | Fichero | Tests |
-|-------|--------|-------|
-| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | 8 — renderiza con labels/classes correctas |
-| Clock | `src/components/__tests__/Clock.test.tsx` | 3 — renderiza HH:MM:SS, hora ficticia |
-| i18n | `src/lib/__tests__/i18n.test.ts` | 10 — traducciones existen para todas las claves en los 6 idiomas |
+| Suite      | Fichero                                        | Tests                                                            |
+| ---------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| StatusPill | `src/components/__tests__/StatusPill.test.tsx` | 8 — renderiza con labels/classes correctas                       |
+| Clock      | `src/components/__tests__/Clock.test.tsx`      | 3 — renderiza HH:MM:SS, hora ficticia                            |
+| i18n       | `src/lib/__tests__/i18n.test.ts`               | 10 — traducciones existen para todas las claves en los 6 idiomas |
 
 ### Qué NO está testeado
 
-| Fichero | Líneas | Riesgo |
-|---------|--------|--------|
-| `Display.tsx` | 841 | Alto — panel principal de salidas/llegadas |
-| `Admin.tsx` | 3128 | Alto — panel de administración monolítico |
-| `DisplayConfig.tsx` | 1001 | Alto — configuración por estación |
-| `Trains.tsx` | 556 | Alto — gestión de trenes (drag & drop) |
-| `TrainSettings.tsx` | 203 | Medio — operadores/tipos de tren |
-| `routes.js` | 1676 | Alto — mayoría de lógica de negocio |
-| `ws.js` | 18 | Medio — WebSocket broadcast |
-| `routeService.js` | 182 | Medio — servicio de datos de rutas |
-| `db.js` | 882 | Alto — solo parcialmente testeado |
-| Subida de ficheros | — | Medio — upload CSV/JSON |
-| `svgPlaceholder.ts` | — | Bajo — utilidad de placeholder |
-| `tts.ts` | — | Bajo — Text-to-Speech |
+| Fichero             | Líneas | Riesgo                                     |
+| ------------------- | ------ | ------------------------------------------ |
+| `Display.tsx`       | 841    | Alto — panel principal de salidas/llegadas |
+| `Admin.tsx`         | 3128   | Alto — panel de administración monolítico  |
+| `DisplayConfig.tsx` | 1001   | Alto — configuración por estación          |
+| `Trains.tsx`        | 556    | Alto — gestión de trenes (drag & drop)     |
+| `TrainSettings.tsx` | 203    | Medio — operadores/tipos de tren           |
+| `routes.js`         | 1676   | Alto — mayoría de lógica de negocio        |
+| `ws.js`             | 18     | Medio — WebSocket broadcast                |
+| `routeService.js`   | 182    | Medio — servicio de datos de rutas         |
+| `db.js`             | 882    | Alto — solo parcialmente testeado          |
+| Subida de ficheros  | —      | Medio — upload CSV/JSON                    |
+| `svgPlaceholder.ts` | —      | Bajo — utilidad de placeholder             |
+| `tts.ts`            | —      | Bajo — Text-to-Speech                      |
 
 ---
 
@@ -62,51 +62,51 @@
 
 ### 🔴 Alta prioridad
 
-| # | Área | Qué testear | Tipo | Fichero objetivo |
-|---|------|-------------|------|------------------|
-| 1 | **Display.tsx** | Render del panel, cambio de estado, rotación de idiomas | Componente | `frontend/src/pages/__tests__/Display.test.tsx` |
-| 2 | **Train CRUD API** | Crear/actualizar/eliminar tren, añadir retraso, cambiar plataforma | Integración | `backend/src/__tests__/trains.api.test.js` |
-| 3 | **Propagación de retrasos** | Retraso en parada intermedia se propaga a siguientes | Integración | `backend/src/__tests__/delay-propagation.test.js` |
+| #   | Área                        | Qué testear                                                        | Tipo        | Fichero objetivo                                  |
+| --- | --------------------------- | ------------------------------------------------------------------ | ----------- | ------------------------------------------------- |
+| 1   | **Display.tsx**             | Render del panel, cambio de estado, rotación de idiomas            | Componente  | `frontend/src/pages/__tests__/Display.test.tsx`   |
+| 2   | **Train CRUD API**          | Crear/actualizar/eliminar tren, añadir retraso, cambiar plataforma | Integración | `backend/src/__tests__/trains.api.test.js`        |
+| 3   | **Propagación de retrasos** | Retraso en parada intermedia se propaga a siguientes               | Integración | `backend/src/__tests__/delay-propagation.test.js` |
 
 ### 🟡 Prioridad media
 
-| # | Área | Qué testear | Tipo | Fichero objetivo |
-|---|------|-------------|------|------------------|
-| 4 | **Generación de trenes** | Aleatorio, desde-ruta, con seed reproducible | Unitario + Integración | `backend/src/__tests__/train-generation.test.js` |
-| 5 | **Admin.tsx** | Navegación sidebar, auth, render de pestañas | Componente | `frontend/src/pages/__tests__/Admin.test.tsx` |
-| 6 | **Subida de ficheros** | Subida correcta + fichero inválido | Integración | `backend/src/__tests__/upload.test.js` |
+| #   | Área                     | Qué testear                                  | Tipo                   | Fichero objetivo                                 |
+| --- | ------------------------ | -------------------------------------------- | ---------------------- | ------------------------------------------------ |
+| 4   | **Generación de trenes** | Aleatorio, desde-ruta, con seed reproducible | Unitario + Integración | `backend/src/__tests__/train-generation.test.js` |
+| 5   | **Admin.tsx**            | Navegación sidebar, auth, render de pestañas | Componente             | `frontend/src/pages/__tests__/Admin.test.tsx`    |
+| 6   | **Subida de ficheros**   | Subida correcta + fichero inválido           | Integración            | `backend/src/__tests__/upload.test.js`           |
 
 ### 🟢 Prioridad baja
 
-| # | Área | Qué testear | Tipo | Fichero objetivo |
-|---|------|-------------|------|------------------|
-| 7 | **TTS** | Inicialización, speak, stop | Unitario | `frontend/src/lib/__tests__/tts.test.ts` |
-| 8 | **SVG Placeholder** | Generación de placeholder, tamaños | Unitario | `frontend/src/lib/__tests__/svgPlaceholder.test.ts` |
+| #   | Área                | Qué testear                        | Tipo     | Fichero objetivo                                    |
+| --- | ------------------- | ---------------------------------- | -------- | --------------------------------------------------- |
+| 7   | **TTS**             | Inicialización, speak, stop        | Unitario | `frontend/src/lib/__tests__/tts.test.ts`            |
+| 8   | **SVG Placeholder** | Generación de placeholder, tamaños | Unitario | `frontend/src/lib/__tests__/svgPlaceholder.test.ts` |
 
 ---
 
 ## Flujos críticos
 
-| Flujo | Riesgo | Cobertura actual | Cobertura objetivo |
-|-------|--------|------------------|--------------------|
-| Visualización del panel | Alto | Ninguna | Componente + Integración |
-| CRUD de administración | Alto | Parcial (backend) | Backend completo + Frontend |
-| Ciclo de vida de servicios | Alto | Ninguna | Integración |
-| Subida de ficheros | Medio | Ninguna | Integración |
-| Generación de trenes | Medio | Ninguna | Unitario + Integración |
-| Autenticación | Medio | Parcial | Integración |
+| Flujo                      | Riesgo | Cobertura actual  | Cobertura objetivo          |
+| -------------------------- | ------ | ----------------- | --------------------------- |
+| Visualización del panel    | Alto   | Ninguna           | Componente + Integración    |
+| CRUD de administración     | Alto   | Parcial (backend) | Backend completo + Frontend |
+| Ciclo de vida de servicios | Alto   | Ninguna           | Integración                 |
+| Subida de ficheros         | Medio  | Ninguna           | Integración                 |
+| Generación de trenes       | Medio  | Ninguna           | Unitario + Integración      |
+| Autenticación              | Medio  | Parcial           | Integración                 |
 
 ---
 
 ## Herramientas
 
-| Capa | Herramienta | Para |
-|------|-------------|------|
-| Unit tests | **Vitest** | Backend + Frontend (ya en uso) |
-| Component tests | **@testing-library/react** | Frontend (ya en uso) |
-| API tests | **Supertest** | Backend (ya en uso) |
-| API mocking | **MSW** (Mock Service Worker) | Frontend (pendiente de implementar) |
-| E2E | **Playwright** o **Cypress** | Flujos críticos (futuro) |
+| Capa            | Herramienta                   | Para                                |
+| --------------- | ----------------------------- | ----------------------------------- |
+| Unit tests      | **Vitest**                    | Backend + Frontend (ya en uso)      |
+| Component tests | **@testing-library/react**    | Frontend (ya en uso)                |
+| API tests       | **Supertest**                 | Backend (ya en uso)                 |
+| API mocking     | **MSW** (Mock Service Worker) | Frontend (pendiente de implementar) |
+| E2E             | **Playwright** o **Cypress**  | Flujos críticos (futuro)            |
 
 ---
 

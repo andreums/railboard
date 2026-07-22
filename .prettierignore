@@ -1,0 +1,8 @@
+node_modules
+dist
+build
+coverage
+backend/uploads
+backend/data
+frontend/public/fonts/fonts.css
+package-lock.json

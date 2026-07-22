@@ -25,9 +25,7 @@ export default function Clock({
   useEffect(() => {
     const step = Number.isFinite(fakeStepSeconds) ? fakeStepSeconds : 1;
     const t = setInterval(() => {
-      setNow((current) => mode === "fake"
-        ? new Date(current.getTime() + step * 1000)
-        : new Date());
+      setNow((current) => (mode === "fake" ? new Date(current.getTime() + step * 1000) : new Date()));
     }, 1000);
     return () => clearInterval(t);
   }, [mode, fakeStepSeconds]);
@@ -38,7 +36,8 @@ export default function Clock({
   return (
     <div className="text-right text-current">
       <div className="font-mono text-5xl tracking-wider">
-        {hh}:{mm}<span className="text-current">:{ss}</span>
+        {hh}:{mm}
+        <span className="text-current">:{ss}</span>
       </div>
     </div>
   );

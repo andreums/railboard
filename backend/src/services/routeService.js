@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import logger from "../logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROUTES_JSON_PATH = path.resolve(__dirname, "../data/railboard_routes.json");
@@ -41,7 +42,7 @@ function loadRoutesRaw() {
     const parsed = JSON.parse(content);
     return parseRoutesPayload(parsed).filter(isValidRoute);
   } catch (error) {
-    console.error("[routeService] Could not load routes JSON:", error.message);
+    logger.error({ err: error }, "Could not load routes JSON");
     return [];
   }
 }
@@ -176,7 +177,5 @@ export function reloadRoutesDataset() {
 export function logRouteStats() {
   const stats = reloadRoutesDataset();
 
-  console.log(`[routeService] total routes loaded: ${stats.routes}`);
-  console.log(`[routeService] total unique stations: ${stats.stations}`);
-  console.log(`[routeService] total available networks: ${stats.networks}`);
+  logger.info({ routes: stats.routes, stations: stats.stations, networks: stats.networks }, "Route stats");
 }

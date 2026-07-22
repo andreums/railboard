@@ -12,6 +12,7 @@
 En un encuentro modular hay varias estaciones (mesas). Cada operador controla los trenes de su estación. El display público de cada estación muestra solo sus trenes.
 
 **Ejemplo:**
+
 - Estación "València Nord" → operador con móvil marca salidas/llegadas
 - Estación "Barcelona Sants" → otro operador, otro móvil, otro monitor
 - Ambos conectados a la misma instancia de RailBoard
@@ -62,6 +63,7 @@ ALTER TABLE trains ADD COLUMN station_id INTEGER REFERENCES stations(id) ON DELE
 No requiere migración de schema — se guarda como clave-valor en la tabla `config` existente.
 
 Claves nuevas en `config`:
+
 - `default_station_id` — estación por defecto para el display `/`
 - `show_all_stations` — `"true"` o `"false"` (si `/` muestra todos o solo default)
 
@@ -73,7 +75,9 @@ Claves nuevas en `config`:
 
 ```js
 // En db.js, después de crear tablas
-const hasStationId = db.prepare("PRAGMA table_info('trains')").all()
+const hasStationId = db
+  .prepare("PRAGMA table_info('trains')")
+  .all()
   .some((c) => c.name === "station_id");
 if (!hasStationId) {
   db.exec("ALTER TABLE trains ADD COLUMN station_id INTEGER REFERENCES stations(id) ON DELETE SET NULL");
@@ -88,8 +92,7 @@ Esto asegura que cualquier instancia existente con datos en `trains` mantiene su
 // seedConfig — añadir estación por defecto si no existe ninguna
 const station = db.prepare("SELECT id FROM stations LIMIT 1").get();
 if (!station) {
-  db.prepare("INSERT INTO stations (name, short) VALUES (?, ?)")
-    .run("Estación Principal", "Principal");
+  db.prepare("INSERT INTO stations (name, short) VALUES (?, ?)").run("Estación Principal", "Principal");
 }
 ```
 
@@ -99,27 +102,27 @@ if (!station) {
 
 ### Nuevos: CRUD de estaciones
 
-| Método | Ruta | Auth | Descripción |
-|--------|------|------|-------------|
-| GET | `/api/stations` | No | Listar estaciones (ordenadas por sort_order) |
-| POST | `/api/stations` | Sí | Crear estación |
-| PUT | `/api/stations/:id` | Sí | Actualizar estación |
-| DELETE | `/api/stations/:id` | Sí | Eliminar estación (trenes → station_id = NULL) |
+| Método | Ruta                | Auth | Descripción                                    |
+| ------ | ------------------- | ---- | ---------------------------------------------- |
+| GET    | `/api/stations`     | No   | Listar estaciones (ordenadas por sort_order)   |
+| POST   | `/api/stations`     | Sí   | Crear estación                                 |
+| PUT    | `/api/stations/:id` | Sí   | Actualizar estación                            |
+| DELETE | `/api/stations/:id` | Sí   | Eliminar estación (trenes → station_id = NULL) |
 
 ### Modificados: filtro por estación en trains
 
-| Método | Ruta | Cambio |
-|--------|------|--------|
-| GET | `/api/trains?station_id=X` | Nuevo query param opcional. Filtra trains por station_id. Sin parámetro = todos los trenes |
-| POST | `/api/trains` | Body acepta `station_id` |
-| PUT | `/api/trains/:id` | Body acepta `station_id` |
+| Método | Ruta                       | Cambio                                                                                     |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------------ |
+| GET    | `/api/trains?station_id=X` | Nuevo query param opcional. Filtra trains por station_id. Sin parámetro = todos los trenes |
+| POST   | `/api/trains`              | Body acepta `station_id`                                                                   |
+| PUT    | `/api/trains/:id`          | Body acepta `station_id`                                                                   |
 
 ### Modificados: config
 
-| Método | Ruta | Cambio |
-|--------|------|--------|
-| GET | `/api/config` | Ya incluye `default_station_id` y `show_all_stations` |
-| PUT | `/api/config` | Ya acepta `default_station_id` y `show_all_stations` |
+| Método | Ruta          | Cambio                                                |
+| ------ | ------------- | ----------------------------------------------------- |
+| GET    | `/api/config` | Ya incluye `default_station_id` y `show_all_stations` |
+| PUT    | `/api/config` | Ya acepta `default_station_id` y `show_all_stations`  |
 
 ---
 
@@ -135,10 +138,10 @@ Esto simplifica: el servidor no necesita saber qué estación ve cada cliente.
 
 ### 6.1 Rutas nuevas
 
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/stations` | `Stations.tsx` | CRUD de estaciones |
-| `/display/:stationId` | `Display.tsx` (reutilizada) | Display filtrado por estación |
+| Ruta                  | Página                         | Descripción                        |
+| --------------------- | ------------------------------ | ---------------------------------- |
+| `/stations`           | `Stations.tsx`                 | CRUD de estaciones                 |
+| `/display/:stationId` | `Display.tsx` (reutilizada)    | Display filtrado por estación      |
 | `/control/:stationId` | `Control.tsx` (ya planificada) | Live Control filtrado por estación |
 
 ### 6.2 Página nueva: `Stations.tsx`
@@ -177,10 +180,10 @@ function Display() {
 
 Comportamiento de `/` vs `/display/:id`:
 
-| Ruta | Comportamiento |
-|------|----------------|
-| `/` | Muestra según config: `show_all_stations=true` → todos; `false` → solo `default_station_id` |
-| `/display/:id` | Muestra solo los trenes de esa estación. Header muestra el nombre de la estación |
+| Ruta           | Comportamiento                                                                              |
+| -------------- | ------------------------------------------------------------------------------------------- |
+| `/`            | Muestra según config: `show_all_stations=true` → todos; `false` → solo `default_station_id` |
+| `/display/:id` | Muestra solo los trenes de esa estación. Header muestra el nombre de la estación            |
 
 ### 6.4 Modificaciones en `Trains.tsx`
 
@@ -218,15 +221,25 @@ export const api = {
   listStations: (): Promise<Station[]> => json("/stations"),
   createStation: (name: string, short?: string, color?: string) =>
     json("/stations", { method: "POST", body: JSON.stringify({ name, short, color }) }),
-  updateStation: (id: number, data: Partial<Station>) =>
-    json(`/stations/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  updateStation: (id: number, data: Partial<Station>) => json(`/stations/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   deleteStation: (id: number) => json(`/stations/${id}`, { method: "DELETE" }),
 
   // Modificar listTrains para aceptar filtros
   listTrains: (params?: { station_id?: number }): Promise<Train[]> =>
-    json(`/trains${params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([_, v]) => v != null).map(([k, v]) => [k, String(v)]))
-    ).toString() : ''}`),
+    json(
+      `/trains${
+        params
+          ? "?" +
+            new URLSearchParams(
+              Object.fromEntries(
+                Object.entries(params)
+                  .filter(([_, v]) => v != null)
+                  .map(([k, v]) => [k, String(v)]),
+              ),
+            ).toString()
+          : ""
+      }`,
+    ),
 };
 ```
 
@@ -234,14 +247,14 @@ export const api = {
 
 ## 7. Estrategia de compatibilidad con datos actuales
 
-| Aspecto | Compatibilidad |
-|---------|----------------|
-| Trenes existentes | `station_id = NULL` → aparecen en display global / y en /display sin filtro. No se pierden |
-| Config existente | `default_station_id` no existe → display / muestra todos (comportamiento actual) |
-| Operadores/tipos/lugares | Sin cambios. Siguen siendo globales |
-| Display `/` actual | Sigue funcionando exactamente igual si no hay estaciones creadas |
-| Encuentro en curso | Los trenes con station_id solo se ven en su estación. Los sin station_id se ven en todos los displays |
-| Export/import | El formato .railboard.json incluye `stations` array |
+| Aspecto                  | Compatibilidad                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Trenes existentes        | `station_id = NULL` → aparecen en display global / y en /display sin filtro. No se pierden            |
+| Config existente         | `default_station_id` no existe → display / muestra todos (comportamiento actual)                      |
+| Operadores/tipos/lugares | Sin cambios. Siguen siendo globales                                                                   |
+| Display `/` actual       | Sigue funcionando exactamente igual si no hay estaciones creadas                                      |
+| Encuentro en curso       | Los trenes con station_id solo se ven en su estación. Los sin station_id se ven en todos los displays |
+| Export/import            | El formato .railboard.json incluye `stations` array                                                   |
 
 ---
 
@@ -262,11 +275,11 @@ export const api = {
 
 ## 9. Tests backend necesarios
 
-| Archivo | Tests nuevos | Descripción |
-|---------|-------------|-------------|
-| `db.unit.test.js` | +3 | CRUD stations, migrate añade columna, station_id en train |
-| `routes.integration.test.js` | +6 | GET /stations, POST (auth), PUT, DELETE, GET /trains?station_id= X, POST /trains con station_id |
-| `e2e.test.js` | +5 | Crear station → crear train con station_id → filtrar → cambiar station → eliminar station |
+| Archivo                      | Tests nuevos | Descripción                                                                                     |
+| ---------------------------- | ------------ | ----------------------------------------------------------------------------------------------- |
+| `db.unit.test.js`            | +3           | CRUD stations, migrate añade columna, station_id en train                                       |
+| `routes.integration.test.js` | +6           | GET /stations, POST (auth), PUT, DELETE, GET /trains?station_id= X, POST /trains con station_id |
+| `e2e.test.js`                | +5           | Crear station → crear train con station_id → filtrar → cambiar station → eliminar station       |
 
 **Total: +14 tests**
 
@@ -274,11 +287,11 @@ export const api = {
 
 ## 10. Tests frontend necesarios
 
-| Archivo | Tests nuevos | Descripción |
-|---------|-------------|-------------|
-| `Stations.test.tsx` (nuevo) | +8 | Render lista vacía, crear estación, editar, eliminar |
-| `Display.test.tsx` (nuevo) | +6 | Render con stationId, mostrar nombre estación, filtrar trenes |
-| `api.test.ts` (nuevo) | +3 | listStations, listTrains con params, createStation |
+| Archivo                     | Tests nuevos | Descripción                                                   |
+| --------------------------- | ------------ | ------------------------------------------------------------- |
+| `Stations.test.tsx` (nuevo) | +8           | Render lista vacía, crear estación, editar, eliminar          |
+| `Display.test.tsx` (nuevo)  | +6           | Render con stationId, mostrar nombre estación, filtrar trenes |
+| `api.test.ts` (nuevo)       | +3           | listStations, listTrains con params, createStation            |
 
 **Total: +17 tests**
 
@@ -355,14 +368,14 @@ export const api = {
 
 ## 12. Riesgos técnicos
 
-| Riesgo | Probabilidad | Impacto | Mitigación |
-|--------|-------------|---------|------------|
-| El display `/` se rompe si no hay estaciones creadas | Baja | Alto | Comprobar que sin stations, `/` y `/trains` funcionan exactamente como hoy |
-| station_id NULL rompe queries existentes | Baja | Medio | Los LEFT JOIN con stations ignoran NULL; listTrains sin filtro devuelve todos |
-| El formulario TrainForm se vuelve demasiado largo | Media | Bajo | Ya tiene muchos campos; station_id es un select más, no crítico |
-| Confusión entre estaciones en operación real | Media | Medio | La URL `/display/:id` y el header de color distintivo ayudan |
-| La tabla stations duplica info de config.station_name | Media | Bajo | station_name en config se mantiene para la estación principal del evento. stations son las mesas del encuentro |
-| Conflictos de nombres de estación | Baja | Bajo | name es UNIQUE? No es necesario para Fase 1. Se valida en frontend |
+| Riesgo                                                | Probabilidad | Impacto | Mitigación                                                                                                     |
+| ----------------------------------------------------- | ------------ | ------- | -------------------------------------------------------------------------------------------------------------- |
+| El display `/` se rompe si no hay estaciones creadas  | Baja         | Alto    | Comprobar que sin stations, `/` y `/trains` funcionan exactamente como hoy                                     |
+| station_id NULL rompe queries existentes              | Baja         | Medio   | Los LEFT JOIN con stations ignoran NULL; listTrains sin filtro devuelve todos                                  |
+| El formulario TrainForm se vuelve demasiado largo     | Media        | Bajo    | Ya tiene muchos campos; station_id es un select más, no crítico                                                |
+| Confusión entre estaciones en operación real          | Media        | Medio   | La URL `/display/:id` y el header de color distintivo ayudan                                                   |
+| La tabla stations duplica info de config.station_name | Media        | Bajo    | station_name en config se mantiene para la estación principal del evento. stations son las mesas del encuentro |
+| Conflictos de nombres de estación                     | Baja         | Bajo    | name es UNIQUE? No es necesario para Fase 1. Se valida en frontend                                             |
 
 ---
 
@@ -390,4 +403,4 @@ export const api = {
 
 ---
 
-*Documento generado el 30 de mayo de 2026. Siguiente: implementación Paso 1.*
+_Documento generado el 30 de mayo de 2026. Siguiente: implementación Paso 1._

@@ -24,6 +24,7 @@ export type Train = {
   type_color?: string | null;
   type_logo?: string | null;
   type_pre_announce?: string | null;
+  type_announce_template?: string | null;
   type_destination_icon?: string | null;
   origin: string;
   destination: string;
@@ -43,13 +44,20 @@ export type Train = {
   icon_mode?: "none" | "operator" | "type" | "destination" | "custom";
   custom_icon_url?: string | null;
   custom_icon_file?: File;
-  status:
-  | "Scheduled" | "Boarding" | "Delayed"
-  | "Departed" | "Arrived" | "Cancelled";
+  status: "Scheduled" | "Boarding" | "Delayed" | "Departed" | "Arrived" | "Cancelled";
 };
 
 export type Operator = { id: number; name: string; logo_url: string | null; pre_announce_ogg?: string | null };
-export type TrainType = { id: number; code: string; name: string; color: string; logo_url: string | null; pre_announce_ogg?: string | null; destination_icon_url?: string | null };
+export type TrainType = {
+  id: number;
+  code: string;
+  name: string;
+  color: string;
+  logo_url: string | null;
+  pre_announce_ogg?: string | null;
+  destination_icon_url?: string | null;
+  announce_template?: string | null;
+};
 export type TrainIcon = { id: number; name: string; icon_url: string; created_at?: string };
 export type Route = {
   code: string;
@@ -64,7 +72,15 @@ export type Route = {
   notes?: string;
 };
 export type Place = { id: number; name: string; logo_url?: string | null };
-export type Station = { id: number; name: string; short: string; logo_url?: string | null; pre_announce_ogg?: string | null; color: string; sort_order: number };
+export type Station = {
+  id: number;
+  name: string;
+  short: string;
+  logo_url?: string | null;
+  pre_announce_ogg?: string | null;
+  color: string;
+  sort_order: number;
+};
 export type DisplaySummary = { station: Station; config: Config; trains: Train[] };
 
 export type Service = {
@@ -159,7 +175,7 @@ export type Config = {
 const json = (path: string, init?: RequestInit) =>
   fetch(`${API_URL}/admin${path}`, {
     ...init,
-    headers: { "Content-Type": "application/json", ...authHeaders(), ...(init?.headers as Record<string, string> || {}) },
+    headers: { "Content-Type": "application/json", ...authHeaders(), ...((init?.headers as Record<string, string>) || {}) },
   }).then(async (r) => {
     if (r.ok) return r.status === 204 ? null : r.json();
     // try to parse JSON error body, fall back to text
@@ -169,7 +185,7 @@ const json = (path: string, init?: RequestInit) =>
     } catch (e) {
       body = await r.text();
     }
-    const message = body && (body.error || body.message) ? (body.error || body.message) : String(body);
+    const message = body && (body.error || body.message) ? body.error || body.message : String(body);
     const err: any = new Error(message);
     err.status = r.status;
     throw err;
@@ -178,7 +194,7 @@ const json = (path: string, init?: RequestInit) =>
 const authFetch = (path: string, init?: RequestInit) =>
   fetch(`${API_URL}/admin${path}`, {
     ...init,
-    headers: { ...authHeaders(), ...(init?.headers as Record<string, string> || {}) },
+    headers: { ...authHeaders(), ...((init?.headers as Record<string, string>) || {}) },
   });
 
 async function downloadBlob(path: string, filename: string, init?: RequestInit) {
@@ -212,13 +228,10 @@ async function downloadBlob(path: string, filename: string, init?: RequestInit) 
 
 export const api = {
   getConfig: (): Promise<Config> => json("/config"),
-  setConfig: (c: Partial<Config>) =>
-    json("/config", { method: "PUT", body: JSON.stringify(c) }),
+  setConfig: (c: Partial<Config>) => json("/config", { method: "PUT", body: JSON.stringify(c) }),
 
-  listTrains: (stationId?: number): Promise<Train[]> =>
-    json(stationId != null ? `/trains?station_id=${stationId}` : "/trains"),
-  reorderTrains: (ids: number[]) =>
-    json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
+  listTrains: (stationId?: number): Promise<Train[]> => json(stationId != null ? `/trains?station_id=${stationId}` : "/trains"),
+  reorderTrains: (ids: number[]) => json("/trains/reorder", { method: "PUT", body: JSON.stringify({ ids }) }),
   createTrain: (t: Partial<Train>) => {
     const hasFile = (t as any).custom_icon_file;
     if (hasFile) {
@@ -247,10 +260,8 @@ export const api = {
     }
     return json(`/trains/${id}`, { method: "PUT", body: JSON.stringify(t) });
   },
-  setStatus: (id: number, status: Train["status"]) =>
-    json(`/trains/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
-  addDelay: (id: number, minutes: number) =>
-    json(`/trains/${id}/delay`, { method: "PATCH", body: JSON.stringify({ minutes }) }),
+  setStatus: (id: number, status: Train["status"]) => json(`/trains/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  addDelay: (id: number, minutes: number) => json(`/trains/${id}/delay`, { method: "PATCH", body: JSON.stringify({ minutes }) }),
   setPlatform: (id: number, platform: string, sector: string) =>
     json(`/trains/${id}/platform`, { method: "PATCH", body: JSON.stringify({ platform, sector }) }),
   deleteTrain: (id: number) => json(`/trains/${id}`, { method: "DELETE" }),
@@ -287,16 +298,29 @@ export const api = {
   listTrainTypes: (): Promise<TrainType[]> => json("/train-types"),
   createTrainType: (code: string, name: string, color: string, logo?: File | null, destinationIcon?: File | null) => {
     const fd = new FormData();
-    fd.append("code", code); fd.append("name", name); fd.append("color", color);
+    fd.append("code", code);
+    fd.append("name", name);
+    fd.append("color", color);
     if (logo) fd.append("logo", logo);
     if (destinationIcon) fd.append("destination_icon", destinationIcon);
     return authFetch("/train-types", { method: "POST", body: fd }).then((r) => r.json());
   },
-  updateTrainType: (id: number, code: string, name: string, color: string, logo?: File | null, destinationIcon?: File | null) => {
+  updateTrainType: (
+    id: number,
+    code: string,
+    name: string,
+    color: string,
+    logo?: File | null,
+    destinationIcon?: File | null,
+    announceTemplate?: string | null,
+  ) => {
     const fd = new FormData();
-    fd.append("code", code); fd.append("name", name); fd.append("color", color);
+    fd.append("code", code);
+    fd.append("name", name);
+    fd.append("color", color);
     if (logo) fd.append("logo", logo);
     if (destinationIcon) fd.append("destination_icon", destinationIcon);
+    if (announceTemplate !== undefined) fd.append("announce_template", announceTemplate ?? "");
     return authFetch(`/train-types/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
   },
   deleteTrainType: (id: number) => json(`/train-types/${id}`, { method: "DELETE" }),
@@ -308,27 +332,24 @@ export const api = {
   deleteTrainTypePre: (id: number) => authFetch(`/train-types/${id}/pre-announce`, { method: "DELETE" }),
 
   // ---- TRAIN ICONS (Library) ----
-  listTrainIcons: (): Promise<TrainIcon[]> =>
-    json("/train-icons").then(r => r?.data || r || []),
+  listTrainIcons: (): Promise<TrainIcon[]> => json("/train-icons").then((r) => r?.data || r || []),
   createTrainIcon: (name: string, file: File): Promise<TrainIcon> => {
     const fd = new FormData();
     fd.append("name", name);
     fd.append("icon", file);
-    return authFetch("/train-icons", { method: "POST", body: fd }).then(r => r.json());
+    return authFetch("/train-icons", { method: "POST", body: fd }).then((r) => r.json());
   },
   updateTrainIcon: (id: number, name: string, file?: File): Promise<TrainIcon> => {
     const fd = new FormData();
     fd.append("name", name);
     if (file) fd.append("icon", file);
-    return authFetch(`/train-icons/${id}`, { method: "PUT", body: fd }).then(r => r.json());
+    return authFetch(`/train-icons/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
   },
   deleteTrainIcon: (id: number) => json(`/train-icons/${id}`, { method: "DELETE" }),
 
   listStations: (): Promise<Station[]> => json("/stations"),
-  createStation: (station: Partial<Station>) =>
-    json("/stations", { method: "POST", body: JSON.stringify(station) }),
-  updateStation: (id: number, station: Partial<Station>) =>
-    json(`/stations/${id}`, { method: "PUT", body: JSON.stringify(station) }),
+  createStation: (station: Partial<Station>) => json("/stations", { method: "POST", body: JSON.stringify(station) }),
+  updateStation: (id: number, station: Partial<Station>) => json(`/stations/${id}`, { method: "PUT", body: JSON.stringify(station) }),
   deleteStation: (id: number) => json(`/stations/${id}`, { method: "DELETE" }),
   listDisplays: (): Promise<DisplaySummary[]> => json("/displays"),
   getStationDisplayConfig: (stationId: number): Promise<Config> =>
@@ -370,61 +391,159 @@ export const api = {
 
   // ---- MULTISTATION SERVICES ----
   listServices: (filters?: { status?: string; operator_id?: number }): Promise<Service[]> =>
-    json("/services" + (filters ? `?${new URLSearchParams(filters as any).toString()}` : ""))
-      .then(r => r?.data || r || []),
-  createService: (svc: Partial<Service>) =>
-    json("/services", { method: "POST", body: JSON.stringify(svc) })
-      .then(r => r?.data || r),
+    json("/services" + (filters ? `?${new URLSearchParams(filters as any).toString()}` : "")).then((r) => r?.data || r || []),
+  createService: (svc: Partial<Service>) => json("/services", { method: "POST", body: JSON.stringify(svc) }).then((r) => r?.data || r),
   getService: (id: number): Promise<{ service: Service; stops: ServiceStop[]; events: any[] }> =>
-    json(`/services/${id}`)
-      .then(r => r?.data || r),
+    json(`/services/${id}`).then((r) => r?.data || r),
   updateService: (id: number, svc: Partial<Service>) =>
-    json(`/services/${id}`, { method: "PATCH", body: JSON.stringify(svc) })
-      .then(r => r?.data || r),
-  deleteService: (id: number) => json(`/services/${id}`, { method: "DELETE" })
-    .then(r => r?.data || r),
+    json(`/services/${id}`, { method: "PATCH", body: JSON.stringify(svc) }).then((r) => r?.data || r),
+  deleteService: (id: number) => json(`/services/${id}`, { method: "DELETE" }).then((r) => r?.data || r),
   cancelService: (id: number, reason?: string) =>
-    json(`/services/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) })
-      .then(r => r?.data || r),
+    json(`/services/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }).then((r) => r?.data || r),
 
   // Service stops
-  getServiceStops: (serviceId: number): Promise<ServiceStop[]> =>
-    json(`/services/${serviceId}/stops`)
-      .then(r => r?.data || r || []),
+  getServiceStops: (serviceId: number): Promise<ServiceStop[]> => json(`/services/${serviceId}/stops`).then((r) => r?.data || r || []),
   createServiceStop: (serviceId: number, stop: Partial<ServiceStop>) =>
-    json(`/services/${serviceId}/stops`, { method: "POST", body: JSON.stringify(stop) })
-      .then(r => r?.data || r),
+    json(`/services/${serviceId}/stops`, { method: "POST", body: JSON.stringify(stop) }).then((r) => r?.data || r),
   updateServiceStop: (serviceId: number, stopId: number, stop: Partial<ServiceStop>) =>
-    json(`/services/${serviceId}/stops/${stopId}`, { method: "PATCH", body: JSON.stringify(stop) })
-      .then(r => r?.data || r),
+    json(`/services/${serviceId}/stops/${stopId}`, { method: "PATCH", body: JSON.stringify(stop) }).then((r) => r?.data || r),
   deleteServiceStop: (serviceId: number, stopId: number) =>
-    json(`/services/${serviceId}/stops/${stopId}`, { method: "DELETE" })
-      .then(r => r?.data || r),
+    json(`/services/${serviceId}/stops/${stopId}`, { method: "DELETE" }).then((r) => r?.data || r),
   reorderServiceStops: (serviceId: number, order: number[]) =>
-    json(`/services/${serviceId}/stops/reorder`, { method: "POST", body: JSON.stringify({ order }) })
-      .then(r => r?.data || r),
+    json(`/services/${serviceId}/stops/reorder`, { method: "POST", body: JSON.stringify({ order }) }).then((r) => r?.data || r),
 
   // Stop operations
   markArrival: (stopId: number, actual_time: string, platform?: string) =>
-    json(`/stops/${stopId}/arrival`, { method: "POST", body: JSON.stringify({ actual_time, platform }) })
-      .then(r => r?.data || r),
+    json(`/stops/${stopId}/arrival`, { method: "POST", body: JSON.stringify({ actual_time, platform }) }).then((r) => r?.data || r),
   markDeparture: (stopId: number, actual_time: string) =>
-    json(`/stops/${stopId}/departure`, { method: "POST", body: JSON.stringify({ actual_time }) })
-      .then(r => r?.data || r),
+    json(`/stops/${stopId}/departure`, { method: "POST", body: JSON.stringify({ actual_time }) }).then((r) => r?.data || r),
   markPass: (stopId: number, actual_time: string) =>
-    json(`/stops/${stopId}/pass`, { method: "POST", body: JSON.stringify({ actual_time }) })
-      .then(r => r?.data || r),
+    json(`/stops/${stopId}/pass`, { method: "POST", body: JSON.stringify({ actual_time }) }).then((r) => r?.data || r),
   addStopDelay: (stopId: number, minutes: number, reason?: string) =>
-    json(`/stops/${stopId}/delay`, { method: "POST", body: JSON.stringify({ minutes, reason }) })
-      .then(r => r?.data || r),
+    json(`/stops/${stopId}/delay`, { method: "POST", body: JSON.stringify({ minutes, reason }) }).then((r) => r?.data || r),
 
   // Board display
   getStationBoard: (stationId: number, mode?: "departures" | "arrivals" | "all"): Promise<any> =>
-    fetch(`${API_URL}/api/stations/${stationId}/board${mode ? `?mode=${mode}` : ""}`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      }),
+    fetch(`${API_URL}/api/stations/${stationId}/board${mode ? `?mode=${mode}` : ""}`).then(async (r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    }),
+
+  // ---- ANNOUNCEMENT SYSTEM ----
+  getAnnouncementConfig: (): Promise<{ availableLocales: string[]; availableEventTypes: string[]; stats: any }> =>
+    json("/announcements/config"),
+  getStationAnnouncementConfig: (stationId: number): Promise<any> => json(`/announcements/config/${stationId}`),
+  saveStationAnnouncementConfig: (stationId: number, config: any) =>
+    json("/announcements/config", { method: "PUT", body: JSON.stringify({ station_id: stationId, ...config }) }),
+  getAnnouncementQueue: (): Promise<QueueItem[]> => json("/announcements/queue").then((r) => r?.data || r || []),
+  getAnnouncementHistory: (): Promise<HistoryItem[]> => json("/announcements/history").then((r) => r?.data || r || []),
+  testAnnouncement: (data: any): Promise<any> =>
+    json("/announcements/test", { method: "POST", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  triggerAnnouncementEvent: (data: any): Promise<any> =>
+    json("/announcements/event", { method: "POST", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  getAnnouncementEvents: (): Promise<any[]> => json("/announcements/events").then((r) => r?.data || r || []),
+  // Audio assets
+  listAudioAssets: (): Promise<AudioAsset[]> => json("/announcement-audio"),
+  getAudioAsset: (id: number): Promise<AudioAsset> => json(`/announcement-audio/${id}`),
+  uploadAudioAsset: (file: File, name?: string, assetType?: string) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    if (name) fd.append("name", name);
+    if (assetType) fd.append("asset_type", assetType);
+    return authFetch("/announcement-audio/upload", { method: "POST", body: fd }).then((r) => r.json()).then((r) => r?.data || r);
+  },
+  updateAudioAsset: (id: number, data: any) => json(`/announcement-audio/${id}`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  deleteAudioAsset: (id: number) => json(`/announcement-audio/${id}`, { method: "DELETE" }),
+  // Sound profiles
+  listSoundProfiles: (): Promise<SoundProfile[]> => json("/announcement-sound-profiles"),
+  createSoundProfile: (data: any) => json("/announcement-sound-profiles", { method: "POST", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  updateSoundProfile: (id: number, data: any) => json(`/announcement-sound-profiles/${id}`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  deleteSoundProfile: (id: number) => json(`/announcement-sound-profiles/${id}`, { method: "DELETE" }),
+  // Sound rules
+  listSoundRules: (): Promise<SoundRule[]> => json("/announcement-sound-rules"),
+  createSoundRule: (data: any) => json("/announcement-sound-rules", { method: "POST", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  updateSoundRule: (id: number, data: any) => json(`/announcement-sound-rules/${id}`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  deleteSoundRule: (id: number) => json(`/announcement-sound-rules/${id}`, { method: "DELETE" }),
+  // Place TTS pronunciations
+  listPlaceTtsPronunciations: (): Promise<any[]> => json("/place-tts-pronunciations"),
+  setPlaceTtsPronunciation: (display_name: string, language: string, pronunciation: string) =>
+    json("/place-tts-pronunciations", { method: "POST", body: JSON.stringify({ display_name, language, pronunciation }) }).then((r) => r?.data || r),
+  deletePlaceTtsPronunciation: (id: number) => json(`/place-tts-pronunciations/${id}`, { method: "DELETE" }),
+  // Format helpers
+  formatTimeForSpeech: (time: string, language?: string) =>
+    json("/announcements/format-time", { method: "POST", body: JSON.stringify({ time, language }) }),
+  formatListForSpeech: (items: string[], language?: string) =>
+    json("/announcements/format-list", { method: "POST", body: JSON.stringify({ items, language }) }),
+  getAvailableLocales: (): Promise<string[]> => json("/announcements/locales").then((r) => r?.data || r || []),
+};
+
+// ---- ANNOUNCEMENT TYPES ----
+export type AudioAsset = {
+  id: number;
+  name: string;
+  asset_type: "CHIME" | "GONG" | "ATTENTION_TONE" | "JINGLE" | "PRERECORDED_ANNOUNCEMENT" | "VOICE_FRAGMENT" | "CUSTOM";
+  format: "MP3" | "OGG" | "WAV";
+  file_path: string;
+  original_filename?: string;
+  duration_ms?: number;
+  bitrate?: number;
+  sample_rate?: number;
+  channels?: number;
+  volume_db?: number;
+  normalized?: number;
+  default_volume?: number;
+  waveform_data?: string;
+  enabled?: number;
+};
+
+export type QueueItem = {
+  id: number;
+  event_type: string;
+  priority: "LOW" | "NORMAL" | "HIGH" | "EMERGENCY";
+  status: string;
+  languages: string;
+  composed_data: string;
+  created_at: string;
+};
+
+export type HistoryItem = {
+  id: number;
+  event_type: string;
+  text_ca?: string;
+  text_es?: string;
+  text_en?: string;
+  queue_status: string;
+  played_at?: string;
+  created_at: string;
+};
+
+export type SoundProfile = {
+  id: number;
+  name: string;
+  station_id?: number;
+  operator_id?: number;
+  train_type_id?: number;
+  commercial_service?: string;
+  service_type?: string;
+  default_sound_id?: number;
+  delay_after_sound_ms?: number;
+  sound_volume?: number;
+  speech_volume?: number;
+  enabled?: number;
+};
+
+export type SoundRule = {
+  id: number;
+  priority: number;
+  match_config: string;
+  sound_id?: number;
+  event_type?: string;
+  sound_mode: "SINGLE" | "PER_LANGUAGE";
+  delay_after_sound_ms?: number;
+  delay_between_languages_ms?: number;
+  enabled?: number;
+  asset_name?: string;
+  asset_path?: string;
 };
 
 export function connectWS(onUpdate: () => void) {
@@ -442,17 +561,24 @@ export function connectWS(onUpdate: () => void) {
         if (m.type === "update") onUpdate();
         // Call specific event listeners
         if (m.type && listeners.has(m.type)) {
-          listeners.get(m.type)?.forEach(cb => cb(m));
+          listeners.get(m.type)?.forEach((cb) => cb(m));
         }
-      } catch { /* noop */ }
+      } catch {
+        /* noop */
+      }
     };
-    ws.onclose = () => { if (!stop) setTimeout(open, 1500); };
+    ws.onclose = () => {
+      if (!stop) setTimeout(open, 1500);
+    };
     ws.onerror = () => ws?.close();
   };
   open();
 
   return {
-    close: () => { stop = true; ws?.close(); },
+    close: () => {
+      stop = true;
+      ws?.close();
+    },
     on: (eventType: string, callback: (msg: any) => void) => {
       if (!listeners.has(eventType)) listeners.set(eventType, new Set());
       listeners.get(eventType)!.add(callback);

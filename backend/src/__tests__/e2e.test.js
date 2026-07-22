@@ -35,10 +35,7 @@ describe("E2E: Full API workflow", () => {
   let operatorId, typeId, trainId;
 
   it("1. creates an operator", async () => {
-    const res = await request
-      .post("/api/operators")
-      .set("Authorization", authHeader)
-      .field("name", "Renfe");
+    const res = await request.post("/api/operators").set("Authorization", authHeader).field("name", "Renfe");
     expect(res.status).toBe(201);
     const ops = res.body;
     const renfe = ops.find((o) => o.name === "Renfe");
@@ -61,16 +58,10 @@ describe("E2E: Full API workflow", () => {
   });
 
   it("3. creates places", async () => {
-    const res1 = await request
-      .post("/api/places")
-      .set("Authorization", authHeader)
-      .field("name", "Madrid Puerta de Atocha");
+    const res1 = await request.post("/api/places").set("Authorization", authHeader).field("name", "Madrid Puerta de Atocha");
     expect(res1.status).toBe(201);
 
-    const res2 = await request
-      .post("/api/places")
-      .set("Authorization", authHeader)
-      .field("name", "Barcelona Sants");
+    const res2 = await request.post("/api/places").set("Authorization", authHeader).field("name", "Barcelona Sants");
     expect(res2.status).toBe(201);
   });
 
@@ -108,19 +99,13 @@ describe("E2E: Full API workflow", () => {
   });
 
   it("6. updates train status", async () => {
-    const res = await request
-      .patch(`/api/trains/${trainId}/status`)
-      .set("Authorization", authHeader)
-      .send({ status: "Boarding" });
+    const res = await request.patch(`/api/trains/${trainId}/status`).set("Authorization", authHeader).send({ status: "Boarding" });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("Boarding");
   });
 
   it("7. adds delay to train", async () => {
-    const res = await request
-      .patch(`/api/trains/${trainId}/delay`)
-      .set("Authorization", authHeader)
-      .send({ minutes: 10 });
+    const res = await request.patch(`/api/trains/${trainId}/delay`).set("Authorization", authHeader).send({ minutes: 10 });
     expect(res.status).toBe(200);
     expect(res.body.expected_time).toBe("08:25");
     expect(res.body.status).toBe("Delayed");
@@ -138,16 +123,13 @@ describe("E2E: Full API workflow", () => {
 
   it("9. reorders trains", async () => {
     // Create a second train
-    const t2 = await request
-      .post("/api/trains")
-      .set("Authorization", authHeader)
-      .send({
-        number: "99999",
-        origin: "Madrid",
-        destination: "Valencia",
-        scheduled_time: "10:00",
-        expected_time: "10:00",
-      });
+    const t2 = await request.post("/api/trains").set("Authorization", authHeader).send({
+      number: "99999",
+      origin: "Madrid",
+      destination: "Valencia",
+      scheduled_time: "10:00",
+      expected_time: "10:00",
+    });
     expect(t2.status).toBe(201);
 
     // Reorder
@@ -162,9 +144,7 @@ describe("E2E: Full API workflow", () => {
 
   it("10. generates a random train", async () => {
     // First seed some data so the generator has operators/types/places
-    const res = await request
-      .post("/api/generate-random-train")
-      .set("Authorization", authHeader);
+    const res = await request.post("/api/generate-random-train").set("Authorization", authHeader);
     expect(res.status).toBe(201);
     expect(res.body.number).toBeDefined();
     expect(res.body.origin).toBeDefined();
@@ -172,9 +152,7 @@ describe("E2E: Full API workflow", () => {
   });
 
   it("11. deletes the train", async () => {
-    const res = await request
-      .delete(`/api/trains/${trainId}`)
-      .set("Authorization", authHeader);
+    const res = await request.delete(`/api/trains/${trainId}`).set("Authorization", authHeader);
     expect(res.status).toBe(204);
 
     const list = await request.get("/api/trains");
@@ -183,14 +161,9 @@ describe("E2E: Full API workflow", () => {
 
   it("12. seeds demo trains", async () => {
     // First clear
-    await request
-      .delete("/api/trains")
-      .set("Authorization", authHeader)
-      .set("X-Confirm", "yes");
+    await request.delete("/api/trains").set("Authorization", authHeader).set("X-Confirm", "yes");
 
-    const res = await request
-      .post("/api/seed-trains")
-      .set("Authorization", authHeader);
+    const res = await request.post("/api/seed-trains").set("Authorization", authHeader);
     expect(res.status).toBe(200);
     expect(res.body.length).toBe(9);
   });

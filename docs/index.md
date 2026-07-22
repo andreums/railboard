@@ -33,9 +33,9 @@ railboard/
 
 ## Páginas
 
-| Ruta    | Componente   | Descripción                          |
-|---------|-------------|--------------------------------------|
-| `/`     | `Display`   | Panel público de llegadas/salidas     |
-| `/admin`| `Admin`     | Configuración de estación y lugares   |
-| `/trains`| `Trains`   | Gestión de trenes con drag & drop     |
-| `/train-settings`| `TrainSettings` | Operadores y tipos de tren    |
+| Ruta              | Componente      | Descripción                         |
+| ----------------- | --------------- | ----------------------------------- |
+| `/`               | `Display`       | Panel público de llegadas/salidas   |
+| `/admin`          | `Admin`         | Configuración de estación y lugares |
+| `/trains`         | `Trains`        | Gestión de trenes con drag & drop   |
+| `/train-settings` | `TrainSettings` | Operadores y tipos de tren          |

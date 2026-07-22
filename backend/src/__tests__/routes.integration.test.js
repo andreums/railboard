@@ -131,16 +131,13 @@ describe("Express app", () => {
   // ── Authenticated write endpoints ──
 
   it("POST /api/trains with auth creates train", async () => {
-    const res = await request
-      .post("/api/trains")
-      .set("Authorization", authHeader)
-      .send({
-        number: "99999",
-        origin: "Madrid",
-        destination: "Barcelona",
-        scheduled_time: "12:00",
-        expected_time: "12:00",
-      });
+    const res = await request.post("/api/trains").set("Authorization", authHeader).send({
+      number: "99999",
+      origin: "Madrid",
+      destination: "Barcelona",
+      scheduled_time: "12:00",
+      expected_time: "12:00",
+    });
     expect(res.status).toBe(201);
     expect(res.body.number).toBe("99999");
     expect(res.body.id).toBeGreaterThan(0);
@@ -151,10 +148,7 @@ describe("Express app", () => {
     const train = list.find((t) => t.number === "99999");
     expect(train).toBeDefined();
 
-    const res = await request
-      .put(`/api/trains/${train.id}`)
-      .set("Authorization", authHeader)
-      .send({ status: "Delayed", platform: "5" });
+    const res = await request.put(`/api/trains/${train.id}`).set("Authorization", authHeader).send({ status: "Delayed", platform: "5" });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("Delayed");
     expect(res.body.platform).toBe("5");
@@ -164,10 +158,7 @@ describe("Express app", () => {
     const list = (await request.get("/api/trains")).body;
     const train = list[list.length - 1];
 
-    const res = await request
-      .patch(`/api/trains/${train.id}/status`)
-      .set("Authorization", authHeader)
-      .send({ status: "Cancelled" });
+    const res = await request.patch(`/api/trains/${train.id}/status`).set("Authorization", authHeader).send({ status: "Cancelled" });
     expect(res.status).toBe(200);
     expect(res.body.status).toBe("Cancelled");
   });
@@ -177,19 +168,13 @@ describe("Express app", () => {
     const train = list[list.length - 1];
     const origExpected = train.expected_time;
 
-    const res = await request
-      .patch(`/api/trains/${train.id}/delay`)
-      .set("Authorization", authHeader)
-      .send({ minutes: 10 });
+    const res = await request.patch(`/api/trains/${train.id}/delay`).set("Authorization", authHeader).send({ minutes: 10 });
     expect(res.status).toBe(200);
     expect(res.body.expected_time).not.toBe(origExpected);
   });
 
   it("DELETE /api/trains with auth and X-Confirm clears all", async () => {
-    const res = await request
-      .delete("/api/trains")
-      .set("Authorization", authHeader)
-      .set("X-Confirm", "yes");
+    const res = await request.delete("/api/trains").set("Authorization", authHeader).set("X-Confirm", "yes");
     expect(res.status).toBe(204);
 
     const list = await request.get("/api/trains");
@@ -197,9 +182,7 @@ describe("Express app", () => {
   });
 
   it("DELETE /api/trains with auth but without X-Confirm returns 400", async () => {
-    const res = await request
-      .delete("/api/trains")
-      .set("Authorization", authHeader);
+    const res = await request.delete("/api/trains").set("Authorization", authHeader);
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("X-Confirm");
   });
@@ -207,10 +190,7 @@ describe("Express app", () => {
   // ── Config ──
 
   it("PUT /api/config with auth updates config", async () => {
-    const res = await request
-      .put("/api/config")
-      .set("Authorization", authHeader)
-      .send({ station_name: "TEST STATION", mode: "arrivals" });
+    const res = await request.put("/api/config").set("Authorization", authHeader).send({ station_name: "TEST STATION", mode: "arrivals" });
     expect(res.status).toBe(200);
     expect(res.body.station_name).toBe("TEST STATION");
     expect(res.body.mode).toBe("arrivals");

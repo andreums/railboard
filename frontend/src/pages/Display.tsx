@@ -28,7 +28,11 @@ function resolveDisplayLanguages(config: Config | null): Language[] {
           : [];
 
   return rawList
-    .map((v) => String(v || "").toLowerCase().trim())
+    .map((v) =>
+      String(v || "")
+        .toLowerCase()
+        .trim(),
+    )
     .filter((v): v is Language => SUPPORTED_LANGUAGES.has(v))
     .filter((v, i, arr) => arr.indexOf(v) === i);
 }
@@ -77,19 +81,13 @@ function parseStopsText(stopsText?: string | null) {
     .filter(Boolean);
 }
 
-function TrainTypeBadge({
-  code,
-  color,
-}: {
-  code: string;
-  color?: string | null;
-}) {
+function TrainTypeBadge({ code, color }: { code: string; color?: string | null }) {
   const label = code.toUpperCase().trim();
   // Use color from DB always; only fall back to defaults if no color provided
   const isCommuter = /^(C(-\d+)?[A-Z]?|R\d+[A-Z]?)$/i.test(label);
-  const bg = color && color.trim() ? color : (isCommuter ? "#2E4DA7" : "#7C1D2E");
-  const width = isCommuter ? "2.45em" : "2.95em";
-  const fontSize = label.length > 4 ? 23 : label.length > 3 ? 25 : 28;
+  const bg = color && color.trim() ? color : isCommuter ? "#2E4DA7" : "#7C1D2E";
+  const width = isCommuter ? "1.8em" : "2.2em";
+  const fontSize = label.length > 4 ? 17 : label.length > 3 ? 19 : 21;
 
   return (
     <svg
@@ -104,7 +102,7 @@ function TrainTypeBadge({
         transform: "translateY(0.25em)",
       }}
     >
-      <rect x="0" y="0" width="100.1" height="54.6" rx="14" fill={bg} />
+      <rect x="0" y="0" width="100.1" height="54.6" rx="11" fill={bg} />
       <text
         x="50"
         y="50%"
@@ -127,11 +125,17 @@ function ScrollText({
   color,
   bold,
   fontSize,
+  fontFamily,
+  fontWeight,
+  textDecoration,
 }: {
   text: string;
   color: string;
   bold?: boolean;
   fontSize?: string;
+  fontFamily?: string;
+  fontWeight?: number;
+  textDecoration?: string;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const spanRef = useRef<HTMLSpanElement>(null);
@@ -139,12 +143,14 @@ function ScrollText({
 
   useEffect(() => {
     const check = () => {
-      if (wrapRef.current && spanRef.current)
-        setScrolling(spanRef.current.scrollWidth > wrapRef.current.clientWidth + 1);
+      if (wrapRef.current && spanRef.current) setScrolling(spanRef.current.scrollWidth > wrapRef.current.clientWidth + 1);
     };
     const timer = setTimeout(check, 120);
     window.addEventListener("resize", check);
-    return () => { clearTimeout(timer); window.removeEventListener("resize", check); };
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", check);
+    };
   }, [text]);
 
   return (
@@ -155,8 +161,10 @@ function ScrollText({
           display: "inline-block",
           whiteSpace: "nowrap",
           color,
-          fontWeight: bold ? 700 : 400,
+          fontFamily: fontFamily ?? "inherit",
+          fontWeight: fontWeight ?? (bold ? 700 : 400),
           fontSize: fontSize ?? "inherit",
+          textDecoration: textDecoration ?? "none",
           animation: scrolling ? "marquee-pause 18s linear infinite" : "none",
         }}
       >
@@ -191,7 +199,7 @@ export default function Display() {
       if (displayMode === "single") {
         // Single mode: always use the configured station (ignore URL param)
         if (c?.station_name && st?.length) {
-          const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
+          const found = st.find((s) => s.name.includes(c.station_name) || c.station_name.includes(s.name));
           if (found) stationId = found.id;
         } else if (st?.length) {
           stationId = st[0].id;
@@ -202,7 +210,7 @@ export default function Display() {
         if (Number.isFinite(parsedStationId) && parsedStationId > 0 && st.some((s) => s.id === parsedStationId)) {
           stationId = parsedStationId;
         } else if (c?.station_name && st?.length) {
-          const found = st.find(s => s.name.includes(c.station_name) || c.station_name.includes(s.name));
+          const found = st.find((s) => s.name.includes(c.station_name) || c.station_name.includes(s.name));
           if (found) stationId = found.id;
         } else if (st?.length) {
           stationId = st[0].id;
@@ -246,7 +254,9 @@ export default function Display() {
           observations: row.observations || row.notes || "",
         }));
         setTrains(normalizedRows);
-        setBoardStationName(boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—");
+        setBoardStationName(
+          boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—",
+        );
         setBoardMode((boardData?.mode || mode) as "departures" | "arrivals" | "mixed");
         setError(null);
       } catch (boardError) {
@@ -301,20 +311,19 @@ export default function Display() {
   }, [hasMultipleLanguages, displayLanguages.length]);
 
   const mode = boardMode || (config?.mode as "departures" | "arrivals") || "departures";
-  const lang = hasMultipleLanguages
-    ? displayLanguages[langIndex] || displayLanguages[0]
-    : (resolveDisplayLanguage(config) as Language);
-  const rows = useMemo(() => [
-    ...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status)),
-  ]
-    .sort((a, b) => {
-      const aTime = a.expected_time !== "—" ? a.expected_time : a.scheduled_time;
-      const bTime = b.expected_time !== "—" ? b.expected_time : b.scheduled_time;
-      if (aTime === "—" || bTime === "—") return 0;
-      return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
-    })
-    .slice(0, 12),
-    [trains]);
+  const lang = hasMultipleLanguages ? displayLanguages[langIndex] || displayLanguages[0] : (resolveDisplayLanguage(config) as Language);
+  const rows = useMemo(
+    () =>
+      [...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status))]
+        .sort((a, b) => {
+          const aTime = a.expected_time !== "—" ? a.expected_time : a.scheduled_time;
+          const bTime = b.expected_time !== "—" ? b.expected_time : b.scheduled_time;
+          if (aTime === "—" || bTime === "—") return 0;
+          return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
+        })
+        .slice(0, 12),
+    [trains],
+  );
 
   const bgColor = (config?.bgColor as string) || "#050a14";
   const headerBg = (config?.headerBgColor as string) || "#BFEFD5";
@@ -344,18 +353,20 @@ export default function Display() {
 
   if (error) {
     return (
-      <div style={{
-        height: "100dvh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        flexDirection: "column",
-        backgroundColor: "#050a14",
-        color: "#fff",
-        fontFamily: "'Roboto Condensed', sans-serif",
-        gap: "2rem",
-        padding: "2rem",
-      }}>
+      <div
+        style={{
+          height: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+          backgroundColor: "#050a14",
+          color: "#fff",
+          fontFamily: "'Roboto Condensed', sans-serif",
+          gap: "2rem",
+          padding: "2rem",
+        }}
+      >
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>⚠️</div>
           <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0" }}>{error}</h1>
@@ -383,29 +394,32 @@ export default function Display() {
   if (loading || rows.length === 0) return <SteamTrain />;
 
   return (
-    <div style={{
-      height: "100dvh",
-      display: "flex",
-      flexDirection: "column",
-      backgroundColor: bgColor,
-      fontFamily: "'Roboto Condensed', sans-serif",
-      overflow: "hidden",
-    }}>
-
-      {/* ══════════ HEADER — ~10dvh ══════════ */}
-      <header style={{
-        backgroundColor: headerBg,
-        color: headerColor,
+    <div
+      style={{
+        height: "100dvh",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        height: "12dvh",
-        padding: "0 2rem",
-        borderBottom: "2px solid rgba(0,0,0,0.10)",
-        flexShrink: 0,
-        gap: "1rem",
-        boxSizing: "border-box",
-      }}>
+        flexDirection: "column",
+        backgroundColor: bgColor,
+        fontFamily: "'Roboto Condensed', sans-serif",
+        overflow: "hidden",
+      }}
+    >
+      {/* ══════════ HEADER — ~10dvh ══════════ */}
+      <header
+        style={{
+          backgroundColor: headerBg,
+          color: headerColor,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: "12dvh",
+          padding: "0 2rem",
+          borderBottom: "2px solid rgba(0,0,0,0.10)",
+          flexShrink: 0,
+          gap: "1rem",
+          boxSizing: "border-box",
+        }}
+      >
         {/* Logo + mode + station */}
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0, height: "100%" }}>
           {config?.logo_url && (
@@ -416,49 +430,73 @@ export default function Display() {
               onError={(e) => handleImgError(e, config?.station_name || "Logo")}
             />
           )}
-          <span style={{
-            fontFamily: "'Oswald', sans-serif",
-            fontWeight: 700,
-            fontSize: "clamp(3rem, 7dvh, 7rem)",
-            lineHeight: 1,
-            flexShrink: 0,
-          }}>
-            {t(mode === "departures" ? "departures" : "arrivals", lang)}
-          </span>
-          <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline", marginLeft: "0.6rem", gap: "0.6rem", minWidth: 0 }}>
-            <span style={{ fontFamily: "'Oswald', sans-serif", fontWeight: 700, fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)", letterSpacing: 0, opacity: 1, lineHeight: 1 }}>
-              {t("station-of", lang)}
-            </span>
-            <span style={{
+          <span
+            style={{
               fontFamily: "'Oswald', sans-serif",
               fontWeight: 700,
               fontSize: "clamp(3rem, 7dvh, 7rem)",
               lineHeight: 1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              maxWidth: "40vw",
               flexShrink: 0,
-            }}>
+            }}
+          >
+            {t(mode === "departures" ? "departures" : "arrivals", lang)}
+          </span>
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline", marginLeft: "0.6rem", gap: "0.6rem", minWidth: 0 }}>
+            <span
+              style={{
+                fontFamily: "'Oswald', sans-serif",
+                fontWeight: 700,
+                fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)",
+                letterSpacing: 0,
+                opacity: 1,
+                lineHeight: 1,
+              }}
+            >
+              {t("station-of", lang)}
+            </span>
+            <span
+              style={{
+                fontFamily: "'Oswald', sans-serif",
+                fontWeight: 700,
+                fontSize: "clamp(3rem, 7dvh, 7rem)",
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                maxWidth: "40vw",
+                flexShrink: 0,
+              }}
+            >
               {boardStationName}
             </span>
           </div>
         </div>
         {/* Clock */}
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-          <div style={{
-            fontFamily: "'Roboto Mono', monospace",
-            fontWeight: 700,
-            fontSize: "clamp(3rem, 6.5dvh, 7rem)",
-            lineHeight: 1,
-          }}>
+          <div
+            style={{
+              fontFamily: "'Roboto Mono', monospace",
+              fontWeight: 700,
+              fontSize: "clamp(3rem, 6.5dvh, 7rem)",
+              lineHeight: 1,
+            }}
+          >
             <Clock
               mode={config?.clockMode === "fake" ? "fake" : "real"}
               fakeTime={config?.clockFakeTime || "12:00:00"}
               fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
             />
           </div>
-          <span style={{ fontSize: "clamp(1rem, 2.5dvh, 2.4rem)", textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.75, marginTop: "0.1rem", fontWeight: 700 }}>
+          <span
+            style={{
+              fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              opacity: 0.75,
+              marginTop: "0.1rem",
+              fontWeight: 700,
+            }}
+          >
             {t("platform", lang)}
           </span>
         </div>
@@ -501,7 +539,7 @@ export default function Display() {
                 height: rowH,
                 width: "100%",
                 display: "flex",
-                flexWrap: "wrap",        // matches Gravita: upper row + lower row
+                flexWrap: "wrap", // matches Gravita: upper row + lower row
                 boxSizing: "border-box",
                 backgroundColor: i % 2 === 0 ? rowBg : altBg,
                 borderBottom: "1px solid rgba(255,255,255,0.04)",
@@ -514,47 +552,57 @@ export default function Display() {
               {/* ═══ UPPER ROW — 60% of row height ═══ */}
 
               {/* TIME — 11.17% wide, 60% tall, font 50% of rowH */}
-              <div style={{
-                width: W_TIME,
-                height: "60%",
-                fontSize: "46%",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "flex-start",
-                fontFamily: "'Roboto Mono', monospace",
-                fontWeight: 700,
-                lineHeight: 1,
-                overflow: "hidden",
-                boxSizing: "border-box",
-              }}>
-                <div style={{
-                  whiteSpace: "nowrap",
-                  textDecoration: timeStruck ? "line-through" : "none",
-                  textDecorationColor: isCancelled ? "#555" : "#999",
-                  color: isCancelled ? "#4a5568" : "#ffffff",
-                  animation: isLeaving ? "departure-time-blink 0.9s ease-in-out infinite" : "none",
-                  transform: "translateY(0.25em)",
-                }}>
-                  {showCountdown
-                    ? <>{Math.max(0, minutes)}<span style={{ fontSize: "40%", marginLeft: "0.2em" }}>{t("minute-short", lang)}</span></>
-                    : train.scheduled_time
-                  }
+              <div
+                style={{
+                  width: W_TIME,
+                  height: "60%",
+                  fontSize: "46%",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "flex-start",
+                  fontFamily: "'Roboto Mono', monospace",
+                  fontWeight: 700,
+                  lineHeight: 1,
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              >
+                <div
+                  style={{
+                    whiteSpace: "nowrap",
+                    textDecoration: timeStruck ? "line-through" : "none",
+                    textDecorationColor: isCancelled ? "#555" : "#999",
+                    color: isCancelled ? "#4a5568" : "#ffffff",
+                    animation: isLeaving ? "departure-time-blink 0.9s ease-in-out infinite" : "none",
+                    transform: "translateY(0.25em)",
+                  }}
+                >
+                  {showCountdown ? (
+                    <>
+                      {Math.max(0, minutes)}
+                      <span style={{ fontSize: "40%", marginLeft: "0.2em" }}>{t("minute-short", lang)}</span>
+                    </>
+                  ) : (
+                    train.scheduled_time
+                  )}
                 </div>
               </div>
 
               {/* DESTINATION — 56.33% wide, 60% tall, font 50% of rowH */}
-              <div style={{
-                width: W_DEST,
-                height: "60%",
-                fontSize: "38%",
-                display: "flex",
-                alignItems: "center",
-                overflow: "hidden",
-                boxSizing: "border-box",
-                paddingLeft: "calc(0.4em - 10px)",
-                gap: "0.5em",
-              }}>
+              <div
+                style={{
+                  width: W_DEST,
+                  height: "60%",
+                  fontSize: "38%",
+                  display: "flex",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                  paddingLeft: "calc(0.4em - 10px)",
+                  gap: "0.5em",
+                }}
+              >
                 {(() => {
                   const mode = train.icon_mode || (config?.showDestinationIcon !== false ? "destination" : "none");
                   if (mode === "none") return null;
@@ -582,19 +630,14 @@ export default function Display() {
                   );
                 })()}
                 <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
-                  <div style={{
-                    fontFamily: "'Oswald', sans-serif",
-                    fontWeight: 600,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    color: isCancelled ? "#4a5568" : "#ffffff",
-                    textDecoration: isCancelled ? "line-through" : "none",
-                    lineHeight: 1,
-                    width: "100%",
-                  }}>
-                    {place}
-                  </div>
+                  <ScrollText
+                    text={place}
+                    color={isCancelled ? "#4a5568" : "#ffffff"}
+                    fontFamily="'Oswald', sans-serif"
+                    fontWeight={600}
+                    fontSize="100%"
+                    textDecoration={isCancelled ? "line-through" : "none"}
+                  />
                 </div>
               </div>
 
@@ -603,26 +646,30 @@ export default function Display() {
 
               {/* PRODUCT (logo + number) — 18% wide, 60% tall */}
               {/* Internal split: logo 61%, margin 2%, number 35%, margin 2% */}
-              <div style={{
-                width: W_PROD,
-                height: "60%",
-                fontSize: "50%",
-                display: "flex",
-                flexWrap: "nowrap",
-                justifyContent: "center",
-                alignItems: "center",
-                overflow: "visible",
-                boxSizing: "border-box",
-              }}>
+              <div
+                style={{
+                  width: W_PROD,
+                  height: "60%",
+                  fontSize: "50%",
+                  display: "flex",
+                  flexWrap: "nowrap",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              >
                 {/* Logo slot */}
-                <div style={{
-                  width: "48%",
-                  height: "100%",
-                  display: "grid",
-                  placeItems: "center start",
-                  overflow: "visible",
-                  lineHeight: 0,
-                }}>
+                <div
+                  style={{
+                    width: "48%",
+                    height: "100%",
+                    display: "grid",
+                    placeItems: "center start",
+                    overflow: "hidden",
+                    lineHeight: 0,
+                  }}
+                >
                   {!(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
                     <>
                       {train.type_logo ? (
@@ -648,7 +695,7 @@ export default function Display() {
                           alt={train.operator_name || ""}
                           style={{
                             maxWidth: "100%",
-                            height: "1.22em",
+        height: "0.9em",
                             width: "auto",
                             objectFit: "contain",
                             borderRadius: "0.2em",
@@ -660,38 +707,42 @@ export default function Display() {
                           onError={(e) => handleImgError(e, train.operator_name || "Logo")}
                         />
                       ) : train.operator_name ? (
-                        <span style={{
-                          fontSize: "55%",
-                          fontWeight: 700,
-                          fontFamily: "'Roboto Condensed', sans-serif",
-                          color: "#ffffff",
-                          lineHeight: 1,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.04em",
-                          transform: "translateY(0.25em)",
-                          display: "inline-block",
-                    }}>
-                      {train.operator_name}
-                    </span>
-                  ) : null}
+                        <span
+                          style={{
+                            fontSize: "55%",
+                            fontWeight: 700,
+                            fontFamily: "'Roboto Condensed', sans-serif",
+                            color: "#ffffff",
+                            lineHeight: 1,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.04em",
+                            transform: "translateY(0.25em)",
+                            display: "inline-block",
+                          }}
+                        >
+                          {train.operator_name}
+                        </span>
+                      ) : null}
                     </>
                   )}
                 </div>
                 {/* Margin */}
                 <div style={{ width: "2%" }} />
                 {/* Number slot */}
-                <div style={{
-                  width: "48%",
-                  height: "100%",
-                  fontSize: "90%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  fontFamily: "'Roboto Mono', monospace",
-                  fontWeight: 700,
-                  textAlign: "center",
-                }}>
+                <div
+                  style={{
+                    width: "48%",
+                    height: "100%",
+                    fontSize: "90%",
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    overflow: "hidden",
+                    fontFamily: "'Roboto Mono', monospace",
+                    fontWeight: 700,
+                    textAlign: "center",
+                  }}
+                >
                   <div style={{ whiteSpace: "nowrap", minWidth: "5ch", transform: "translateY(0.25em)" }}>{padNum}</div>
                 </div>
                 {/* Margin */}
@@ -699,69 +750,68 @@ export default function Display() {
               </div>
 
               {/* PLATFORM — 7.5% wide, 60% tall, font 50% of rowH */}
-              <div style={{
-                width: W_PLAT,
-                height: "60%",
-                fontSize: "46%",
-                display: "flex",
-                justifyContent: "flex-end",
-                alignItems: "center",
-                overflow: "visible",
-                boxSizing: "border-box",
-                fontFamily: "'Oswald', sans-serif",
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-                paddingRight: 0,
-                paddingLeft: "0.2em",
-              }}>
+              <div
+                style={{
+                  width: W_PLAT,
+                  height: "60%",
+                  fontSize: "46%",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                  fontFamily: "'Oswald', sans-serif",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  paddingRight: 0,
+                  paddingLeft: "0.2em",
+                }}
+              >
                 <div style={{ transform: "translateY(0.12em)" }}>{platText}</div>
               </div>
 
               {/* ═══ LOWER ROW — 40% of row height, font 32% of rowH ═══ */}
 
               {/* STATUS — lower row on TIME column */}
-              <div style={{
-                width: W_TIME,
-                height: "40%",
-                fontSize: "20%",
-                display: "flex",
-                alignItems: "center",
-                overflow: "hidden",
-                fontFamily: "'Roboto Mono', monospace",
-                fontWeight: 700,
-                whiteSpace: "nowrap",
-                boxSizing: "border-box",
-              }}>
+              <div
+                style={{
+                  width: W_TIME,
+                  height: "40%",
+                  fontSize: "20%",
+                  display: "flex",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  fontFamily: "'Roboto Mono', monospace",
+                  fontWeight: 700,
+                  whiteSpace: "nowrap",
+                  boxSizing: "border-box",
+                }}
+              >
                 {isDelayed && !isCancelled && (
                   <span style={{ color: isAhead ? "#5FE0AF" : "#FF8557" }}>
                     {t("estimated", lang)}&nbsp;{train.expected_time}
                   </span>
                 )}
-                {isCancelled && (
-                  <span style={{ color: "#FF8557" }}>{t("cancelled", lang)}</span>
-                )}
+                {isCancelled && <span style={{ color: "#FF8557" }}>{t("cancelled", lang)}</span>}
               </div>
 
               {/* STOPS — lower row only under DESTINATION column */}
-              <div style={{
-                width: W_DEST,
-                height: "40%",
-                fontSize: "19%",
-                display: "flex",
-                alignItems: "center",
-                overflow: "hidden",
-                boxSizing: "border-box",
-                paddingLeft: "0.4em",
-                fontFamily: "'Roboto Condensed', sans-serif",
-              }}>
+              <div
+                style={{
+                  width: W_DEST,
+                  height: "40%",
+                  fontSize: "19%",
+                  display: "flex",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                  paddingLeft: "0.4em",
+                  fontFamily: "'Roboto Condensed', sans-serif",
+                }}
+              >
                 {hasStops && (
                   <div style={{ width: "100%", minWidth: 0, overflow: "hidden", marginTop: "10px" }}>
-                    <ScrollText
-                      text={train.stops.join(" · ")}
-                      color="#ffffff"
-                      bold
-                      fontSize="100%"
-                    />
+                    <ScrollText text={train.stops.join(" · ")} color="#ffffff" bold fontSize="100%" />
                   </div>
                 )}
               </div>
@@ -770,55 +820,52 @@ export default function Display() {
               <div style={{ width: W_MARG, height: "40%" }} />
 
               {/* OBSERVATIONS — only under type + train number column */}
-              <div style={{
-                width: `calc(${W_PROD} + ${W_PLAT})`,
-                height: "40%",
-                fontSize: "19%",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "flex-start",
-                overflow: "hidden",
-                boxSizing: "border-box",
-              }}>
+              <div
+                style={{
+                  width: `calc(${W_PROD} + ${W_PLAT})`,
+                  height: "40%",
+                  fontSize: "19%",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: "0.4em",
+                  overflow: "hidden",
+                  boxSizing: "border-box",
+                }}
+              >
                 {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                  <div style={{ paddingBottom: "8px", flexShrink: 0 }}>
-                    <img
-                      src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
-                      alt="Cercanías"
-                      style={{ height: "1.22em", width: "auto", objectFit: "contain" }}
-                      onError={(e) => handleImgError(e, "Cercanías")}
-                    />
-                  </div>
+                  <img
+                    src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
+                    alt="Cercanías"
+                    style={{ height: "1em", width: "auto", objectFit: "contain", flexShrink: 0 }}
+                    onError={(e) => handleImgError(e, "Cercanías")}
+                  />
                 )}
                 {hasObservations && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
-                    <ScrollText
-                      text={train.observations!}
-                      color="#5FE0AF"
-                      bold
-                      fontSize="100%"
-                    />
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                    <ScrollText text={train.observations!} color="#5FE0AF" bold fontSize="100%" />
                   </div>
                 )}
               </div>
 
               {/* PLATFORM lower (empty, keeps column alignment) */}
               <div style={{ width: 0, height: "40%" }} />
-
             </div>
           );
         })}
       </div>
 
       {/* ══════════ FOOTER — ~4dvh ══════════ */}
-      <footer style={{
-        flex: 1,
-        borderTop: "1px solid rgba(255,255,255,0.08)",
-        backgroundColor: "rgba(0,0,0,0.35)",
-        overflow: "hidden",
-        display: "flex",
-        alignItems: "center",
-      }}>
+      <footer
+        style={{
+          flex: 1,
+          borderTop: "1px solid rgba(255,255,255,0.08)",
+          backgroundColor: "rgba(0,0,0,0.35)",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
         <div
           className="animate-marquee-full"
           style={{

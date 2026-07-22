@@ -17,21 +17,28 @@ if (!fs.existsSync(FONTS_DIR)) fs.mkdirSync(FONTS_DIR, { recursive: true });
 
 function fetch(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
-      let data = "";
-      res.on("data", (c) => (data += c));
-      res.on("end", () => resolve(data));
-    }).on("error", reject);
+    https
+      .get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
+        let data = "";
+        res.on("data", (c) => (data += c));
+        res.on("end", () => resolve(data));
+      })
+      .on("error", reject);
   });
 }
 
 function download(url, dest) {
   return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      const file = fs.createWriteStream(dest);
-      res.pipe(file);
-      file.on("finish", () => { file.close(); resolve(); });
-    }).on("error", reject);
+    https
+      .get(url, (res) => {
+        const file = fs.createWriteStream(dest);
+        res.pipe(file);
+        file.on("finish", () => {
+          file.close();
+          resolve();
+        });
+      })
+      .on("error", reject);
   });
 }
 
@@ -59,7 +66,10 @@ function download(url, dest) {
     }
   }
 
-  const output = cssLines.join("\n").replace(/\/\* \[[^\]]+\] \*\//g, "").trim();
+  const output = cssLines
+    .join("\n")
+    .replace(/\/\* \[[^\]]+\] \*\//g, "")
+    .trim();
   fs.writeFileSync(path.resolve(FONTS_DIR, "fonts.css"), output);
   console.log(`Done — ${seen.size} font files downloaded, fonts.css generated.`);
 })().catch(console.error);

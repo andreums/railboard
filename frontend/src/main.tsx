@@ -8,9 +8,26 @@ import Trains from "./pages/Trains";
 import TrainSettings from "./pages/TrainSettings";
 import "./styles/index.css";
 
+const SW_VERSION = import.meta.env.VITE_APP_VERSION || String(Date.now());
+
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js");
+  window.addEventListener("load", async () => {
+    try {
+      const reg = await navigator.serviceWorker.register(`/sw.js?v=${SW_VERSION}`);
+
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        }
+      });
+    } catch {
+      /* SW registration failed, continuing without it */
+    }
   });
 }
 
@@ -28,5 +45,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

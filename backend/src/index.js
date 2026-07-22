@@ -5,13 +5,14 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import http from "http";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import routes from "./routes.js";
 import railRoutesApi from "./railRoutesApi.js";
 import { attachWebSocket } from "./ws.js";
 import { db } from "./db.js";
-import { runMigrations } from "./migrations.js";
 import { logRouteStats } from "./services/routeService.js";
+import logger, { requestLogger } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -22,24 +23,27 @@ app.use((req, _res, next) => {
   req.id = crypto.randomUUID();
   next();
 });
+app.use(requestLogger);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
-app.use(cors({
-  origin: (origin, callback) => {
-    const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
-    // Allow exact match or any localhost port in development
-    if (!origin || origin === corsOrigin || (process.env.NODE_ENV !== "production" && origin?.startsWith("http://localhost:"))) {
-      callback(null, true);
-    } else {
-      callback(new Error("CORS not allowed"));
-    }
-  },
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+      // Allow exact match or any localhost port in development
+      if (!origin || origin === corsOrigin || (process.env.NODE_ENV !== "production" && origin?.startsWith("http://localhost:"))) {
+        callback(null, true);
+      } else {
+        callback(new Error("CORS not allowed"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    credentials: true,
+  }),
+);
 
 const rateLimitWindowMs = 60 * 1000;
-const rateLimitMax = process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : (process.env.NODE_ENV === "production" ? 120 : 1000);
+const rateLimitMax = process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : process.env.NODE_ENV === "production" ? 120 : 1000;
 const generalLimiter = rateLimit({
   windowMs: rateLimitWindowMs,
   // Allow a higher limit during development to avoid hitting the limiter
@@ -70,10 +74,48 @@ app.use("/admin", (req, res, next) => {
 app.use("/admin", routes);
 app.use("/api", railRoutesApi);
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) => {
+  const checks = {
+    db: false,
+    uploads: false,
+  };
+  const detail = {};
 
-app.use((err, _req, res, _next) => {
-  console.error("Error:", err.message);
+  try {
+    db.prepare("SELECT 1 AS ok").get();
+    checks.db = true;
+    detail.db = { status: "ok" };
+  } catch (err) {
+    detail.db = { status: "error", message: err.message };
+  }
+
+  const uploadsPath = path.resolve(__dirname, "../uploads");
+  try {
+    const files = fs.readdirSync(uploadsPath);
+    checks.uploads = true;
+    detail.uploads = { status: "ok", fileCount: files.length };
+  } catch (err) {
+    detail.uploads = { status: "error", message: err.message };
+  }
+
+  const mem = process.memoryUsage();
+  detail.memory = {
+    rss: Math.round(mem.rss / 1024 / 1024) + "MB",
+    heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + "MB",
+    heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + "MB",
+  };
+
+  detail.uptime = Math.floor(process.uptime()) + "s";
+  detail.node = process.version;
+  detail.env = process.env.NODE_ENV || "development";
+
+  const ok = Object.values(checks).every(Boolean);
+  const status = ok ? 200 : 503;
+  res.status(status).json({ ok, checks, detail });
+});
+
+app.use((err, req, res, _next) => {
+  (req.log || logger).error({ err }, "Error:");
   if (err.name === "MulterError" || err.code === "FILE_TYPE_NOT_ALLOWED") {
     return res.status(400).json({ error: err.message });
   }
@@ -84,12 +126,9 @@ const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
 attachWebSocket(server);
 
-// Run database migrations before starting the server
-runMigrations(db);
-
 server.listen(PORT, () => {
   logRouteStats();
-  console.log(`RailBoard backend on http://localhost:${PORT}`);
-  console.log(`WebSocket on ws://localhost:${PORT}/ws`);
-  console.log(`rateLimit max=${rateLimitMax} windowMs=${rateLimitWindowMs}`);
+  logger.info(`RailBoard backend on http://localhost:${PORT}`);
+  logger.info(`WebSocket on ws://localhost:${PORT}/ws`);
+  logger.info(`rateLimit max=${rateLimitMax} windowMs=${rateLimitWindowMs}`);
 });

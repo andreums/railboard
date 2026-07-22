@@ -9,13 +9,14 @@ Registro de cambios y versiones del proyecto.
 ### ✨ Features Nuevas
 
 #### Backend
+
 - **Route-based train generation** (`POST /admin/trains/from-route/:code`)
   - 57 rutas españolas importadas en `backend/src/data/railboard_routes.json`
   - Genera tren con metadatos reales: operador, tipo, paradas, plataforma
   - Metadatos extraídos dinámicamente de fixture según código de ruta
   - Destino = segundo al último parador de la ruta
 
-- **WebSocket broadcast mejora** 
+- **WebSocket broadcast mejora**
   - Endpoint ping con broadcast `{type: "update", at: timestamp}`
   - Integrado con generación desde rutas
 
@@ -25,6 +26,7 @@ Registro de cambios y versiones del proyecto.
   - Ejecutable: `node backend/scripts/ws_e2e_test.mjs :code`
 
 #### Frontend
+
 - **RoutesPanel** (`frontend/src/components/admin/RoutesPanel.tsx`)
   - Selector de rutas con filtros: región, servicio, operador
   - Botón "Generar" → POST `/admin/trains/from-route/:code`
@@ -45,12 +47,14 @@ Registro de cambios y versiones del proyecto.
 ### 🔧 Cambios Técnicos
 
 #### API
+
 - `POST /admin/trains/from-route/:code` — nuevo endpoint
   - Valida código de ruta
   - Retorna tren creado con 201 Created
   - Triggerea WebSocket broadcast
 
 #### Componentes
+
 - **Admin.tsx**
   - Añadido tab "Rutas" con RoutesPanel + WSLogPanel
   - Integración de `connectWS()` para eventos real-time
@@ -65,22 +69,26 @@ Registro de cambios y versiones del proyecto.
   - Mejorada `connectWS()` con event listeners `.on(type, cb)`
 
 #### Datos
+
 - `railboard_routes.json` — nueva fuente de datos
   - 57 rutas españolas con operador, tipo, red, paradas
   - Cargado en memoria al iniciar backend
   - Formato: código, nombre, operador, tipo, estaciones
 
 ### 📚 Documentación
+
 - Creado `docs/PROGRESS.md` — documentación extensa de progreso
 - Creado `STATUS.md` — resumen ejecutivo actual
 - Actualizado este CHANGELOG
 
 ### 🐛 Fixes
+
 - Tabla de DisplayConfig ya no hace scroll horizontal forzado
 - Layout de DisplayConfig ahora es vertical por defecto (mejor mobile)
 - WebSocket fallback en E2E script para entornos sandbox
 
 ### ⚠️ Problemas Identificados
+
 - Watch mode backend con `node --watch` aún causa `EMFILE`
 - E2E script falla con EPERM en agente sandbox (solucionado con curl fallback)
 - Dynamic import de WSLogPanel podría ser static
@@ -90,17 +98,20 @@ Registro de cambios y versiones del proyecto.
 ## [Sesiones Anteriores — Resumen]
 
 ### Fase A: Arquitectura Base
+
 - Stack definido: React + Node.js + SQLite
 - Esquema base de datos
 - Migraciones automáticas
 
 ### Fase B: Display Público
+
 - Componente Display (llegadas/salidas)
 - Soporte múltiples displays
 - Reloj real/ficticio
 - WebSocket básico
 
 ### Fase C: Admin Panel
+
 - 11 tabs de administración
 - CRUD de operadores, tipos, lugares
 - Generación de trenes (random, panel, automática)
@@ -114,13 +125,13 @@ Registro de cambios y versiones del proyecto.
 
 ## 📊 Métricas de Progreso
 
-| Aspecto | Sesión Anterior | Actual | Cambio |
-|---------|-----------------|--------|--------|
-| Rutas soportadas | 0 | 57 | +57 |
-| Endpoints generación | 2 (random, board) | 3 (+routes) | +1 |
-| Componentes admin | Sin routes | Con RoutesPanel + WSLogPanel | +2 |
-| Tab admin | 10 | 11 (routes) | +1 |
-| Layout displays | 2-columnas xl | Vertical 2xl | Mejor mobile |
+| Aspecto              | Sesión Anterior   | Actual                       | Cambio       |
+| -------------------- | ----------------- | ---------------------------- | ------------ |
+| Rutas soportadas     | 0                 | 57                           | +57          |
+| Endpoints generación | 2 (random, board) | 3 (+routes)                  | +1           |
+| Componentes admin    | Sin routes        | Con RoutesPanel + WSLogPanel | +2           |
+| Tab admin            | 10                | 11 (routes)                  | +1           |
+| Layout displays      | 2-columnas xl     | Vertical 2xl                 | Mejor mobile |
 
 ---
 

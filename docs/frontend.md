@@ -27,32 +27,35 @@ src/
 
 ## Rutas
 
-| Ruta | Página | Descripción |
-|------|--------|-------------|
-| `/` | Display | Panel público a pantalla completa |
-| `/admin` | Admin | Configuración de estación y lugares |
-| `/trains` | Trains | Gestión de trenes |
-| `/train-settings` | TrainSettings | Operadores y tipos |
-| `*` | → `/` | Catch-all redirect |
+| Ruta              | Página        | Descripción                         |
+| ----------------- | ------------- | ----------------------------------- |
+| `/`               | Display       | Panel público a pantalla completa   |
+| `/admin`          | Admin         | Configuración de estación y lugares |
+| `/trains`         | Trains        | Gestión de trenes                   |
+| `/train-settings` | TrainSettings | Operadores y tipos                  |
+| `*`               | → `/`         | Catch-all redirect                  |
 
 ## Componentes
 
 ### Clock
+
 Reloj configurable: tiempo real o hora fija administrable desde Admin.
 
 ### SteamTrain
+
 Animación SVG de locomotora a vapor usada como pantalla de carga.
 
 ### StatusPill
+
 Renderiza el estado de un tren con color codificado:
 
-| Estado | Color |
-|--------|-------|
-| Scheduled | gris |
-| On Time | verde |
-| Delayed | rojo |
-| Cancelled | rojo oscuro |
-| Departed/Arrived | azul |
+| Estado                          | Color              |
+| ------------------------------- | ------------------ |
+| Scheduled                       | gris               |
+| On Time                         | verde              |
+| Delayed                         | rojo               |
+| Cancelled                       | rojo oscuro        |
+| Departed/Arrived                | azul               |
 | Boarding/Now Boarding/Last Call | naranja/ámbar/rojo |
 
 ## API Client (`src/lib/api.ts`)
@@ -75,8 +78,8 @@ Uso: `t("departures", lang)` → devuelve el texto traducido (~70 claves por idi
 
 ## Scripts
 
-| Comando | Descripción |
-|---------|-------------|
-| `npm run dev` | Dev server con HMR |
-| `npm run build` | Build de producción |
-| `npm run preview` | Preview del build |
+| Comando           | Descripción         |
+| ----------------- | ------------------- |
+| `npm run dev`     | Dev server con HMR  |
+| `npm run build`   | Build de producción |
+| `npm run preview` | Preview del build   |

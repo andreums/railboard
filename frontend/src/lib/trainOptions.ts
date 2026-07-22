@@ -1,7 +1,6 @@
 import type { Config } from "./api";
 
-const isEnabled = (value: boolean | string | number | undefined) =>
-  value === true || value === 1 || value === "1" || value === "true";
+const isEnabled = (value: boolean | string | number | undefined) => value === true || value === 1 || value === "1" || value === "true";
 
 const isNumeric = (value: string) => /^\d+$/.test(value);
 
@@ -38,7 +37,13 @@ export function buildPlatformOptions(config?: Config | null, fallback: string[] 
   if (options.length > 0) {
     return isEnabled(config?.platformAllowEmpty) ? ["", ...options] : options;
   }
-  return fallback.length > 0 ? (isEnabled(config?.platformAllowEmpty) ? ["", ...fallback] : fallback) : (isEnabled(config?.platformAllowEmpty) ? [""] : []);
+  return fallback.length > 0
+    ? isEnabled(config?.platformAllowEmpty)
+      ? ["", ...fallback]
+      : fallback
+    : isEnabled(config?.platformAllowEmpty)
+      ? [""]
+      : [];
 }
 
 export function buildSectorOptions(config?: Config | null, fallback: string[] = []) {
@@ -46,5 +51,11 @@ export function buildSectorOptions(config?: Config | null, fallback: string[] = 
   if (options.length > 0) {
     return isEnabled(config?.sectorAllowEmpty) ? ["", ...options] : options;
   }
-  return fallback.length > 0 ? (isEnabled(config?.sectorAllowEmpty) ? ["", ...fallback] : fallback) : (isEnabled(config?.sectorAllowEmpty) ? [""] : []);
+  return fallback.length > 0
+    ? isEnabled(config?.sectorAllowEmpty)
+      ? ["", ...fallback]
+      : fallback
+    : isEnabled(config?.sectorAllowEmpty)
+      ? [""]
+      : [];
 }

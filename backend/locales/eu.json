@@ -1,0 +1,108 @@
+{
+  "meta": {
+    "language": "eu",
+    "name": "Euskera",
+    "bcp47": "eu-ES",
+    "natural": "euskera"
+  },
+  "time": {
+    "hours": ["zero", "ordu bata", "goizeko biak", "goizeko hirurak", "goizeko laurak", "goizeko bostak", "goizeko seiak", "goizeko zazpiak", "goizeko zortziak", "goizeko bederatziak", "goizeko hamarrak", "goizeko hamaikak", "eguerdiko hamabiak", "arratsaldeko ordu bata", "arratsaldeko biak", "arratsaldeko hirurak", "arratsaldeko laurak", "arratsaldeko bostak", "arratsaldeko seiak", "arratsaldeko zazpiak", "arratsaldeko zortziak", "arratsaldeko bederatziak", "arratsaldeko hamarrak", "arratsaldeko hamaikak", "gauerdiko hamabiak"],
+    "minutes": ["zero", "bat", "bi", "hiru", "lau", "bost", "sei", "zazpi", "zortzi", "bederatzi", "hamar", "hamaika", "hamabi", "hamahiru", "hamalau", "hamabost", "hamasei", "hamazazpi", "hemezortzi", "hemeretzi", "hogei", "hogeita bat", "hogeita bi", "hogeita hiru", "hogeita lau", "hogeita bost", "hogeita sei", "hogeita zazpi", "hogeita zortzi", "hogeita bederatzi", "hogeita hamar", "hogeita hamaika", "hogeita hamabi", "hogeita hamahiru", "hogeita hamalau", "hogeita hamabost", "hogeita hamasei", "hogeita hamazazpi", "hogeita hemezortzi", "hogeita hemeretzi", "berrogei", "berrogeita bat", "berrogeita bi", "berrogeita hiru", "berrogeita lau", "berrogeita bost", "berrogeita sei", "berrogeita zazpi", "berrogeita zortzi", "berrogeita bederatzi", "berrogeita hamar", "berrogeita hamaika", "berrogeita hamabi", "berrogeita hamahiru", "berrogeita hamalau", "berrogeita hamabost", "berrogeita hamasei", "berrogeita hamazazpi", "berrogeita hemezortzi", "berrogeita hemeretzi"],
+    "hour": "ak",
+    "minute": "minutu",
+    "and": "eta",
+    "format": "H24"
+  },
+  "conjunctions": {
+    "and": "eta",
+    "or": "edo",
+    "comma": ", ",
+    "except": "ezik",
+    "only": "bakarrik"
+  },
+  "attention": {
+    "default": "Arreta.",
+    "important": "Arreta, mesedez.",
+    "emergency": "Arreta. Larrialdia."
+  },
+  "blocks": {
+    "operator": "{operator}",
+    "service": "{service}",
+    "line": "{line}",
+    "destination": "{destination} helmugarekin",
+    "origin": "{origin}tik",
+    "departure_time": "irteera {time}tan",
+    "arrival_time": "iritsiera {time}tan",
+    "platform": "{platform} bidetik",
+    "sector": "{sector} sektorean",
+    "platform_sector": "{platform} bidetik, {sector} sektorean",
+    "accessible_train": "Tren irisgarria.",
+    "cancelled": "bertan behera utzi da",
+    "delayed": "{minutes} minutuko atzerapena du",
+    "standing_at_platform": "Geldirik {platform} bidean",
+    "boarding": "Igoera egiten ari da.",
+    "ready_to_depart": "Irteerako prest dago.",
+    "imminent_departure": "Irten egingo da berehala.",
+    "departed": "irtenda",
+    "terminates_here": "Tren hau hemen amaitzen da."
+  },
+  "service_intro": {
+    "commuter": "{line},",
+    "regional": "{service_type},",
+    "long_distance": "{operator}ko {service_type}",
+    "default": "{service_type}"
+  },
+  "events": {
+    "TRAIN_ANNOUNCEMENT": {
+      "departure": "Arreta. {service_intro} {destination}, {platform_sector}.",
+      "compact_departure": "{line}, {destination} helmuga, {platform} bidea."
+    },
+    "TRAIN_IMMINENT_DEPARTURE": {
+      "default": "{service_intro} {destination}. Irten egingo da berehala."
+    },
+    "TRAIN_DELAYED": {
+      "default": "Arreta. {service_intro} {destination} {delayed}."
+    },
+    "TRAIN_CANCELLED": {
+      "default": "Arreta. {service_intro} {destination} {cancelled}. Barkatu eragozpenak."
+    },
+    "PLATFORM_CHANGE": {
+      "default": "Arreta. {service_intro} {destination} {platform_changed}. Begiratu panelak."
+    },
+    "LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT": {
+      "default": "{service_intro} {destination}, irteera {time}tan, {platform_sector}."
+    },
+    "TRAIN_STANDING_BY": {
+      "default": "{is_at_platform} {service_intro} {destination}.",
+      "fare_restricted": "{is_at_platform} {service_intro} {destination}. {fare_restriction}."
+    },
+    "SERVICE_DISRUPTION": {
+      "default": "Arreta. {reason} dela eta, zerbitzuan aldaketak gertatzen ari dira. Barkatu eragozpenak."
+    },
+    "GENERAL_INFORMATION": {
+      "default": "Arreta. {message}"
+    }
+  },
+  "stopping_patterns": {
+    "ALL_STATIONS": "Tren hau geltoki guztietan gelditzen da",
+    "DIRECT": "Tren hau zuzenekoa da",
+    "ALL_EXCEPT": "Tren hau geltoki guztietan gelditzen da, {stations} ezik",
+    "ONLY_STOPS_AT": "Tren hau {stations} bakarrik gelditzen da",
+    "intermediate": "Tren hau {stations} geltokietan gelditzen da"
+  },
+  "fare_restrictions": {
+    "commuter_tickets_not_accepted": "aldiriko txartelak",
+    "commuter_passes_not_accepted": "aldiriko abonamenduak",
+    "regional_tickets_not_accepted": "eskualdeko zerbitzuen txartelak",
+    "regional_passes_not_accepted": "eskualdeko zerbitzuen abonamenduak",
+    "none_accepted": "Tren honetan ez dira baliozkoak aldiriko txartelak, abonamenduak, ezta eskualdeko zerbitzuenak ere",
+    "some_not_accepted": "Tren honetan ez dira baliozkoak {items}"
+  },
+  "closing_messages": {
+    "renfe_long_distance": "Renfe Larga Distantziak bidaia ona opa dizue.",
+    "operator": "{operator}k bidaia ona opa dizue."
+  },
+  "accessibility": {
+    "accessible": "Tren irisgarria."
+  }
+}
