@@ -29,6 +29,9 @@ export type Train = {
   origin: string;
   destination: string;
   stops: string[];
+  stopping_pattern?: string | null;
+  except_stations?: string[];
+  fare_restrictions?: Record<string, boolean> | null;
   scheduled_time: string;
   expected_time: string;
   platform: string;
@@ -475,6 +478,85 @@ export const api = {
   formatListForSpeech: (items: string[], language?: string) =>
     json("/announcements/format-list", { method: "POST", body: JSON.stringify({ items, language }) }),
   getAvailableLocales: (): Promise<string[]> => json("/announcements/locales").then((r) => r?.data || r || []),
+  getLocaleContent: (lang: string): Promise<any> => json(`/announcements/locale/${lang}`).then((r) => r?.data || r),
+  updateLocaleContent: (lang: string, data: any): Promise<any> =>
+    json(`/announcements/locale/${lang}`, { method: "PUT", body: JSON.stringify(data) }).then((r) => r?.data || r),
+  // Simulation
+  getSimulationClock: (): Promise<any> => json("/simulation/clock"),
+  setSimulationMultiplier: (multiplier: number): Promise<any> =>
+    json("/simulation/clock", { method: "PATCH", body: JSON.stringify({ multiplier }) }),
+  setSimulationPaused: (paused: boolean): Promise<any> =>
+    json("/simulation/clock", { method: "PATCH", body: JSON.stringify({ paused }) }),
+  resetSimulationClock: (): Promise<any> => json("/simulation/clock/reset", { method: "POST" }),
+  getSimulationEvents: (limit?: number): Promise<any[]> => {
+    const params = limit ? `?limit=${limit}` : "";
+    return json(`/simulation/events${params}`);
+  },
+  listSimulationSequences: (): Promise<any[]> => json("/simulation/sequences"),
+  getSimulationSequence: (id: number): Promise<any> => json(`/simulation/sequences/${id}`),
+  createSimulationSequence: (data: any): Promise<any> =>
+    json("/simulation/sequences", { method: "POST", body: JSON.stringify(data) }),
+  deleteSimulationSequence: (id: number): Promise<any> =>
+    json(`/simulation/sequences/${id}`, { method: "DELETE" }),
+  startSimulationSequence: (id: number): Promise<any> =>
+    json(`/simulation/sequences/${id}/start`, { method: "POST" }),
+  pauseSimulationSequence: (id: number): Promise<any> =>
+    json(`/simulation/sequences/${id}/pause`, { method: "POST" }),
+  resetSimulationSequence: (id: number): Promise<any> =>
+    json(`/simulation/sequences/${id}/reset`, { method: "POST" }),
+  // Hardware events
+  postHardwareEvent: (data: any): Promise<any> =>
+    json("/hardware/events", { method: "POST", body: JSON.stringify(data) }),
+  getHardwareEvents: (limit?: number): Promise<any[]> => {
+    const params = limit ? `?limit=${limit}` : "";
+    return json(`/hardware/events${params}`);
+  },
+  // Automation
+  listAutomationRules: (): Promise<any[]> => json("/automation/rules"),
+  getAutomationRule: (id: number): Promise<any> => json(`/automation/rules/${id}`),
+  createAutomationRule: (data: any): Promise<any> =>
+    json("/automation/rules", { method: "POST", body: JSON.stringify(data) }),
+  updateAutomationRule: (id: number, data: any): Promise<any> =>
+    json(`/automation/rules/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteAutomationRule: (id: number): Promise<any> =>
+    json(`/automation/rules/${id}`, { method: "DELETE" }),
+  getAutomationSuggestions: (trainId: number): Promise<any> =>
+    json(`/automation/suggestions/${trainId}`),
+  getAutomationSuggestionsForStation: (stationId: number): Promise<any[]> =>
+    json(`/automation/suggestions/station/${stationId}`),
+  // Display screens
+  listDisplayScreens: (): Promise<DisplayScreen[]> => json("/display-screens"),
+  getDisplayScreen: (id: string): Promise<DisplayScreen> => json(`/display-screens/${id}`),
+  createDisplayScreen: (data: any): Promise<DisplayScreen> =>
+    json("/display-screens", { method: "POST", body: JSON.stringify(data) }),
+  updateDisplayScreen: (id: string, data: any): Promise<DisplayScreen> =>
+    json(`/display-screens/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteDisplayScreen: (id: string): Promise<any> =>
+    json(`/display-screens/${id}`, { method: "DELETE" }),
+  getDisplayScreenBoard: (id: string): Promise<any> =>
+    json(`/display-screens/${id}/board`),
+  // Train state machine
+  changeTrainState: (id: number, state: string, source?: string): Promise<any> =>
+    json(`/trains/${id}/state`, { method: "PATCH", body: JSON.stringify({ state, source }) }),
+  changeTrainPlatform: (id: number, platform: string, sector?: string): Promise<any> =>
+    json(`/trains/${id}/platform`, { method: "PATCH", body: JSON.stringify({ platform, sector }) }),
+  addTrainDelay: (id: number, minutes: number, reason?: string): Promise<any> =>
+    json(`/trains/${id}/delay`, { method: "PATCH", body: JSON.stringify({ minutes, reason }) }),
+  getTrainStates: (): Promise<any> => json("/trains/states"),
+  getTrainEvents: (trainId?: number, limit?: number): Promise<any[]> => {
+    const params = new URLSearchParams();
+    if (trainId) params.set("trainId", String(trainId));
+    if (limit) params.set("limit", String(limit));
+    return json(`/train-events?${params}`);
+  },
+  // Devices
+  listDevices: (): Promise<Device[]> => json("/devices"),
+  getConnectedDevices: (): Promise<any[]> => json("/devices/connected"),
+  getDevice: (id: string): Promise<Device> => json(`/devices/${id}`),
+  updateDevice: (id: string, data: any): Promise<Device> =>
+    json(`/devices/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteDevice: (id: string): Promise<any> =>
+    json(`/devices/${id}`, { method: "DELETE" }),
 };
 
 // ---- ANNOUNCEMENT TYPES ----
@@ -520,12 +602,13 @@ export type HistoryItem = {
 export type SoundProfile = {
   id: number;
   name: string;
-  station_id?: number;
-  operator_id?: number;
-  train_type_id?: number;
-  commercial_service?: string;
+  company?: string;
+  station_id?: number | null;
+  operator_id?: number | null;
+  train_type_id?: number | null;
+  commercial_service?: string | null;
   service_type?: string;
-  default_sound_id?: number;
+  default_sound_id?: number | null;
   delay_after_sound_ms?: number;
   sound_volume?: number;
   speech_volume?: number;
@@ -546,20 +629,64 @@ export type SoundRule = {
   asset_path?: string;
 };
 
+export type DisplayScreen = {
+  id: string;
+  name: string;
+  slug: string;
+  station_id: number | null;
+  display_type: "DEPARTURES" | "ARRIVALS" | "PLATFORM" | "TRAIN_INFO" | "CLOCK" | "DISRUPTIONS" | "CUSTOM";
+  platform: string | null;
+  sector: string | null;
+  orientation: "LANDSCAPE" | "PORTRAIT";
+  language: string;
+  secondary_languages: string;
+  audio_enabled: number;
+  theme: string;
+  font_scale: number;
+  refresh_mode: "realtime" | "polling" | "manual";
+  max_rows: number;
+  show_operator: number;
+  show_train_type: number;
+  show_destination: number;
+  show_platform: number;
+  show_time: number;
+  show_status: number;
+  show_notes: number;
+  enabled: number;
+  created_at: string;
+  updated_at: string;
+  station_name?: string;
+  station_short?: string;
+};
+
+export type Device = {
+  id: string;
+  name: string;
+  device_type: "DISPLAY" | "OPERATOR" | "AUDIO_NODE" | "HARDWARE" | "UNKNOWN";
+  display_id: string | null;
+  station_id: number | null;
+  ip_address: string | null;
+  last_seen: string | null;
+  status: "ONLINE" | "OFFLINE" | "UNKNOWN";
+  firmware: string | null;
+  capabilities: string | null;
+  created_at: string;
+};
+
 export function connectWS(onUpdate: () => void) {
   const url = API_URL.replace(/^http/, "ws") + "/ws";
   let ws: WebSocket | null = null;
   let stop = false;
+  let pendingClose = false;
   const listeners: Map<string, Set<(msg: any) => void>> = new Map();
 
   const open = () => {
+    pendingClose = false;
     ws = new WebSocket(url);
     ws.onmessage = (ev) => {
       try {
         const m = JSON.parse(ev.data);
-        // Call generic update handler
         if (m.type === "update") onUpdate();
-        // Call specific event listeners
         if (m.type && listeners.has(m.type)) {
           listeners.get(m.type)?.forEach((cb) => cb(m));
         }
@@ -567,17 +694,30 @@ export function connectWS(onUpdate: () => void) {
         /* noop */
       }
     };
+    ws.onopen = () => {
+      if (pendingClose) ws?.close();
+    };
     ws.onclose = () => {
       if (!stop) setTimeout(open, 1500);
     };
-    ws.onerror = () => ws?.close();
+    ws.onerror = () => {
+      ws?.close();
+    };
   };
   open();
 
   return {
     close: () => {
       stop = true;
-      ws?.close();
+      pendingClose = true;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    },
+    send: (msg: any) => {
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
     },
     on: (eventType: string, callback: (msg: any) => void) => {
       if (!listeners.has(eventType)) listeners.set(eventType, new Set());

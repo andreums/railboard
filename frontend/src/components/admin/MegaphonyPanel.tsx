@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, fileUrl, connectWS, type Train, type Operator, type TrainType, type Station, type AudioAsset, type SoundRule, type SoundProfile } from "../../lib/api";
-import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear } from "lucide-react";
+import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear, FileText, Save } from "lucide-react";
 
-type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales";
+type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales" | "templates";
 
 const EVENT_TYPES = [
   "TRAIN_ANNOUNCEMENT", "COMPACT_SERVICE_ANNOUNCEMENT",
@@ -19,6 +19,89 @@ const LANGUAGES = ["ca", "es", "en", "va", "eu", "gl"];
 
 const LANG_LABELS: Record<string, string> = {
   ca: "Català", es: "Español", en: "English", va: "Valencià", eu: "Euskera", gl: "Galego",
+};
+
+const TRAIN_PRESETS: Record<string, any> = {
+  "Cercanías C1": {
+    number: "C1 456", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Mataró", origin: "L'Hospitalet", platform: "3", sector: "A", line: "R1",
+    status: "Scheduled", stops: ["Sant Adrià", "Badalona", "Montgat"], accessible: false,
+    scheduled_time: "14:30",
+  },
+  "Cercanías accessible": {
+    number: "C2 789", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Granollers", platform: "2", sector: "B", line: "R2",
+    status: "Scheduled", accessible: true, scheduled_time: "15:45",
+  },
+  "Regional MD": {
+    number: "MD 876", type_code: "MD", type_name: "Regional", operator_name: "Renfe",
+    destination: "Lleida", platform: "5", line: "R13",
+    status: "Scheduled", stops: ["Cerdanyola", "Sabadell", "Terrassa", "Manresa"], accessible: false,
+    scheduled_time: "16:20",
+  },
+  "Regional para a totes": {
+    number: "REG 234", type_code: "REG", type_name: "Regional", operator_name: "Renfe",
+    destination: "Tortosa", platform: "7", line: "R16",
+    status: "Scheduled", accessible: false, scheduled_time: "17:10",
+    stoppingPattern: "ALL_STATIONS",
+  },
+  "Regional no para a Granollers": {
+    number: "R 567", type_code: "R", type_name: "Regional", operator_name: "Renfe",
+    destination: "Girona", platform: "4", line: "R11",
+    status: "Scheduled", accessible: false, scheduled_time: "10:30",
+    stoppingPattern: "ALL_EXCEPT", exceptStations: ["Granollers"],
+    stops: ["Mollet", "Granollers", "Celrà"],
+  },
+  "Regional para sols a Lleida": {
+    number: "R 890", type_code: "MD", type_name: "Regional", operator_name: "Renfe",
+    destination: "Lleida Pirineus", platform: "7", line: "RL4",
+    status: "Scheduled", accessible: false, scheduled_time: "12:45",
+    stoppingPattern: "ONLY_STOPS_AT", stops: ["Lleida Pirineus"],
+  },
+  "AVE directe": {
+    number: "AVE 3055", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
+    destination: "Madrid Puerta de Atocha", platform: "9", sector: "C", line: "",
+    status: "Scheduled", accessible: true, scheduled_time: "09:15",
+    stoppingPattern: "DIRECT",
+  },
+  "AVE amb parades": {
+    number: "AVE 4050", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
+    destination: "Madrid Puerta de Atocha", platform: "9", sector: "C", line: "",
+    status: "Scheduled", stops: ["Camp de Tarragona", "Lleida", "Saragossa", "Zaragoza"],
+    accessible: true, scheduled_time: "09:15",
+    stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "Ouigo": {
+    number: "OUIGO 7782", type_code: "OUIGO", type_name: "Ouigo", operator_name: "Ouigo",
+    destination: "Paris Gare de Lyon", platform: "11", line: "",
+    status: "Scheduled", accessible: true, scheduled_time: "07:45",
+    stoppingPattern: "DIRECT",
+  },
+  "Alvia amb restriccions": {
+    number: "ALVIA 4090", type_code: "ALVIA", type_name: "Alvia", operator_name: "Renfe",
+    destination: "Gijón", platform: "4", sector: "D", line: "",
+    status: "Scheduled", stops: ["Saragossa", "Pamplona", "Vitòria", "Burgos", "Lleó"],
+    accessible: true, scheduled_time: "11:30",
+    stoppingPattern: "ONLY_STOPS_AT",
+    fareRestrictions: { commuterTicketsNotAccepted: true, commuterPassesNotAccepted: true, reservationRequired: true },
+  },
+  "Avant": {
+    number: "AVANT 1456", type_code: "MD", type_name: "Avant", operator_name: "Renfe",
+    destination: "Figueres Vilafant", platform: "6", line: "",
+    status: "Scheduled", accessible: true, scheduled_time: "12:00",
+  },
+  "Amb retard": {
+    number: "TEST 999", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Mataró", platform: "1", line: "R1",
+    status: "Delayed", delayMinutes: 10, delayReason: "obres a la via",
+    accessible: false, scheduled_time: "19:30",
+  },
+  "Cancel·lat": {
+    number: "C4 333", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Vic", platform: "2", line: "R3",
+    status: "Cancelled", cancelReason: "incidència tècnica",
+    accessible: false, scheduled_time: "18:00",
+  },
 };
 
 export default function MegaphonyPanel({ operators, trainTypes, trains, stations }: {
@@ -48,11 +131,30 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
   const [testEventType, setTestEventType] = useState("TRAIN_ANNOUNCEMENT");
   const [testLanguages, setTestLanguages] = useState(["ca", "es", "en"]);
   const [testTrainId, setTestTrainId] = useState<number | null>(null);
+  const [testPresetId, setTestPresetId] = useState("Cercanías C1");
   const [testResult, setTestResult] = useState<any>(null);
   const [testStationId, setTestStationId] = useState<number | null>(null);
+  const [testAllResults, setTestAllResults] = useState<any[] | null>(null);
+
+  // Template editor state
+  const [templateLang, setTemplateLang] = useState("ca");
+  const [templateData, setTemplateData] = useState<any>(null);
+  const [templateDirty, setTemplateDirty] = useState(false);
+  const [templateSection, setTemplateSection] = useState("events");
+  const [templateEventKey, setTemplateEventKey] = useState("TRAIN_ANNOUNCEMENT");
+  const [templateVarKey, setTemplateVarKey] = useState("departure");
+  const [templateBlockKey, setTemplateBlockKey] = useState("operator");
 
   // Rule editor state
   const [editingRule, setEditingRule] = useState<Partial<SoundRule> | null>(null);
+
+  // Profile editor state
+  const [editingProfile, setEditingProfile] = useState<Partial<SoundProfile> | null>(null);
+
+  // Load template on tab switch
+  useEffect(() => {
+    if (activeTab === "templates" && !templateData) loadTemplate(templateLang);
+  }, [activeTab]);
 
   // Audio upload state
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -111,22 +213,17 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  const getTestTrain = () => {
+    if (testTrainId) return trains.find((t) => t.id === testTrainId);
+    return TRAIN_PRESETS[testPresetId] || {
+      number: "TEST 001", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+      destination: "Mataró", platform: "1", sector: "A", line: "R1",
+      status: "Scheduled", stops: ["Sant Adrià", "Badalona", "Montgat"], accessible: true,
+    };
+  };
+
   const handleTest = async () => {
-    const trainData = testTrainId
-      ? trains.find((t) => t.id === testTrainId)
-      : {
-          number: "TEST 001",
-          type_code: "C",
-          type_name: "Cercanías",
-          operator_name: "Renfe",
-          destination: "Mataró",
-          platform: "1",
-          sector: "A",
-          line: "R1",
-          status: "Scheduled",
-          stops: ["Sant Adrià", "Badalona", "Montgat"],
-          accessible: true,
-        };
+    const trainData = getTestTrain();
     if (!trainData) { notify("error", "Selecciona un tren existente o usa datos de ejemplo"); return; }
     try {
       const result = await api.testAnnouncement({
@@ -140,19 +237,76 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     }
   };
 
+  const handleSaveProfile = async () => {
+    if (!editingProfile) return;
+    try {
+      if (editingProfile.id) {
+        await api.updateSoundProfile(editingProfile.id, editingProfile);
+        notify("success", "Perfil actualizado");
+      } else {
+        await api.createSoundProfile(editingProfile);
+        notify("success", "Perfil creado");
+      }
+      setEditingProfile(null);
+      refresh();
+    } catch (err: any) {
+      notify("error", err.message);
+    }
+  };
+
+  const loadTemplate = async (lang: string, section?: string) => {
+    try {
+      const data = await api.getLocaleContent(lang);
+      setTemplateData(data);
+      setTemplateLang(lang);
+      setTemplateDirty(false);
+      if (section) setTemplateSection(section);
+      const events = Object.keys(data.events || {});
+      if (events.length > 0) { setTemplateEventKey(events[0]); }
+    } catch (err: any) {
+      notify("error", err.message);
+    }
+  };
+
+  const saveTemplate = async () => {
+    if (!templateData) return;
+    try {
+      await api.updateLocaleContent(templateLang, templateData);
+      setTemplateDirty(false);
+      notify("success", "Plantilla guardada");
+    } catch (err: any) {
+      notify("error", err.message);
+    }
+  };
+
+  const handleDeleteProfile = async (id: number) => {
+    if (!confirm("¿Eliminar este perfil sonoro?")) return;
+    try {
+      await api.deleteSoundProfile(id);
+      notify("success", "Perfil eliminado");
+      refresh();
+    } catch (err: any) {
+      notify("error", err.message);
+    }
+  };
+
+  const handleTestAll = async () => {
+    const trainData = getTestTrain();
+    if (!trainData) return;
+    const results: any[] = [];
+    for (const et of EVENT_TYPES) {
+      try {
+        const r = await api.testAnnouncement({ train: trainData, eventType: et, languages: testLanguages });
+        results.push({ eventType: et, result: r });
+      } catch { /* skip failed */ }
+    }
+    setTestAllResults(results);
+    setTestResult(null);
+    notify("success", `Probados ${results.length} eventos`);
+  };
+
   const handleTrigger = async () => {
-    const trainData = testTrainId
-      ? trains.find((t) => t.id === testTrainId)
-      : {
-          number: "TEST 001",
-          type_code: "C",
-          type_name: "Cercanías",
-          operator_name: "Renfe",
-          destination: "Mataró",
-          platform: "1",
-          sector: "A",
-          line: "R1",
-        };
+    const trainData = getTestTrain();
     if (!trainData) { notify("error", "Train data required"); return; }
     try {
       const result = await api.triggerAnnouncementEvent({
@@ -220,6 +374,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     { id: "audio", label: "Biblioteca", icon: Music },
     { id: "rules", label: "Reglas sonido", icon: Settings },
     { id: "profiles", label: "Perfiles", icon: Speaker },
+    { id: "templates", label: "Plantilles", icon: FileText },
   ];
 
   return (
@@ -473,11 +628,19 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tren (opcional, usa datos de ejemplo si no seleccionas)</label>
-                <select value={testTrainId || ""} onChange={(e) => setTestTrainId(e.target.value ? Number(e.target.value) : null)}
+                <label className="block text-xs font-medium text-slate-500 mb-1">Tren real (si existe en el sistema)</label>
+                <select value={testTrainId || ""} onChange={(e) => { setTestTrainId(e.target.value ? Number(e.target.value) : null); }}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                  <option value="">Usar datos de ejemplo</option>
+                  <option value="">Ninguno (usa perfil de ejemplo)</option>
                   {trains.map((t) => <option key={t.id} value={t.id}>{t.number} → {t.destination}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Perfil de tren de ejemplo</label>
+                <select value={testPresetId} onChange={(e) => setTestPresetId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                  {Object.keys(TRAIN_PRESETS).map((k) => <option key={k} value={k}>{k}</option>)}
                 </select>
               </div>
 
@@ -497,10 +660,14 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-2 pt-2 flex-wrap">
                 <button onClick={handleTest}
                   className="flex items-center gap-1.5 px-4 py-2 bg-blue-900 text-white rounded-lg text-sm hover:bg-blue-800">
                   <Play size={15} /> Previsualizar texto
+                </button>
+                <button onClick={handleTestAll}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700">
+                  <List size={15} /> Probar todos los eventos
                 </button>
                 <button onClick={handleTrigger}
                   className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
@@ -510,35 +677,76 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="font-semibold text-slate-800 mb-4">Resultado</h3>
-            {testResult ? (
-              <div className="space-y-3">
-                <div className="text-xs text-slate-500">Evento: {testResult.eventType}</div>
-                {testResult.chime && (
-                  <div className="bg-slate-50 rounded-lg p-3 text-xs">
-                    <span className="font-medium text-slate-600">Chime:</span>{' '}
-                    {testResult.chime.assetPath ? (
-                      <span className="text-emerald-600">✓ {testResult.chime.assetPath}</span>
-                    ) : (
-                      <span className="text-slate-400">Ninguno (predeterminado)</span>
-                    )}
-                    {testResult.ruleApplied && (
-                      <div className="mt-1 text-slate-400">Regla: {JSON.stringify(testResult.ruleApplied)}</div>
-                    )}
-                  </div>
-                )}
-                {Object.entries(testResult.composed || {}).map(([lang, text]) => (
-                  <div key={lang} className="bg-slate-50 rounded-lg p-3">
-                    <div className="text-xs font-bold text-slate-600 uppercase mb-1">{LANG_LABELS[lang] || lang}</div>
-                    <div className="text-sm text-slate-800">{text as string}</div>
-                  </div>
-                ))}
+          {testAllResults ? (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800">Todos los eventos</h3>
+                <button onClick={() => setTestAllResults(null)}
+                  className="text-xs text-slate-400 hover:text-slate-600">Cerrar</button>
               </div>
-            ) : (
-              <p className="text-sm text-slate-400">Configura los parámetros y presiona "Previsualizar texto"</p>
-            )}
-          </div>
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {testAllResults.map(({ eventType, result }) => {
+                  const texts = result.composed || result;
+                  const firstText = Object.values(texts).find((v: any) => typeof v === "string" && v.length > 0) as string || "";
+                  return (
+                    <div key={eventType} className="bg-slate-50 rounded-lg p-3 flex items-start gap-3">
+                      {result.chime?.assetPath && (
+                        <span className="text-xs text-emerald-600 shrink-0" title={result.chime.assetPath}>♪</span>
+                      )}
+                      <span className="text-xs font-mono text-slate-500 whitespace-nowrap min-w-[14ch]">{eventType.replace(/_/g, " ")}</span>
+                      <span className="text-sm text-slate-800 flex-1 truncate" title={firstText}>{firstText}</span>
+                      <button onClick={() => { setTestResult(result); setTestAllResults(null); }}
+                        className="text-xs text-blue-600 hover:underline shrink-0">Ver</button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-800">Resultado</h3>
+                {testResult && (
+                  <button onClick={() => {
+                    const texts = testResult.composed || testResult;
+                    const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
+                    playAnnouncementTexts(texts, langs);
+                  }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700">
+                    <Speaker size={13} /> Reproduir
+                  </button>
+                )}
+              </div>
+              {testResult ? (
+                <div className="space-y-3">
+                  {testResult.eventType && (
+                    <div className="text-xs text-slate-500">Evento: {testResult.eventType}</div>
+                  )}
+                  {testResult.chime && (
+                    <div className="bg-slate-50 rounded-lg p-3 text-xs">
+                      <span className="font-medium text-slate-600">Chime:</span>{' '}
+                      {testResult.chime.assetPath ? (
+                        <span className="text-emerald-600">✓ {testResult.chime.assetPath}</span>
+                      ) : (
+                        <span className="text-slate-400">Ninguno (predeterminado)</span>
+                      )}
+                      {testResult.ruleApplied && (
+                        <div className="mt-1 text-slate-400">Regla: {JSON.stringify(testResult.ruleApplied)}</div>
+                      )}
+                    </div>
+                  )}
+                  {(Object.entries(testResult.composed || testResult).filter(([k]) => !["eventType","chime","ruleApplied","queueId","status"].includes(k))).map(([lang, text]) => (
+                    <div key={lang} className="bg-slate-50 rounded-lg p-3">
+                      <div className="text-xs font-bold text-slate-600 uppercase mb-1">{LANG_LABELS[lang] || lang}</div>
+                      <div className="text-sm text-slate-800">{text as string}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-slate-400">Configura los parámetros y presiona "Previsualizar texto"</p>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -758,11 +966,311 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
         </div>
       )}
 
+      {/* Templates - Plantilles */}
+      {activeTab === "templates" && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-slate-800">Seccions</h3>
+              <div className="flex items-center gap-2">
+                <select value={templateLang} onChange={(e) => loadTemplate(e.target.value)}
+                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                  {availableLocales.map((l) => <option key={l} value={l}>{LANG_LABELS[l] || l}</option>)}
+                </select>
+              </div>
+            </div>
+            {templateData && (
+              <div className="space-y-1">
+                {["events", "blocks", "service_intro", "closing_messages", "attention", "accessibility", "stopping_patterns", "fare_restrictions", "pre_recorded_fragments"].map((section) => {
+                  const count = templateData[section] ? Object.keys(templateData[section]).length : 0;
+                  return (
+                    <button key={section} onClick={() => setTemplateSection(section)}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-left transition ${
+                        templateSection === section ? "bg-blue-50 text-blue-900 font-medium" : "text-slate-600 hover:bg-slate-50"
+                      }`}>
+                      <span>{section.replace(/_/g, " ")}</span>
+                      <span className="text-xs text-slate-400">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {!templateData && <p className="text-sm text-slate-400 py-4">Carregant...</p>}
+          </div>
+
+          <div className="lg:col-span-2 space-y-4">
+            {templateSection === "events" && templateData && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">Esdeveniments</h3>
+                  {templateDirty && (
+                    <button onClick={saveTemplate}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+                      <Save size={14} /> Guardar
+                    </button>
+                  )}
+                </div>
+                <div className="flex gap-3 mb-3">
+                  <select value={templateEventKey} onChange={(e) => setTemplateEventKey(e.target.value)}
+                    className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    {Object.keys(templateData.events || {}).map((k) => (
+                      <option key={k} value={k}>{k.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                  <select value={templateVarKey} onChange={(e) => setTemplateVarKey(e.target.value)}
+                    className="w-48 border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    {Object.keys(templateData.events?.[templateEventKey] || {}).map((k) => (
+                      <option key={k} value={k}>{k}</option>
+                    ))}
+                  </select>
+                </div>
+                {templateData.events?.[templateEventKey] && (
+                  <textarea
+                    value={templateData.events[templateEventKey][templateVarKey] || ""}
+                    onChange={(e) => {
+                      const newData = { ...templateData };
+                      newData.events[templateEventKey][templateVarKey] = e.target.value;
+                      setTemplateData(newData);
+                      setTemplateDirty(true);
+                    }}
+                    className="w-full h-32 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono"
+                    spellCheck={false}
+                  />
+                )}
+              </div>
+            )}
+
+            {templateSection === "blocks" && templateData && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">Fragments reutilitzables</h3>
+                  {templateDirty && (
+                    <button onClick={saveTemplate}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+                      <Save size={14} /> Guardar
+                    </button>
+                  )}
+                </div>
+                <select value={templateBlockKey} onChange={(e) => setTemplateBlockKey(e.target.value)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-3">
+                  {Object.keys(templateData.blocks || {}).map((k) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+                <textarea
+                  value={templateData.blocks?.[templateBlockKey] || ""}
+                  onChange={(e) => {
+                    const newData = { ...templateData };
+                    newData.blocks[templateBlockKey] = e.target.value;
+                    setTemplateData(newData);
+                    setTemplateDirty(true);
+                  }}
+                  className="w-full h-20 border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono"
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            {templateSection === "service_intro" && templateData && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">Introducció de servei</h3>
+                  {templateDirty && (
+                    <button onClick={saveTemplate}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+                      <Save size={14} /> Guardar
+                    </button>
+                  )}
+                </div>
+                {Object.entries(templateData.service_intro || {}).map(([key, val]) => (
+                  <div key={key} className="mb-2">
+                    <label className="block text-xs text-slate-500 mb-1">{key}</label>
+                    <input value={val as string} onChange={(e) => {
+                      const newData = { ...templateData };
+                      newData.service_intro[key] = e.target.value;
+                      setTemplateData(newData);
+                      setTemplateDirty(true);
+                    }}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {["closing_messages", "attention", "accessibility", "stopping_patterns", "fare_restrictions", "pre_recorded_fragments"].includes(templateSection) && templateData && (
+              <div className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-slate-800">{templateSection.replace(/_/g, " ")}</h3>
+                  {templateDirty && (
+                    <button onClick={saveTemplate}
+                      className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700">
+                      <Save size={14} /> Guardar
+                    </button>
+                  )}
+                </div>
+                {Object.entries(templateData[templateSection] || {}).map(([key, val]) => (
+                  <div key={key} className="mb-2">
+                    <label className="block text-xs text-slate-500 mb-1">{key}</label>
+                    <input value={val as string} onChange={(e) => {
+                      const newData = { ...templateData };
+                      newData[templateSection][key] = e.target.value;
+                      setTemplateData(newData);
+                      setTemplateDirty(true);
+                    }}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Profiles - Perfiles sonoros */}
       {activeTab === "profiles" && (
         <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <h3 className="font-semibold text-slate-800 mb-4">Perfiles sonoros</h3>
-          <p className="text-sm text-slate-400">Configuración de perfiles sonoros próximamente.</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-slate-800">Perfiles sonoros</h3>
+            <button onClick={() => setEditingProfile({ name: "", sound_volume: 1.0, speech_volume: 1.0, delay_after_sound_ms: 600, enabled: 1 })}
+              className="flex items-center gap-1 px-3 py-1.5 bg-blue-900 text-white rounded-lg text-sm hover:bg-blue-800">
+              <Plus size={14} /> Nuevo perfil
+            </button>
+          </div>
+
+          {editingProfile && (
+            <div className="mb-6 bg-slate-50 rounded-xl p-4 border border-slate-200">
+              <h4 className="font-semibold text-slate-700 mb-3 text-sm">
+                {editingProfile.id ? `Editar: ${editingProfile.name}` : "Nuevo perfil sonoro"}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Nombre</label>
+                  <input value={editingProfile.name || ""} onChange={(e) => setEditingProfile({ ...editingProfile, name: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Perfil Renfe LD" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Compañía</label>
+                  <input value={editingProfile.company || ""} onChange={(e) => setEditingProfile({ ...editingProfile, company: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="Renfe, Ouigo, Iryo..." />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Estación</label>
+                  <select value={editingProfile.station_id || ""} onChange={(e) => setEditingProfile({ ...editingProfile, station_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todas</option>
+                    {stations.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Operador</label>
+                  <select value={editingProfile.operator_id || ""} onChange={(e) => setEditingProfile({ ...editingProfile, operator_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos</option>
+                    {operators.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Tipo de tren</label>
+                  <select value={editingProfile.train_type_id || ""} onChange={(e) => setEditingProfile({ ...editingProfile, train_type_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Todos</option>
+                    {trainTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Servicio comercial</label>
+                  <input value={editingProfile.commercial_service || ""} onChange={(e) => setEditingProfile({ ...editingProfile, commercial_service: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="ej: AVE, Avant..." />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Tipo de servicio</label>
+                  <input value={editingProfile.service_type || ""} onChange={(e) => setEditingProfile({ ...editingProfile, service_type: e.target.value })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" placeholder="ej: LARGA_DISTANCIA, MEDIA_DISTANCIA..." />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Sonido por defecto</label>
+                  <select value={editingProfile.default_sound_id || ""} onChange={(e) => setEditingProfile({ ...editingProfile, default_sound_id: e.target.value ? Number(e.target.value) : null })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <option value="">Ninguno</option>
+                    {audioAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Delay post-sonido (ms)</label>
+                  <input type="number" value={editingProfile.delay_after_sound_ms ?? 600} onChange={(e) => setEditingProfile({ ...editingProfile, delay_after_sound_ms: Number(e.target.value) })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Volumen sonido (0-1)</label>
+                  <input type="number" step="0.1" min="0" max="1" value={editingProfile.sound_volume ?? 1.0} onChange={(e) => setEditingProfile({ ...editingProfile, sound_volume: Number(e.target.value) })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Volumen voz (0-1)</label>
+                  <input type="number" step="0.1" min="0" max="1" value={editingProfile.speech_volume ?? 1.0} onChange={(e) => setEditingProfile({ ...editingProfile, speech_volume: Number(e.target.value) })}
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm" />
+                </div>
+                <div className="flex items-end gap-2">
+                  <label className="flex items-center gap-2 text-sm pb-2">
+                    <input type="checkbox" checked={editingProfile.enabled !== 0}
+                      onChange={(e) => setEditingProfile({ ...editingProfile, enabled: e.target.checked ? 1 : 0 })}
+                      className="rounded border-slate-300" />
+                    Activo
+                  </label>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-4">
+                <button onClick={handleSaveProfile}
+                  className="px-4 py-2 bg-blue-900 text-white rounded-lg text-sm hover:bg-blue-800">
+                  {editingProfile.id ? "Actualizar" : "Crear perfil"}
+                </button>
+                <button onClick={() => setEditingProfile(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 rounded-lg text-sm hover:bg-slate-50">Cancelar</button>
+              </div>
+            </div>
+          )}
+
+          {soundProfiles.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">No hay perfiles sonoros configurados.</div>
+          ) : (
+            <div className="space-y-2">
+              {soundProfiles.map((profile) => (
+                <div key={profile.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:border-slate-200 hover:shadow-sm transition">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-slate-800">{profile.name}</span>
+                      {profile.company && <span className="text-xs text-slate-400">{profile.company}</span>}
+                      {profile.enabled ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-100 text-green-700 font-medium">Activo</span>
+                      ) : (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">Inactivo</span>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-400 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5">
+                      {profile.station_id && <span>Estación específica</span>}
+                      {profile.operator_id && <span>Operador específico</span>}
+                      {profile.train_type_id && <span>Tipo de tren específico</span>}
+                      {profile.commercial_service && <span>Servicio: {profile.commercial_service}</span>}
+                      {profile.service_type && <span>Tipo: {profile.service_type}</span>}
+                      <span>Vol. sonido: {profile.sound_volume}</span>
+                      <span>Vol. voz: {profile.speech_volume}</span>
+                      <span>Delay: {profile.delay_after_sound_ms}ms</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-1 shrink-0 ml-3">
+                    <button onClick={() => setEditingProfile(profile)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500" title="Editar">
+                      <Settings size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteProfile(profile.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-red-400" title="Eliminar">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

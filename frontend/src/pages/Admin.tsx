@@ -16,6 +16,9 @@ import {
   Volume2,
   GitBranch,
   Volume2 as Megaphone,
+  Radio,
+  Cpu,
+  Brain,
 } from "lucide-react";
 import {
   api,
@@ -36,6 +39,12 @@ import ServicesPanel from "../components/admin/ServicesPanel";
 import RoutesPanel from "../components/admin/RoutesPanel";
 import WSLogPanel from "../components/admin/WSLogPanel";
 import MegaphonyPanel from "../components/admin/MegaphonyPanel";
+import DisplayScreensPanel from "../components/admin/DisplayScreensPanel";
+import DevicesPanel from "../components/admin/DevicesPanel";
+import SimulationPanel from "../components/admin/SimulationPanel";
+import HardwarePanel from "../components/admin/HardwarePanel";
+import AudioNodesPanel from "../components/admin/AudioNodesPanel";
+import AutomationPanel from "../components/admin/AutomationPanel";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import {
   speak,
@@ -55,6 +64,7 @@ type TabType =
   | "dashboard"
   | "station"
   | "displays"
+  | "displayScreens"
   | "trains"
   | "routes"
   | "operators"
@@ -66,7 +76,12 @@ type TabType =
   | "voice"
   | "validation"
   | "import"
-  | "megaphony";
+  | "megaphony"
+  | "devices"
+  | "simulation"
+  | "hardware"
+  | "audioNodes"
+  | "automation";
 type NotificationType = "success" | "error" | "info";
 
 interface Notification {
@@ -1011,9 +1026,20 @@ export default function Admin() {
       ],
     },
     {
-      label: "Megafonía",
+      label: "Información al viajero",
       items: [
+        { id: "displayScreens" as TabType, label: "Pantallas", icon: Monitor },
         { id: "megaphony" as TabType, label: "Megafonía", icon: Megaphone },
+        { id: "audioNodes" as TabType, label: "Nodos audio", icon: Radio },
+      ],
+    },
+    {
+      label: "Sistema",
+      items: [
+        { id: "devices" as TabType, label: "Dispositivos", icon: Radio },
+        { id: "hardware" as TabType, label: "Hardware", icon: Cpu },
+        { id: "simulation" as TabType, label: "Simulación", icon: GitBranch },
+        { id: "automation" as TabType, label: "Automatización", icon: Brain },
       ],
     },
   ];
@@ -1536,8 +1562,8 @@ export default function Admin() {
                                     <Monitor size={18} />
                                   </div>
                                   <div className="min-w-0">
-                                    <h3 className="text-base font-semibold text-slate-900 truncate">{s.short || s.name}</h3>
-                                    <p className="text-xs text-slate-500 truncate">
+                                    <h3 className="text-base font-semibold text-slate-900">{s.short || s.name}</h3>
+                                    <p className="text-xs text-slate-500">
                                       {s.name} · ID {s.id}
                                     </p>
                                   </div>
@@ -2872,6 +2898,36 @@ export default function Admin() {
             )}
 
             {/* Megaphony Tab */}
+            {activeTab === "displayScreens" && (
+              <div className="animate-fadeIn">
+                <DisplayScreensPanel stations={stations} />
+              </div>
+            )}
+            {activeTab === "devices" && (
+              <div className="animate-fadeIn">
+                <DevicesPanel />
+              </div>
+            )}
+            {activeTab === "automation" && (
+              <div className="animate-fadeIn">
+                <AutomationPanel />
+              </div>
+            )}
+            {activeTab === "audioNodes" && (
+              <div className="animate-fadeIn">
+                <AudioNodesPanel />
+              </div>
+            )}
+            {activeTab === "hardware" && (
+              <div className="animate-fadeIn">
+                <HardwarePanel />
+              </div>
+            )}
+            {activeTab === "simulation" && (
+              <div className="animate-fadeIn">
+                <SimulationPanel />
+              </div>
+            )}
             {activeTab === "megaphony" && (
               <div className="animate-fadeIn">
                 <MegaphonyPanel
@@ -3144,6 +3200,57 @@ export default function Admin() {
                     onChange={(e) => setEditStopsText(e.target.value)}
                   />
                 </div>
+
+                {/* Stopping pattern */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Patró de parades</label>
+                  <select value={editFormData.stopping_pattern || ""} onChange={(e) => setEditFormData({ ...editFormData, stopping_pattern: e.target.value || null })}
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none">
+                    <option value="">Normal (llista de parades)</option>
+                    <option value="ALL_STATIONS">Para a totes les estacions</option>
+                    <option value="DIRECT">Tren directe (no para)</option>
+                    <option value="SEMI_FAST">Semidirecte (para a les principals)</option>
+                    <option value="ALL_EXCEPT">Para a totes excepte...</option>
+                    <option value="ONLY_STOPS_AT">Només para a...</option>
+                  </select>
+                </div>
+
+                {editFormData.stopping_pattern === "ALL_EXCEPT" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Excepte estacions (una per línia)</label>
+                    <textarea rows={2} placeholder="Granollers&#10;Caldes"
+                      value={(editFormData.except_stations || []).join("\n")}
+                      onChange={(e) => setEditFormData({ ...editFormData, except_stations: e.target.value.split("\n").map(s=>s.trim()).filter(Boolean) })}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none resize-y" />
+                  </div>
+                )}
+
+                {/* Fare restrictions */}
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Restriccions de bitllets</label>
+                  <div className="flex flex-wrap gap-3">
+                    {[
+                      ["commuterTicketsNotAccepted", "Bitllets Rodalies"],
+                      ["commuterPassesNotAccepted", "Abonaments Rodalies"],
+                      ["regionalTicketsNotAccepted", "Bitllets Regionals"],
+                      ["regionalPassesNotAccepted", "Abonaments Regionals"],
+                      ["reservationRequired", "Reserva obligatòria"],
+                      ["supplementRequired", "Suplement obligatori"],
+                      ["specificTicketRequired", "Bitllet específic"],
+                    ].map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                        <input type="checkbox" checked={!!(editFormData.fare_restrictions as any)?.[key]}
+                          onChange={(e) => setEditFormData({
+                            ...editFormData,
+                            fare_restrictions: { ...(editFormData.fare_restrictions as any || {}), [key]: e.target.checked },
+                          })}
+                          className="rounded border-slate-300" />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="flex gap-3 pt-4 border-t border-slate-200">
                   <button
                     onClick={handleSaveEditedTrain}

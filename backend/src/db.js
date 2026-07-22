@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
+import { randomUUID } from "crypto";
 import { runMigrations } from "./migrations.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -99,6 +100,8 @@ function rowToTrain(r) {
   return {
     ...r,
     stops: JSON.parse(r.stops || "[]"),
+    fare_restrictions: JSON.parse(r.fare_restrictions || "null"),
+    except_stations: JSON.parse(r.except_stations || "[]"),
   };
 }
 
@@ -140,10 +143,12 @@ export function createTrain(t) {
   const stmt = db.prepare(`
     INSERT INTO trains
       (number, operator_id, train_type_id, origin, destination, stops,
-       scheduled_time, expected_time, platform, sector, status, observations, station_id, custom_icon_url, icon_mode)
+       scheduled_time, expected_time, platform, sector, status, observations,
+       station_id, custom_icon_url, icon_mode, stopping_pattern, fare_restrictions, except_stations)
     VALUES
       (@number, @operator_id, @train_type_id, @origin, @destination, @stops,
-       @scheduled_time, @expected_time, @platform, @sector, @status, @observations, @station_id, @custom_icon_url, @icon_mode)
+       @scheduled_time, @expected_time, @platform, @sector, @status, @observations,
+       @station_id, @custom_icon_url, @icon_mode, @stopping_pattern, @fare_restrictions, @except_stations)
   `);
   const info = stmt.run({
     number: t.number,
@@ -161,6 +166,9 @@ export function createTrain(t) {
     station_id: t.station_id ?? null,
     custom_icon_url: t.custom_icon_url || null,
     icon_mode: t.icon_mode || "destination",
+    stopping_pattern: t.stopping_pattern || t.stoppingPattern || null,
+    fare_restrictions: JSON.stringify(t.fare_restrictions || null),
+    except_stations: JSON.stringify(t.except_stations || []),
   });
   return getTrain(info.lastInsertRowid);
 }
@@ -175,7 +183,9 @@ export function updateTrain(id, t) {
        origin=@origin, destination=@destination, stops=@stops,
        scheduled_time=@scheduled_time, expected_time=@expected_time,
        platform=@platform, sector=@sector, status=@status,
-       observations=@observations, station_id=@station_id, custom_icon_url=@custom_icon_url, icon_mode=@icon_mode
+       observations=@observations, station_id=@station_id,
+       custom_icon_url=@custom_icon_url, icon_mode=@icon_mode,
+       stopping_pattern=@stopping_pattern, fare_restrictions=@fare_restrictions, except_stations=@except_stations
      WHERE id=@id`,
   ).run({
     id,
@@ -194,6 +204,9 @@ export function updateTrain(id, t) {
     station_id: next.station_id ?? null,
     custom_icon_url: next.custom_icon_url || null,
     icon_mode: next.icon_mode || "destination",
+    stopping_pattern: next.stopping_pattern || null,
+    fare_restrictions: JSON.stringify(next.fare_restrictions || null),
+    except_stations: JSON.stringify(next.except_stations || []),
   });
   return getTrain(id);
 }
@@ -1045,7 +1058,134 @@ export const soundRules = {
   remove: (id) => db.prepare("DELETE FROM announcement_sound_rules WHERE id = ?").run(id),
 };
 
+// ---- DEVICES ----
+
+export const devices = {
+  list: () => db.prepare("SELECT * FROM devices ORDER BY last_seen DESC").all(),
+  get: (id) => db.prepare("SELECT * FROM devices WHERE id = ?").get(id),
+  update: (id, data) => {
+    const cur = devices.get(id);
+    if (!cur) return null;
+    const fields = [];
+    const params = [];
+    for (const key of ["name", "device_type", "display_id", "station_id", "firmware", "capabilities"]) {
+      if (data[key] !== undefined) { fields.push(`${key} = ?`); params.push(data[key]); }
+    }
+    if (fields.length === 0) return cur;
+    params.push(id);
+    db.prepare(`UPDATE devices SET ${fields.join(", ")} WHERE id = ?`).run(...params);
+    return devices.get(id);
+  },
+  remove: (id) => { db.prepare("DELETE FROM devices WHERE id = ?").run(id); },
+};
+
 // ---- PLACE TTS PRONUNCIATIONS ----
+
+// ---- DISPLAY SCREENS ----
+
+function shortId() {
+  return randomUUID().replace(/-/g, "").slice(0, 8);
+}
+
+function toSlug(name) {
+  return name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export const displayScreens = {
+  list: () =>
+    db.prepare(`
+      SELECT ds.*, s.name as station_name, s.short as station_short
+      FROM display_screens ds
+      LEFT JOIN stations s ON s.id = ds.station_id
+      ORDER BY ds.created_at DESC
+    `).all(),
+  get: (id) => {
+    let screen = db.prepare(`
+      SELECT ds.*, s.name as station_name, s.short as station_short
+      FROM display_screens ds
+      LEFT JOIN stations s ON s.id = ds.station_id
+      WHERE ds.id = ?
+    `).get(id);
+    if (!screen && /^\d+$/.test(id)) {
+      screen = db.prepare(`
+        SELECT ds.*, s.name as station_name, s.short as station_short
+        FROM display_screens ds
+        LEFT JOIN stations s ON s.id = ds.station_id
+        WHERE ds.rowid = ?
+      `).get(Number(id));
+    }
+    return screen;
+  },
+  create: (data) => {
+    const id = shortId();
+    const slug = data.slug || toSlug(data.name);
+    db.prepare(`
+      INSERT INTO display_screens (id, name, slug, station_id, display_type, platform, sector, orientation, language, secondary_languages, audio_enabled, theme, font_scale, refresh_mode, max_rows, show_operator, show_train_type, show_destination, show_platform, show_time, show_status, show_notes, enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id, data.name, slug, data.station_id || null, data.display_type || "DEPARTURES",
+      data.platform || null, data.sector || null, data.orientation || "LANDSCAPE",
+      data.language || "ca", JSON.stringify(data.secondary_languages || ["es", "en"]),
+      data.audio_enabled ? 1 : 0, data.theme || "default", data.font_scale || 1.0,
+      data.refresh_mode || "realtime", data.max_rows || 10,
+      data.show_operator !== undefined ? (data.show_operator ? 1 : 0) : 1,
+      data.show_train_type !== undefined ? (data.show_train_type ? 1 : 0) : 1,
+      data.show_destination !== undefined ? (data.show_destination ? 1 : 0) : 1,
+      data.show_platform !== undefined ? (data.show_platform ? 1 : 0) : 1,
+      data.show_time !== undefined ? (data.show_time ? 1 : 0) : 1,
+      data.show_status !== undefined ? (data.show_status ? 1 : 0) : 1,
+      data.show_notes !== undefined ? (data.show_notes ? 1 : 0) : 1,
+      data.enabled !== undefined ? (data.enabled ? 1 : 0) : 1,
+    );
+    return displayScreens.get(id);
+  },
+  update: (id, data) => {
+    const cur = displayScreens.get(id);
+    if (!cur) return null;
+    const fields = [];
+    const params = [];
+    for (const key of ["name", "slug", "station_id", "display_type", "platform", "sector", "orientation", "language", "theme", "font_scale", "refresh_mode", "max_rows", "device_id"]) {
+      if (data[key] !== undefined) { fields.push(`${key} = ?`); params.push(data[key]); }
+    }
+    if (data.secondary_languages !== undefined) { fields.push("secondary_languages = ?"); params.push(JSON.stringify(data.secondary_languages)); }
+    for (const boolKey of ["audio_enabled", "show_operator", "show_train_type", "show_destination", "show_platform", "show_time", "show_status", "show_notes", "enabled"]) {
+      if (data[boolKey] !== undefined) { fields.push(`${boolKey} = ?`); params.push(data[boolKey] ? 1 : 0); }
+    }
+    if (fields.length === 0) return cur;
+    fields.push("updated_at = datetime('now')");
+    params.push(id);
+    db.prepare(`UPDATE display_screens SET ${fields.join(", ")} WHERE id = ?`).run(...params);
+    return displayScreens.get(id);
+  },
+  remove: (id) => {
+    db.prepare("DELETE FROM display_screens WHERE id = ?").run(id);
+  },
+  getBoard: (id) => {
+    const display = displayScreens.get(id);
+    if (!display) return null;
+    const stationId = display.station_id;
+    if (!stationId) return { display, rows: [] };
+
+    const rows = db.prepare(`
+      SELECT t.id, t.number, t.destination, t.platform, t.sector, t.scheduled_time, t.expected_time, t.status, t.stops, t.observations,
+        o.name as operator_name, o.logo_url as operator_logo,
+        tc.code as type_code, tc.name as type_name, tc.color as type_color, tc.logo_url as type_logo, tc.destination_icon_url as type_destination_icon,
+        s.name as station_name
+      FROM trains t
+      LEFT JOIN operators o ON o.id = t.operator_id
+      LEFT JOIN train_types tc ON tc.id = t.train_type_id
+      LEFT JOIN stations s ON s.id = t.station_id
+      WHERE t.station_id = ?
+      ORDER BY t.sort_order ASC, t.scheduled_time ASC
+    `).all(stationId);
+
+    return { display, rows };
+  },
+};
 
 export const placeTtsPronunciations = {
   list: () => db.prepare("SELECT * FROM place_tts_pronunciations ORDER BY display_name, language").all(),

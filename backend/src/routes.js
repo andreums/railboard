@@ -26,19 +26,38 @@ import {
   soundProfiles,
   soundRules,
   placeTtsPronunciations,
+  displayScreens,
+  devices,
 } from "./db.js";
 import SEED_FIXTURES from "./fixtures/seedTrains.js";
-import { broadcast } from "./ws.js";
+import { broadcast, broadcastToDisplay, broadcastToStation, getConnectedDevices } from "./ws.js";
 import { getAllRoutes, getAvailableRegions, reloadRoutesDataset } from "./services/routeService.js";
 import { adminAuth } from "./middleware/auth.js";
 import { upload, uploadAudio, uploadTrainTypeFields, validateImageContent, validateAudioContent } from "./services/uploadService.js";
 import { generateRandomTrain, generateTrainFromRoute } from "./services/trainGeneratorService.js";
 import { buildStationBoard } from "./services/boardService.js";
 import AnnouncementService from "./services/announcementService.js";
-import { composeAnnouncements, testCompose, formatTimeForSpeech, formatLocalizedList, getAvailableLocales } from "./services/announcementComposer.js";
+import EventEngine, { getValidTransitions, getAllStates, getStateDisplayName } from "./services/eventEngine.js";
+import SimulationService from "./services/simulationService.js";
+import HardwareService from "./services/hardwareService.js";
+import AutomationService from "./services/automationService.js";
+import path from "path";
+import { resolveAnnouncementSound } from "./services/announcementSoundResolver.js";
+import { composeAnnouncements, testCompose, formatTimeForSpeech, formatLocalizedList, getAvailableLocales, getLocaleContent, saveLocaleContent } from "./services/announcementComposer.js";
 
 const announcementService = new AnnouncementService(db);
 announcementService.initialize();
+
+const eventEngine = new EventEngine(db, announcementService);
+eventEngine.initialize();
+
+const simulationService = new SimulationService(db, eventEngine);
+simulationService.initialize();
+
+const hardwareService = new HardwareService(db, eventEngine);
+
+const automationService = new AutomationService(db, eventEngine, simulationService);
+automationService.initialize();
 
 const r = Router();
 const ping = () => broadcast({ type: "update", at: Date.now() });
@@ -128,33 +147,51 @@ r.put("/trains/:id", adminAuth, upload.single("custom_icon"), validateImageConte
   res.json(t);
 });
 r.patch("/trains/:id/status", adminAuth, (req, res) => {
-  const t = updateTrain(Number(req.params.id), { status: req.body.status });
+  const t = updateTrain(Number(req.params.id), { status: req.body.status, state_source: req.body.source || "manual", state_updated_at: new Date().toISOString() });
   if (!t) return res.status(404).end();
   announcementService.onTrainUpdate(t);
   ping();
   res.json(t);
+});
+
+// Event Engine: state change with validation
+r.patch("/trains/:id/state", adminAuth, (req, res) => {
+  const result = eventEngine.fireStateChange(Number(req.params.id), req.body.state, req.body.source || "manual", req.body.details || {});
+  if (result.error) return res.status(400).json(result);
+  ping();
+  res.json(result);
+});
+
+r.patch("/trains/:id/platform", adminAuth, (req, res) => {
+  const result = eventEngine.firePlatformChange(Number(req.params.id), req.body.platform, req.body.sector, req.body.source || "manual");
+  if (result.error) return res.status(400).json(result);
+  ping();
+  res.json(result);
+});
+
+// Train state info
+r.get("/trains/states", (_req, res) => {
+  res.json({ states: getAllStates(), transitions: Object.fromEntries(getAllStates().map((s) => [s, getValidTransitions(s)])) });
+});
+
+// Train events log
+r.get("/train-events", adminAuth, (req, res) => {
+  const trainId = req.query.trainId ? Number(req.query.trainId) : null;
+  const events = eventEngine.getEvents(trainId, Number(req.query.limit) || 100);
+  res.json(events);
 });
 r.patch("/trains/:id/delay", adminAuth, (req, res) => {
   const cur = getTrain(Number(req.params.id));
   if (!cur) return res.status(404).end();
   const minutes = Number(req.body.minutes || 0);
+  const newStatus = minutes > 0 ? "DELAYED" : cur.status;
+  const result = eventEngine.fireStateChange(cur.id, newStatus, req.body.source || "manual", { delayMinutes: minutes, reason: req.body.reason });
+  if (result.error) return res.status(400).json(result);
   const t = updateTrain(cur.id, {
     expected_time: addMinutes(cur.expected_time, minutes),
-    status: minutes > 0 ? "Delayed" : cur.status,
     delay_minutes: minutes,
     delay_reason: req.body.reason || null,
   });
-  announcementService.onTrainUpdate(t);
-  ping();
-  res.json(t);
-});
-r.patch("/trains/:id/platform", adminAuth, (req, res) => {
-  const t = updateTrain(Number(req.params.id), {
-    platform: req.body.platform,
-    sector: req.body.sector,
-  });
-  if (!t) return res.status(404).end();
-  announcementService.onTrainUpdate(t);
   ping();
   res.json(t);
 });
@@ -743,8 +780,19 @@ r.get("/announcements/history", adminAuth, (_req, res) => {
 r.post("/announcements/test", adminAuth, (req, res) => {
   const { train, eventType, languages } = req.body;
   const data = train || req.body;
-  const result = testCompose({ ...data, eventType, languages });
-  res.json({ status: "ok", data: result });
+  const composed = testCompose({ ...data, eventType, languages });
+  const soundInfo = resolveAnnouncementSound(data, eventType, db);
+  res.json({
+    status: "ok",
+    data: {
+      composed,
+      eventType,
+      chime: soundInfo?.assetPath
+        ? { id: soundInfo.soundId, assetPath: soundInfo.assetPath, soundMode: soundInfo.soundMode, delayAfterSoundMs: soundInfo.delayAfterSoundMs, soundVolume: soundInfo.soundVolume }
+        : null,
+      ruleApplied: soundInfo?.ruleId ? soundInfo : null,
+    },
+  });
 });
 
 // POST /admin/announcements/event - Trigger an announcement event manually
@@ -771,9 +819,25 @@ r.get("/announcements/locales", (_req, res) => {
   res.json({ status: "ok", data: locales });
 });
 
+// GET /admin/announcements/locale/:lang - Get a locale file
+r.get("/announcements/locale/:lang", adminAuth, (req, res) => {
+  const data = getLocaleContent(req.params.lang);
+  if (!data) return res.status(404).json({ status: "error", error: "Locale not found" });
+  res.json({ status: "ok", data });
+});
+
+// PUT /admin/announcements/locale/:lang - Update a locale file
+r.put("/announcements/locale/:lang", adminAuth, (req, res) => {
+  const { lang } = req.params;
+  const existing = getLocaleContent(lang);
+  if (!existing) return res.status(404).json({ status: "error", error: "Locale not found" });
+  saveLocaleContent(lang, req.body);
+  res.json({ status: "ok", data: getLocaleContent(lang) });
+});
+
 // ============ AUDIO ASSETS ENDPOINTS ============
 
-r.get("/announcement-audio", adminAuth, (_req, res) => {
+r.get("/announcement-audio", adminAuth, (req, res) => {
   res.json(audioAssets.list(req.query));
 });
 
@@ -895,6 +959,181 @@ r.post("/announcements/format-list", (req, res) => {
   if (!items) return res.status(400).json({ status: "error", error: "items is required" });
   const formatted = formatLocalizedList(items, language || "ca");
   res.json({ formatted });
+});
+
+// ============ DISPLAY SCREENS ============
+
+r.get("/display-screens", adminAuth, (_req, res) => {
+  res.json(displayScreens.list());
+});
+
+r.get("/display-screens/:id", adminAuth, (req, res) => {
+  const screen = displayScreens.get(req.params.id);
+  if (!screen) return res.status(404).json({ error: "Display not found" });
+  res.json(screen);
+});
+
+r.post("/display-screens", adminAuth, (req, res) => {
+  const screen = displayScreens.create(req.body);
+  ping();
+  res.status(201).json(screen);
+});
+
+r.patch("/display-screens/:id", adminAuth, (req, res) => {
+  const screen = displayScreens.update(req.params.id, req.body);
+  if (!screen) return res.status(404).json({ error: "Display not found" });
+  ping();
+  res.json(screen);
+});
+
+r.delete("/display-screens/:id", adminAuth, (req, res) => {
+  displayScreens.remove(req.params.id);
+  ping();
+  res.json({ ok: true });
+});
+
+r.get("/display-screens/:id/board", (_req, res) => {
+  const result = displayScreens.getBoard(_req.params.id);
+  if (!result) return res.status(404).json({ error: "Display not found" });
+  res.json(result);
+});
+
+// ============ DEVICES ============
+
+r.get("/devices", adminAuth, (_req, res) => {
+  res.json(devices.list());
+});
+
+r.get("/devices/connected", adminAuth, (_req, res) => {
+  res.json(getConnectedDevices());
+});
+
+r.get("/devices/:id", adminAuth, (req, res) => {
+  const device = devices.get(req.params.id);
+  if (!device) return res.status(404).json({ error: "Device not found" });
+  res.json(device);
+});
+
+r.patch("/devices/:id", adminAuth, (req, res) => {
+  const device = devices.update(req.params.id, req.body);
+  if (!device) return res.status(404).json({ error: "Device not found" });
+  ping();
+  res.json(device);
+});
+
+r.delete("/devices/:id", adminAuth, (req, res) => {
+  devices.remove(req.params.id);
+  ping();
+  res.json({ ok: true });
+});
+
+// ============ SIMULATION ============
+
+r.get("/simulation/clock", (_req, res) => {
+  const clock = simulationService.getClock();
+  const simNow = simulationService.getSimulatedNow();
+  res.json({ ...clock, simulatedTime: simNow.toISOString(), simulatedTimeFormatted: simNow.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) });
+});
+
+r.patch("/simulation/clock", adminAuth, (req, res) => {
+  const { multiplier, paused } = req.body;
+  let result;
+  if (multiplier !== undefined) result = simulationService.setMultiplier(multiplier);
+  else if (paused !== undefined) result = simulationService.setPaused(paused);
+  else result = { error: "Provide multiplier or paused" };
+  res.json(result);
+});
+
+r.post("/simulation/clock/reset", adminAuth, (_req, res) => {
+  res.json(simulationService.resetClock());
+});
+
+r.get("/simulation/events", adminAuth, (req, res) => {
+  res.json(simulationService.getEvents(Number(req.query.limit) || 100));
+});
+
+r.get("/simulation/sequences", adminAuth, (_req, res) => {
+  res.json(simulationService.listSequences());
+});
+
+r.get("/simulation/sequences/:id", adminAuth, (req, res) => {
+  const seq = simulationService.getSequence(Number(req.params.id));
+  if (!seq) return res.status(404).json({ error: "Sequence not found" });
+  res.json(seq);
+});
+
+r.post("/simulation/sequences", adminAuth, (req, res) => {
+  const result = simulationService.createSequence(req.body);
+  if (result.error) return res.status(400).json(result);
+  res.status(201).json(result);
+});
+
+r.delete("/simulation/sequences/:id", adminAuth, (req, res) => {
+  res.json(simulationService.deleteSequence(Number(req.params.id)));
+});
+
+r.post("/simulation/sequences/:id/start", adminAuth, (req, res) => {
+  res.json(simulationService.startSequence(Number(req.params.id)));
+});
+
+r.post("/simulation/sequences/:id/pause", adminAuth, (req, res) => {
+  res.json(simulationService.pauseSequence(Number(req.params.id)));
+});
+
+r.post("/simulation/sequences/:id/reset", adminAuth, (req, res) => {
+  res.json(simulationService.resetSequence(Number(req.params.id)));
+});
+
+// ============ AUTOMATION ============
+
+r.get("/automation/rules", adminAuth, (_req, res) => {
+  res.json(automationService.listRules());
+});
+
+r.get("/automation/rules/:id", adminAuth, (req, res) => {
+  const rule = automationService.getRule(Number(req.params.id));
+  if (!rule) return res.status(404).json({ error: "Rule not found" });
+  res.json(rule);
+});
+
+r.post("/automation/rules", adminAuth, (req, res) => {
+  const result = automationService.createRule(req.body);
+  if (result.error) return res.status(400).json(result);
+  res.status(201).json(result);
+});
+
+r.patch("/automation/rules/:id", adminAuth, (req, res) => {
+  const result = automationService.updateRule(Number(req.params.id), req.body);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+r.delete("/automation/rules/:id", adminAuth, (req, res) => {
+  res.json(automationService.deleteRule(Number(req.params.id)));
+});
+
+r.get("/automation/suggestions/:trainId", (_req, res) => {
+  const suggestions = automationService.getSuggestions(Number(_req.params.trainId));
+  if (!suggestions) return res.status(404).json({ error: "Train not found" });
+  res.json(suggestions);
+});
+
+r.get("/automation/suggestions/station/:stationId", (_req, res) => {
+  res.json(automationService.getSuggestionsForStation(Number(_req.params.stationId)));
+});
+
+// ============ HARDWARE EVENTS ============
+
+// Public endpoint for ESP32/Arduino hardware to push events
+r.post("/hardware/events", (req, res) => {
+  const result = hardwareService.processEvent(req.body);
+  if (result.error) return res.status(400).json(result);
+  res.json(result);
+});
+
+// Admin view of hardware events
+r.get("/hardware/events", adminAuth, (req, res) => {
+  res.json(hardwareService.getEvents(Number(req.query.limit) || 100));
 });
 
 // ============ ANNOUNCEMENT TRIGGER FROM DATA CHANGES ============

@@ -16,6 +16,18 @@ function loadLocale(language) {
   return localeCache[language];
 }
 
+export function getLocaleContent(language) {
+  const filePath = path.join(LOCALES_DIR, `${language}.json`);
+  if (!fs.existsSync(filePath)) return null;
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+export function saveLocaleContent(language, data) {
+  const filePath = path.join(LOCALES_DIR, `${language}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
+  delete localeCache[language];
+}
+
 export function getAvailableLocales() {
   if (!fs.existsSync(LOCALES_DIR)) return [];
   return fs
@@ -132,7 +144,7 @@ function buildCancelledBlock(train, locale) {
 }
 
 function buildPlatformBlock(train, locale, eventType) {
-  if (!train.platform || train.platform === "-") return null;
+  if (!train.platform || train.platform === "-" || train.platform === "?") return null;
   if (eventType === "PLATFORM_CHANGE") {
     const hasSector = train.sector && train.sector !== "-";
     const tmplKey = hasSector ? "platform_changed_sector" : "platform_changed";
@@ -279,13 +291,14 @@ export function composeAnnouncement(train, eventType, language) {
   const closingBlock = buildClosingBlock(train, language);
   const accessibilityBlock = buildAccessibilityBlock(train, language);
 
-  const isAtPlatform = standingBlock || `a la vía ${train.platform || ""}`;
+  const platformVal = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : null;
+  const isAtPlatform = standingBlock || (platformVal ? `a la vía ${platformVal}` : null);
 
   const vars = {
     service_intro: serviceIntro || "",
     destination: train.destination || train.destination_name || "",
     origin: train.origin || train.origin_name || "",
-    platform: train.platform || "",
+    platform: train.platform && train.platform !== "-" ? train.platform : "",
     sector: train.sector || "",
     platform_sector: platformBlock || "",
     platform_changed: platformChangedBlock || "",
@@ -322,11 +335,31 @@ export function composeAnnouncement(train, eventType, language) {
     template = eventConfig.default || "";
   }
 
-  let text = template;
-  for (const [key, value] of Object.entries(vars)) {
-    text = text.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+  // Upgrade to with_stops / with_fare variant if data is available
+  if (stoppingPatternBlock && eventConfig.with_stops) {
+    template = eventConfig.with_stops;
+  }
+  if (fareRestrictionBlock && eventConfig.with_fare) {
+    template = eventConfig.with_fare;
   }
 
+  let text = template;
+  for (const [key, value] of Object.entries(vars)) {
+    if (!value) {
+      text = text.replace(new RegExp(`,\\s*\\{${key}\\}`, "g"), "");
+      text = text.replace(new RegExp(`\\{${key}\\},\\s*`, "g"), "");
+      text = text.replace(new RegExp(`\\{${key}\\}`, "g"), "");
+    } else {
+      text = text.replace(new RegExp(`\\{${key}\\}`, "g"), value);
+    }
+  }
+
+  text = text.replace(/\s+/g, " ").trim();
+  text = text.replace(/,\s*(?:amb sortida|con salida|departing)\s+(?:a\s+(?:les|las)|at)\s*[.,]/gi, "");
+  text = text.replace(/\s+(?:a\s+(?:les|las)|at)\s*[.,]/gi, "");
+  text = text.replace(/,+\s*\./g, ".");
+  text = text.replace(/\s*\.\s*/g, ". ");
+  text = text.replace(/(\.\s*){2,}/g, ". ");
   text = text.replace(/\s+/g, " ").trim();
   if (text && !text.endsWith(".")) text += ".";
 

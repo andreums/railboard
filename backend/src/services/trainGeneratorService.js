@@ -249,6 +249,12 @@ export function generateRandomTrain(body) {
     status,
   });
 
+  const stoppingPattern = route.code === "C-3" ? "ALL_STATIONS"
+    : /^(C|R\d+[A-Z]?|R2N)$/i.test(route.code) ? "SEMI_FAST"
+    : /^(AVE|IRYO|OUIGO|INOUI|EMD)$/i.test(type?.code || route.code) ? "DIRECT"
+    : routeStops.length <= 1 ? "DIRECT"
+    : "ONLY_STOPS_AT";
+
   return createTrain({
     number: availableNumbers.length ? randomItem(availableNumbers) : randomItem(route.numbers),
     operator_id: op.id,
@@ -263,6 +269,7 @@ export function generateRandomTrain(body) {
     status,
     observations,
     station_id: stationRow?.id ?? null,
+    stoppingPattern,
   });
 }
 
@@ -340,5 +347,6 @@ export function generateTrainFromRoute(code, body) {
         status: "Scheduled",
       }),
     station_id: stationRow?.id ?? null,
+    stoppingPattern: routeStops.length <= 1 ? "DIRECT" : "ONLY_STOPS_AT",
   });
 }
