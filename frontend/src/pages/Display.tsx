@@ -325,6 +325,9 @@ export default function Display() {
     [trains],
   );
 
+  // Gravita CSS variables (from ADIF reference)
+  const HEADER_H = "33.333%";
+  const TABLE_H = "66.666%";
   const bgColor = (config?.bgColor as string) || "#050a14";
   const headerBg = (config?.headerBgColor as string) || "#BFEFD5";
   const headerColor = (config?.headerTextColor as string) || "#102341";
@@ -333,16 +336,11 @@ export default function Display() {
 
   const n = rows.length || 1;
 
-  // ── Gravita technique: row height as CSS font-size base ──
-  // Row height = tableHeight / n, capped so rows never get too tall.
-  // The cap ensures that with few trains (2-3) on a large screen,
-  // text doesn't become absurdly huge.
-  // Gravita uses ~96px as practical max row height on a 1080p screen.
-  const tableH = "84dvh";
-  // Cap lower to prevent oversized rows that clip inner elements when few rows are visible.
-  const rowH = `min(calc(${tableH} / ${n}), 10dvh)`;
+  // Gravita: row-height = 50% of table height (each row = half the table)
+  // Cap to prevent oversized rows with few trains
+  const rowH = `min(calc(${TABLE_H} / ${n}), 10dvh)`;
 
-  // Column widths — mirror Gravita exactly (from ADIF reference)
+  // Column widths — mirror Gravita exactly
   const W_TIME = "11.17%";
   const W_DEST = "60.33%";
   const W_PROD = "18%";
@@ -402,7 +400,7 @@ export default function Display() {
         overflow: "hidden",
       }}
     >
-      {/* ══════════ HEADER — ~10dvh ══════════ */}
+      {/* ══════════ HEADER — 33.333% (Gravita --header-height) ══════════ */}
       <header
         style={{
           backgroundColor: headerBg,
@@ -410,7 +408,7 @@ export default function Display() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          height: "12dvh",
+          height: HEADER_H,
           padding: "0 2rem",
           borderBottom: "2px solid rgba(0,0,0,0.10)",
           flexShrink: 0,
@@ -433,7 +431,7 @@ export default function Display() {
             style={{
               fontFamily: "'Oswald', sans-serif",
               fontWeight: 700,
-              fontSize: "clamp(3rem, 7dvh, 7rem)",
+              fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
               lineHeight: 1,
               flexShrink: 0,
             }}
@@ -444,8 +442,8 @@ export default function Display() {
             <span
               style={{
                 fontFamily: "'Oswald', sans-serif",
-                fontWeight: 700,
-                fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)",
+                fontWeight: 400,
+                fontSize: "clamp(1.3rem, 3dvh, 3rem)",
                 letterSpacing: 0,
                 opacity: 1,
                 lineHeight: 1,
@@ -457,7 +455,7 @@ export default function Display() {
               style={{
                 fontFamily: "'Oswald', sans-serif",
                 fontWeight: 700,
-                fontSize: "clamp(3rem, 7dvh, 7rem)",
+                fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
                 lineHeight: 1,
                 whiteSpace: "nowrap",
                 minWidth: 0,
@@ -468,14 +466,17 @@ export default function Display() {
             </span>
           </div>
         </div>
-        {/* Clock */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+        {/* Clock — 66% height, 66% font-size (Gravita) */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, height: "66%" }}>
           <div
             style={{
               fontFamily: "'Roboto Mono', monospace",
               fontWeight: 700,
-              fontSize: "clamp(3rem, 6.5dvh, 7rem)",
+              fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
               lineHeight: 1,
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
             }}
           >
             <Clock
@@ -485,28 +486,35 @@ export default function Display() {
             />
           </div>
         </div>
-        {/* VÍA — aligned with PLATFORM column (right edge = table paddingRight) */}
-        <span
+        {/* VÍA — aligned with PLATFORM column (Gravita platform-header) */}
+        <div
           style={{
-            position: "absolute",
-            right: "1rem",
-            width: W_PLAT,
-            fontFamily: "'Oswald', sans-serif",
-            fontWeight: 700,
-            fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            opacity: 0.75,
-            textAlign: "center",
-            bottom: "0.4rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "34%",
+            fontSize: "34%",
+            flexShrink: 0,
           }}
         >
-          {t("platform", lang)}
-        </span>
+          <span
+            style={{
+              fontFamily: "'Oswald', sans-serif",
+              fontWeight: 700,
+              fontSize: "80%",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              opacity: 0.75,
+              textAlign: "center",
+            }}
+          >
+            {t("platform", lang)}
+          </span>
+        </div>
       </header>
 
-      {/* ══════════ TABLE ══════════ */}
-      <div style={{ height: tableH, overflow: "hidden", flexShrink: 0 }}>
+      {/* ══════════ TABLE — 66.666% (Gravita --table-height) ══════════ */}
+      <div style={{ height: TABLE_H, overflow: "hidden", flexShrink: 0 }}>
         {rows.map((train, i) => {
           const place = mode === "departures" ? train.destination : train.origin;
           const minutes = minutesUntil(train.expected_time);
@@ -552,14 +560,14 @@ export default function Display() {
                 paddingRight: "1rem",
               }}
             >
-              {/* ═══ UPPER ROW — 60% of row height ═══ */}
+              {/* ═══ UPPER ROW — 60% of row height, font 50% (Gravita) ═══ */}
 
               {/* TIME — 11.17% wide, 60% tall, font 50% of rowH */}
               <div
                 style={{
                   width: W_TIME,
                   height: "60%",
-                  fontSize: "46%",
+                  fontSize: "50%",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "center",
@@ -592,12 +600,12 @@ export default function Display() {
                 </div>
               </div>
 
-              {/* DESTINATION — 56.33% wide, 60% tall, font 50% of rowH */}
+              {/* DESTINATION — 60.33% wide, 60% tall, font 50% of rowH */}
               <div
                 style={{
                   width: W_DEST,
                   height: "60%",
-                  fontSize: "38%",
+                  fontSize: "50%",
                   display: "flex",
                   alignItems: "center",
                   overflow: "hidden",
@@ -682,10 +690,10 @@ export default function Display() {
                           alt={train.type_code || ""}
                           style={{
                             maxWidth: "100%",
-                            height: "0.9em",
+                            height: "85%",
                             width: "auto",
                             objectFit: "contain",
-                            borderRadius: "0.2em",
+                            borderRadius: "0.25em",
                             display: "block",
                             margin: 0,
                           }}
@@ -699,10 +707,10 @@ export default function Display() {
                           alt={train.operator_name || ""}
                           style={{
                             maxWidth: "100%",
-                            height: "0.9em",
+                            height: "85%",
                             width: "auto",
                             objectFit: "contain",
-                            borderRadius: "0.2em",
+                            borderRadius: "0.25em",
                             display: "block",
                             margin: 0,
                           }}
@@ -733,7 +741,7 @@ export default function Display() {
                   style={{
                     width: "35%",
                     height: "100%",
-                    fontSize: "90%",
+                    fontSize: "60%",
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
@@ -749,14 +757,14 @@ export default function Display() {
                 <div style={{ width: "2%" }} />
               </div>
 
-              {/* PLATFORM — 7.5% wide, 60% tall, font 50% of rowH */}
+              {/* PLATFORM — 10% wide, 60% tall, font 50% of rowH */}
               <div
                 style={{
                   width: W_PLAT,
                   height: "60%",
-                  fontSize: "46%",
+                  fontSize: "50%",
                   display: "flex",
-                  justifyContent: "flex-end",
+                  justifyContent: "center",
                   alignItems: "center",
                   overflow: "hidden",
                   boxSizing: "border-box",
@@ -765,19 +773,21 @@ export default function Display() {
                   whiteSpace: "nowrap",
                   paddingRight: 0,
                   paddingLeft: "0.2em",
+                  // Gravita: platform-preview color when no platform assigned
+                  color: !platform ? "#B9D0FF" : "white",
                 }}
               >
                 <div style={{ transform: "translateY(0.12em)" }}>{platText}</div>
               </div>
 
-              {/* ═══ LOWER ROW — 40% of row height, font 32% of rowH ═══ */}
+              {/* ═══ LOWER ROW — 40% of row height, font 32% (Gravita) ═══ */}
 
               {/* STATUS — lower row on TIME column */}
               <div
                 style={{
                   width: W_TIME,
                   height: "40%",
-                  fontSize: "20%",
+                  fontSize: "32%",
                   display: "flex",
                   alignItems: "center",
                   overflow: "hidden",
@@ -800,7 +810,7 @@ export default function Display() {
                 style={{
                   width: W_DEST,
                   height: "40%",
-                  fontSize: "19%",
+                  fontSize: "32%",
                   display: "flex",
                   alignItems: "center",
                   overflow: "hidden",
@@ -826,7 +836,7 @@ export default function Display() {
                 style={{
                   width: "27%",
                   height: "40%",
-                  fontSize: "19%",
+                  fontSize: "32%",
                   display: "flex",
                   alignItems: "center",
                   overflow: "hidden",
@@ -837,7 +847,7 @@ export default function Display() {
                   <img
                     src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
                     alt="Cercanías"
-                    style={{ height: "1.22em", width: "auto", objectFit: "contain", flexShrink: 0, marginRight: "0.4em" }}
+                    style={{ height: "85%", width: "auto", objectFit: "contain", flexShrink: 0, marginRight: "0.4em" }}
                     onError={(e) => handleImgError(e, "Cercanías")}
                   />
                 )}
