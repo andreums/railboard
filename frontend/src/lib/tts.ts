@@ -250,6 +250,39 @@ export function speak(text: string, settings?: VoiceSettings, langCode?: string)
   return u;
 }
 
+let serverTtsAvailable: boolean | null = null;
+
+export async function speakServerSide(text: string, langCode: string, settings?: VoiceSettings): Promise<boolean> {
+  if (serverTtsAvailable === false) return false;
+  try {
+    const { api } = await import("./api");
+    if (serverTtsAvailable === null) {
+      const info = await api.ttsGetProvider();
+      serverTtsAvailable = info.available;
+      if (!serverTtsAvailable) return false;
+    }
+    const blob = await api.ttsSynthesize(text, langCode, settings?.voiceURI || undefined, settings?.rate, settings?.pitch);
+    if (!blob || blob.size === 0) return false;
+    const url = URL.createObjectURL(blob);
+    return new Promise<boolean>((resolve) => {
+      const audio = new Audio(url);
+      audio.onended = () => { URL.revokeObjectURL(url); resolve(true); };
+      audio.onerror = () => { URL.revokeObjectURL(url); resolve(false); };
+      audio.play().catch(() => { URL.revokeObjectURL(url); resolve(false); });
+    });
+  } catch {
+    serverTtsAvailable = false;
+    return false;
+  }
+}
+
+export async function speakWithFallback(text: string, langCode: string, settings?: VoiceSettings): Promise<void> {
+  const usedServer = await speakServerSide(text, langCode, settings);
+  if (!usedServer) {
+    speak(text, settings, langCode);
+  }
+}
+
 export function speakWithConfig(text: string, config: Configish | null) {
   const vs = loadVoiceSettings(config);
   speak(text, vs, resolveDisplayLanguage(config));
@@ -264,7 +297,7 @@ export function announceTrain(train: Trainish, config: Configish | null, templat
   const mode = config?.mode === "arrivals" ? "arrivals" : "departures";
   const pre = resolvePreAnnounce(train);
 
-  const speakIndex = (index: number) => {
+  const speakIndex = async (index: number) => {
     if (index >= languages.length) return;
     const lang = languages[index];
     const resolvedTemplate = template || train.type_announce_template || getAnnouncementTemplate(config, mode, lang);
@@ -273,8 +306,8 @@ export function announceTrain(train: Trainish, config: Configish | null, templat
       ...loadVoiceSettings(config),
       voiceURI: getVoiceURIForLanguage(config, lang),
     };
-    const u = speak(text, vs, lang);
-    u.onend = () => speakIndex(index + 1);
+    await speakWithFallback(text, lang, vs);
+    speakIndex(index + 1);
   };
 
   if (pre) {

@@ -9,13 +9,20 @@
 ```
 backend/
 ├── src/
-│   ├── index.js       # Entry point: Express app, CORS, static, WS
-│   ├── db.js           # Inicialización BD, esquema, CRUD
-│   ├── routes.js       # Rutas API y lógica de negocio
-│   ├── ws.js           # Servidor WebSocket (broadcast)
-│   └── seed.js         # Generador de datos demo (npm run seed)
-├── uploads/            # Imágenes subidas (logos)
-├── data.db             # Base de datos SQLite
+│   ├── index.js          # Entry point: Express app, CORS, static, WS
+│   ├── db.js             # Inicialización BD, esquema, CRUD
+│   ├── routes.js         # Rutas API y lógica de negocio
+│   ├── ws.js             # Servidor WebSocket (broadcast)
+│   ├── services/
+│   │   ├── ttsService.js # Server-side TTS (macOS say + Edge TTS)
+│   │   └── ...
+│   ├── data/
+│   │   └── railboard_routes.json  # 57 rutas españolas
+│   └── seed.js           # Generador de datos demo (npm run seed)
+├── uploads/
+│   ├── tts/              # Cache de audio TTS (MD5 hash)
+│   └── ...               # Imágenes subidas (logos)
+├── data.db               # Base de datos SQLite
 ├── package.json
 ```
 
@@ -89,6 +96,61 @@ Servidor WebSocket en la misma conexión HTTP. Los clientes se conectan a `ws://
 - Campos: `logo` (single file)
 - Límite: 2MB
 - Se sirven estáticamente en `/uploads/`
+
+## TTS (Text-to-Speech) — Server-Side
+
+### Servicio TTS (`backend/src/services/ttsService.js`)
+
+Cadena de síntesis de voz:
+
+1. **macOS `say`** — proveedor primario (local, rápido, sin red)
+2. **Edge TTS** — fallback vía WebSocket con voces neuronales de Microsoft
+3. **Web Speech API** — fallback final en el navegador (manejado por el frontend)
+
+### Voces Soportadas
+
+| Idioma | macOS `say`  | Edge TTS                |
+| ------ | ------------ | ----------------------- |
+| es     | Mónica       | es-ES-ElviraNeural      |
+| ca     | Montse       | ca-ES-JoanaNeural       |
+| en     | Samantha     | en-GB-SoniaNeural       |
+| fr     | Thomas       | fr-FR-DeniseNeural      |
+| eu     | Mikel*       | eu-ES-AinhoaNeural      |
+| gl     | Mónica*      | gl-ES-RoiNeural         |
+
+*Voz no instalada por defecto — usa fallback con voz predeterminada del sistema.
+
+### Endpoints TTS
+
+| Método | Ruta                         | Descripción                          |
+| ------ | ---------------------------- | ------------------------------------ |
+| POST   | `/admin/tts/synthesize`      | Sintetiza texto → audio (AIFF)       |
+| GET    | `/admin/tts/voices`          | Lista voces disponibles              |
+| GET    | `/admin/tts/provider`        | Info del proveedor activo            |
+| GET    | `/admin/tts/cache`           | Estadísticas del cache               |
+| DELETE | `/admin/tts/cache`           | Limpia el cache de audio             |
+
+### Cache TTS
+
+- Ubicación: `uploads/tts/`
+- Clave: hash MD5 de `{text}:{language}:{voice}:{rate}:{pitch}`
+- Formato: archivos AIFF (macOS) o MP3 (Edge TTS)
+- Se sirven estáticamente vía `/uploads/tts/*`
+
+### Ejemplo de uso
+
+```bash
+# Sintetizar en euskera
+curl -u admin:railboard -X POST http://localhost:4000/admin/tts/synthesize \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Kaixo mundua","language":"eu"}' -o output.aiff
+
+# Listar voces
+curl -u admin:railboard http://localhost:4000/admin/tts/voices
+
+# Ver proveedor
+curl -u admin:railboard http://localhost:4000/admin/tts/provider
+```
 
 ## Lógica de negocio (routes.js)
 

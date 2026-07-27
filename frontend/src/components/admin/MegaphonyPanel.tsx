@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, fileUrl, connectWS, type Train, type Operator, type TrainType, type Station, type AudioAsset, type SoundRule, type SoundProfile } from "../../lib/api";
 import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear, FileText, Save } from "lucide-react";
-import { speak, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
+import { speak, speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
 
 type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales" | "templates";
 
@@ -16,6 +16,31 @@ const EVENT_TYPES = [
   "LONG_DISTANCE_READY_TO_DEPART", "LONG_DISTANCE_IMMINENT_DEPARTURE",
 ];
 
+const EVENT_LABELS: Record<string, string> = {
+  TRAIN_ANNOUNCEMENT: "Anunci de tren",
+  COMPACT_SERVICE_ANNOUNCEMENT: "Anunci de servei compacte",
+  TRAIN_APPROACHING: "Tren apropant-se",
+  TRAIN_ARRIVING: "Tren arribant",
+  TRAIN_AT_PLATFORM: "Tren a via",
+  TRAIN_STANDING_BY: "Tren preparat",
+  TRAIN_READY_FOR_BOARDING: "Preparat per a embarcar",
+  TRAIN_BOARDING: "Embarcant",
+  TRAIN_READY_TO_DEPART: "Preparat per a eixir",
+  TRAIN_IMMINENT_DEPARTURE: "Eixida imminent",
+  TRAIN_DEPARTING: "Tren eixint",
+  TRAIN_DEPARTED: "Tren eixit",
+  PLATFORM_CHANGE: "Canvi de via",
+  TRAIN_DELAYED: "Tren amb retard",
+  TRAIN_CANCELLED: "Tren cancel·lat",
+  TRAIN_TERMINATES_HERE: "Tren finalitza aquí",
+  SERVICE_DISRUPTION: "Pertorbació del servei",
+  GENERAL_INFORMATION: "Informació general",
+  LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT: "Anunci de eixida LL.DD.",
+  LONG_DISTANCE_BOARDING: "Embarcament LL.DD.",
+  LONG_DISTANCE_READY_TO_DEPART: "LL.DD. preparat per a eixir",
+  LONG_DISTANCE_IMMINENT_DEPARTURE: "Eixida imminent LL.DD.",
+};
+
 const LANGUAGES = ["ca", "es", "en", "va", "eu", "gl"];
 
 const LANG_LABELS: Record<string, string> = {
@@ -23,84 +48,113 @@ const LANG_LABELS: Record<string, string> = {
 };
 
 const TRAIN_PRESETS: Record<string, any> = {
-  "Cercanías C1": {
+  "Cercanías R1": {
     number: "C1 456", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
-    destination: "Mataró", origin: "L'Hospitalet", platform: "3", sector: "A", line: "R1",
-    status: "Scheduled", stops: ["Sant Adrià", "Badalona", "Montgat"], accessible: false,
-    scheduled_time: "14:30",
+    destination: "Mataró", origin: "L'Hospitalet de Llobregat", platform: "3", sector: "A", line: "R1",
+    status: "Scheduled", stops: ["Barcelona-Passeig de Gràcia", "Sant Adrià de Besòs", "Badalona Pompeu Fabra", "Montgat", "El Masnou", "Ocata"],
+    accessible: false, scheduled_time: "14:30",
   },
-  "Cercanías accessible": {
+  "Cercanías R2 Nord": {
     number: "C2 789", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
-    destination: "Granollers", platform: "2", sector: "B", line: "R2",
-    status: "Scheduled", accessible: true, scheduled_time: "15:45",
+    destination: "Granollers Centre", origin: "Barcelona-Plaça de Catalunya", platform: "2", sector: "B", line: "R2",
+    status: "Scheduled", stops: ["Barcelona-Clot-Aragó", "Sant Andreu Comtal", "Montcada i Reixac", "Montornès del Vallès"],
+    accessible: true, scheduled_time: "15:45",
   },
-  "Regional MD": {
-    number: "MD 876", type_code: "MD", type_name: "Regional", operator_name: "Renfe",
-    destination: "Lleida", platform: "5", line: "R13",
-    status: "Scheduled", stops: ["Cerdanyola", "Sabadell", "Terrassa", "Manresa"], accessible: false,
-    scheduled_time: "16:20",
+  "Cercanías R4": {
+    number: "C4 312", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Vic", origin: "Barcelona-Sant Andreu Comtal", platform: "5", sector: "C", line: "R4",
+    status: "Scheduled", stops: ["Montcada i Reixac", "Cardedeu", "Llinars del Vallès", "Granollers-Canovelles", "Balenyà", "Seva"],
+    accessible: true, scheduled_time: "09:15",
   },
-  "Regional para a totes": {
+  "Regional R13": {
+    number: "MD 876", type_code: "MD", type_name: "Regional Mitjana Distància", operator_name: "Renfe",
+    destination: "Lleida Pirineus", origin: "Barcelona-Estació de França", platform: "7", line: "R13",
+    status: "Scheduled", stops: ["Vilafranca del Penedès", "Tarragona", "Reus", "Lleida Pirineus"],
+    accessible: false, scheduled_time: "16:20", stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "Regional R14 - Totes les estacions": {
     number: "REG 234", type_code: "REG", type_name: "Regional", operator_name: "Renfe",
-    destination: "Tortosa", platform: "7", line: "R16",
+    destination: "Tortosa", origin: "Barcelona-Estació de França", platform: "9", line: "R14",
     status: "Scheduled", accessible: false, scheduled_time: "17:10",
     stoppingPattern: "ALL_STATIONS",
+    stops: ["Sant Vicenç de Calders", "Vilanova i la Geltrú", "Sitges", "Barcelona-El Prat", "Tarragona", "Salou", "Cambrils", "L'Aldea", "Amposta", "Tortosa"],
   },
-  "Regional no para a Granollers": {
+  "Regional R11 - Salta Granollers": {
     number: "R 567", type_code: "R", type_name: "Regional", operator_name: "Renfe",
-    destination: "Girona", platform: "4", line: "R11",
+    destination: "Girona", origin: "Barcelona-Passeig de Gràcia", platform: "4", line: "R11",
     status: "Scheduled", accessible: false, scheduled_time: "10:30",
-    stoppingPattern: "ALL_EXCEPT", exceptStations: ["Granollers"],
-    stops: ["Mollet", "Granollers", "Celrà"],
+    stoppingPattern: "ALL_EXCEPT", exceptStations: ["Granollers Centre"],
+    stops: ["Barcelona-Clot-Aragó", "Sant Andreu Comtal", "Montcada i Reixac", "Cardedeu", "Llinars del Vallès", "Figueres", "Girona"],
   },
-  "Regional para sols a Lleida": {
-    number: "R 890", type_code: "MD", type_name: "Regional", operator_name: "Renfe",
-    destination: "Lleida Pirineus", platform: "7", line: "RL4",
-    status: "Scheduled", accessible: false, scheduled_time: "12:45",
-    stoppingPattern: "ONLY_STOPS_AT", stops: ["Lleida Pirineus"],
+  "Avant": {
+    number: "AVANT 1456", type_code: "AVANT", type_name: "Avant", operator_name: "Renfe",
+    destination: "Figueres-Vilafant", origin: "Barcelona-Sants", platform: "6", sector: "A", line: "",
+    status: "Scheduled", stops: ["Girona", "Figueres-Vilafant"], accessible: true, scheduled_time: "12:00",
   },
-  "AVE directe": {
+  "AVE S-103": {
     number: "AVE 3055", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
-    destination: "Madrid Puerta de Atocha", platform: "9", sector: "C", line: "",
+    destination: "Madrid Puerta de Atocha", origin: "Barcelona-Sants", platform: "10", sector: "C", line: "",
     status: "Scheduled", accessible: true, scheduled_time: "09:15",
+    stops: ["Camp de Tarragona", "Lleida Pirineus", "Zaragoza-Delicias", "Guadalajara"],
+    stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "AVE S-103 Directe": {
+    number: "AVE 3056", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
+    destination: "Madrid Puerta de Atocha", origin: "Barcelona-Sants", platform: "10", sector: "C", line: "",
+    status: "Scheduled", accessible: true, scheduled_time: "13:00",
     stoppingPattern: "DIRECT",
   },
-  "AVE amb parades": {
-    number: "AVE 4050", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
-    destination: "Madrid Puerta de Atocha", platform: "9", sector: "C", line: "",
-    status: "Scheduled", stops: ["Camp de Tarragona", "Lleida", "Saragossa", "Zaragoza"],
-    accessible: true, scheduled_time: "09:15",
+  "AVE (AVE 1042)": {
+    number: "AVE 1042", type_code: "AVE", type_name: "AVE", operator_name: "Renfe",
+    destination: "Sevilla Santa Justa", origin: "Barcelona-Sants", platform: "11", sector: "D", line: "",
+    status: "Scheduled", accessible: true, scheduled_time: "08:30",
+    stops: ["Zaragoza-Delicias", "Ciudad Real", "Puertollano", "Córdoba"],
     stoppingPattern: "ONLY_STOPS_AT",
   },
   "Ouigo": {
-    number: "OUIGO 7782", type_code: "OUIGO", type_name: "Ouigo", operator_name: "Ouigo",
-    destination: "Paris Gare de Lyon", platform: "11", line: "",
+    number: "OUIGO 7782", type_code: "OUIGO", type_name: "Ouigo", operator_name: "Ouigo España",
+    destination: "Madrid Puerta de Atocha", origin: "Barcelona-Sants", platform: "12", sector: "B", line: "",
     status: "Scheduled", accessible: true, scheduled_time: "07:45",
-    stoppingPattern: "DIRECT",
-  },
-  "Alvia amb restriccions": {
-    number: "ALVIA 4090", type_code: "ALVIA", type_name: "Alvia", operator_name: "Renfe",
-    destination: "Gijón", platform: "4", sector: "D", line: "",
-    status: "Scheduled", stops: ["Saragossa", "Pamplona", "Vitòria", "Burgos", "Lleó"],
-    accessible: true, scheduled_time: "11:30",
+    stops: ["Zaragoza-Delicias", "Camp de Tarragona"],
     stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "Alvia": {
+    number: "ALVIA 4090", type_code: "ALVIA", type_name: "Alvia", operator_name: "Renfe",
+    destination: "Gijón", origin: "Barcelona-Sants", platform: "4", sector: "D", line: "",
+    status: "Scheduled", stops: ["Zaragoza-Delicias", "Huesca", "Jaca", "Canfranc", "Pamplona", "Tafalla", "Vitòria-Gasteiz", "Burgos", "León", "Oviedo"],
+    accessible: true, scheduled_time: "11:30", stoppingPattern: "ONLY_STOPS_AT",
     fareRestrictions: { commuterTicketsNotAccepted: true, commuterPassesNotAccepted: true, reservationRequired: true },
   },
-  "Avant": {
-    number: "AVANT 1456", type_code: "MD", type_name: "Avant", operator_name: "Renfe",
-    destination: "Figueres Vilafant", platform: "6", line: "",
-    status: "Scheduled", accessible: true, scheduled_time: "12:00",
+  "Euromed": {
+    number: "EUR 654", type_code: "EUR", type_name: "Euromed", operator_name: "Renfe",
+    destination: "València Nord", origin: "Barcelona-Sants", platform: "8", sector: "A", line: "",
+    status: "Scheduled", stops: ["Tarragona", "Castelló de la Plana", "València Nord"],
+    accessible: true, scheduled_time: "10:00", stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "Intercity": {
+    number: "IC 8723", type_code: "IC", type_name: "Intercity", operator_name: "Renfe",
+    destination: "Cádiz", origin: "Barcelona-Sants", platform: "3", line: "",
+    status: "Scheduled", stops: ["Zaragoza-Delicias", "Madrid Puerta de Atocha", "Córdoba", "Sevilla", "Jerez"],
+    accessible: false, scheduled_time: "06:45", stoppingPattern: "ONLY_STOPS_AT",
+  },
+  "Trenhotel": {
+    number: "TH 1732", type_code: "TH", type_name: "Trenhotel", operator_name: "Renfe",
+    destination: "Paris Gare de Lyon", origin: "Barcelona-Sants", platform: "13", line: "",
+    status: "Scheduled", stops: ["Figueres", "Perpignan", "Montpeller", "Lió", "Lyon Part-Dieu"],
+    accessible: false, scheduled_time: "21:30", stoppingPattern: "ONLY_STOPS_AT",
   },
   "Amb retard": {
-    number: "TEST 999", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
-    destination: "Mataró", platform: "1", line: "R1",
-    status: "Delayed", delayMinutes: 10, delayReason: "obres a la via",
+    number: "C1 458", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
+    destination: "Mataró", origin: "L'Hospitalet de Llobregat", platform: "1", line: "R1",
+    status: "Delayed", delayMinutes: 12, delayReason: "lliscament a Montgat Nord",
+    stops: ["Barcelona-Passeig de Gràcia", "Sant Adrià de Besòs", "Badalona"],
     accessible: false, scheduled_time: "19:30",
   },
   "Cancel·lat": {
-    number: "C4 333", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
-    destination: "Vic", platform: "2", line: "R3",
-    status: "Cancelled", cancelReason: "incidència tècnica",
+    number: "R 570", type_code: "R", type_name: "Regional", operator_name: "Renfe",
+    destination: "Girona", origin: "Barcelona-Passeig de Gràcia", platform: "2", line: "R11",
+    status: "Cancelled", cancelReason: "fallada al sistema de senyals entre Montcada i Cardedeu",
+    stops: ["Montcada i Reixac", "Cardedeu", "Llinars del Vallès", "Figueres"],
     accessible: false, scheduled_time: "18:00",
   },
 };
@@ -130,13 +184,16 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
 
   // Test form state
   const [testEventType, setTestEventType] = useState("TRAIN_ANNOUNCEMENT");
-  const [testLanguages, setTestLanguages] = useState(["ca", "es", "en"]);
+  const [testLanguages, setTestLanguages] = useState(["ca", "es", "en", "eu", "gl"]);
   const [testTrainId, setTestTrainId] = useState<number | null>(null);
   const [testPresetId, setTestPresetId] = useState("Cercanías C1");
   const [testResult, setTestResult] = useState<any>(null);
   const [testStationId, setTestStationId] = useState<number | null>(null);
   const [testAllResults, setTestAllResults] = useState<any[] | null>(null);
   const [testSoundId, setTestSoundId] = useState<number | null>(null);
+  const [testLangAudio, setTestLangAudio] = useState<Record<string, number | null>>({});
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
+  const langDropdownRef = useRef<HTMLDivElement>(null);
 
   // Template editor state
   const [templateLang, setTemplateLang] = useState("ca");
@@ -179,6 +236,16 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     });
   };
 
+  const getLangAudioMap = (): Record<string, string> => {
+    const map: Record<string, string> = {};
+    for (const [lang, assetId] of Object.entries(testLangAudio)) {
+      if (!assetId) continue;
+      const asset = audioAssets.find((a) => a.id === assetId);
+      if (asset?.file_path) map[lang] = asset.file_path;
+    }
+    return map;
+  };
+
   const playAnnouncementTexts = async (texts: Record<string, string>, languages: string[], chimeAssetPath?: string, languageSounds?: Record<string, string>) => {
     if (chimeAssetPath) await playAudioFile(chimeAssetPath);
     for (const lang of languages) {
@@ -190,11 +257,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
       if (langSound) await playAudioFile(langSound);
       const text = texts[lang];
       if (!text) continue;
-      await new Promise<void>((resolve) => {
-        const u = speak(text, vs, lang);
-        u.onend = () => resolve();
-        u.onerror = () => resolve();
-      });
+      await speakWithFallback(text, lang, vs);
     }
   };
 
@@ -228,13 +291,18 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  useEffect(() => {
+    if (!langDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (langDropdownRef.current && !langDropdownRef.current.contains(e.target as Node)) setLangDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [langDropdownOpen]);
+
   const getTestTrain = () => {
     if (testTrainId) return trains.find((t) => t.id === testTrainId);
-    return TRAIN_PRESETS[testPresetId] || {
-      number: "TEST 001", type_code: "C", type_name: "Cercanías", operator_name: "Renfe",
-      destination: "Mataró", platform: "1", sector: "A", line: "R1",
-      status: "Scheduled", stops: ["Sant Adrià", "Badalona", "Montgat"], accessible: true,
-    };
+    return TRAIN_PRESETS[testPresetId] || TRAIN_PRESETS["Cercanías R1"];
   };
 
   const handleTest = async () => {
@@ -252,6 +320,17 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
       notify("error", err.message);
     }
   };
+
+  // Auto-preview when simulator params change
+  const handleTestRef = useRef(handleTest);
+  handleTestRef.current = handleTest;
+  const autoPreviewRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (activeTab !== "test") return;
+    if (autoPreviewRef.current) clearTimeout(autoPreviewRef.current);
+    autoPreviewRef.current = setTimeout(() => { handleTestRef.current(); }, 300);
+    return () => { if (autoPreviewRef.current) clearTimeout(autoPreviewRef.current); };
+  }, [testEventType, testPresetId, testTrainId, testLanguages, testSoundId, testLangAudio, activeTab]);
 
   const handleSaveProfile = async () => {
     if (!editingProfile) return;
@@ -331,7 +410,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
         stationId: testStationId,
         languages: testLanguages,
       });
-      notify("success", `Anuncio encolado (id: ${result.queueId})`);
+      notify("success", `Anuncio encolado #${result.queueId}`);
       refresh();
     } catch (err: any) {
       notify("error", err.message);
@@ -638,7 +717,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 <label className="block text-xs font-medium text-slate-700 mb-1">Evento</label>
                 <select value={testEventType} onChange={(e) => setTestEventType(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                  {EVENT_TYPES.map((et) => <option key={et} value={et}>{et}</option>)}
+                  {EVENT_TYPES.map((et) => <option key={et} value={et}>{EVENT_LABELS[et] || et}</option>)}
                 </select>
               </div>
 
@@ -668,27 +747,64 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 </select>
               </div>
 
-              <div>
+              <div className="relative" ref={langDropdownRef}>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Idiomas</label>
-                <div className="flex gap-2 flex-wrap">
-                  {LANGUAGES.map((lang) => (
-                    <label key={lang} className="flex items-center gap-1 text-sm text-slate-800">
-                      <input type="checkbox" checked={testLanguages.includes(lang)}
-                        onChange={() => setTestLanguages((prev) =>
-                          prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
-                        )}
-                        className="rounded border-slate-300 accent-blue-900" />
-                      {LANG_LABELS[lang]}
-                    </label>
-                  ))}
+                <button type="button" onClick={() => setLangDropdownOpen((p) => !p)}
+                  className="w-full flex items-center justify-between border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white hover:border-slate-300 transition">
+                  <span className={testLanguages.length === 0 ? "text-slate-400" : "text-slate-800"}>
+                    {testLanguages.length === 0
+                      ? "Seleccionar idiomas"
+                      : testLanguages.map((l) => LANG_LABELS[l] || l).join(", ")}
+                  </span>
+                  <svg className={`w-4 h-4 text-slate-400 transition-transform ${langDropdownOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+                {langDropdownOpen && (
+                  <div className="absolute z-20 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
+                    {LANGUAGES.map((lang) => (
+                      <label key={lang} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm">
+                        <input type="checkbox" checked={testLanguages.includes(lang)}
+                          onChange={() => {
+                            setTestLanguages((prev) => prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]);
+                          }}
+                          className="rounded border-slate-300 accent-blue-900" />
+                        <span className="font-medium text-slate-700">{lang.toUpperCase()}</span>
+                        <span className="text-slate-400">{LANG_LABELS[lang]}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-slate-50 overflow-hidden">
+                <div className="px-3 py-2 border-b border-slate-200 bg-white">
+                  <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Audio por idioma</span>
+                  <span className="text-xs text-slate-400 ml-2">(vacío = voz TTS)</span>
                 </div>
+                {testLanguages.length === 0 ? (
+                  <div className="px-3 py-4 text-xs text-slate-400 text-center">Selecciona idiomas arriba</div>
+                ) : (
+                  <div className="divide-y divide-slate-200">
+                    {testLanguages.map((lang) => (
+                      <div key={lang} className="flex items-center gap-3 px-3 py-2 bg-white">
+                        <span className="text-xs font-bold uppercase text-slate-400 w-5 shrink-0">{lang}</span>
+                        <select
+                          value={testLangAudio[lang] ?? ""}
+                          onChange={(e) => setTestLangAudio((prev) => ({ ...prev, [lang]: e.target.value ? Number(e.target.value) : null }))}
+                          className="flex-1 border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm bg-white">
+                          <option value="">Voz TTS</option>
+                          {audioAssets.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.asset_type})</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Chime / jingle (opcional)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Chime / jingle general (opcional)</label>
                 <select value={testSoundId ?? ""} onChange={(e) => setTestSoundId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                  <option value="">Usar reglas de sonido</option>
+                  <option value="">Ninguno</option>
                   {audioAssets.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.asset_type})</option>)}
                 </select>
               </div>
@@ -716,10 +832,12 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 <h3 className="font-semibold text-slate-800">Todos los eventos ({testAllResults.length})</h3>
                 <div className="flex gap-2">
                   <button onClick={async () => {
+                    const userLangAudio = getLangAudioMap();
                     for (const { eventType, result } of testAllResults) {
                       const texts = result.composed || result;
                       const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
-                      await playAnnouncementTexts(texts, langs, result.chime?.assetPath, result.chime?.languageSounds);
+                      const merged = { ...result.chime?.languageSounds, ...userLangAudio };
+                      await playAnnouncementTexts(texts, langs, result.chime?.assetPath, Object.keys(merged).length ? merged : undefined);
                     }
                   }}
                     className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700">
@@ -729,25 +847,37 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                     className="text-xs text-slate-400 hover:text-slate-600">Cerrar</button>
                 </div>
               </div>
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <div className="space-y-3 max-h-[70vh] overflow-y-auto">
                 {testAllResults.map(({ eventType, result }) => {
                   const texts = result.composed || result;
-                  const firstText = Object.values(texts).find((v: any) => typeof v === "string" && v.length > 0) as string || "";
                   const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
                   return (
-                    <div key={eventType} className="bg-slate-50 rounded-lg p-3 flex items-start gap-2">
-                      {result.chime?.assetPath && (
-                        <span className="text-xs text-emerald-600 shrink-0" title={result.chime.assetPath}>♪</span>
-                      )}
-                      <span className="text-xs font-mono text-slate-500 whitespace-nowrap min-w-[14ch]">{eventType.replace(/_/g, " ")}</span>
-                      <span className="text-sm text-slate-800 flex-1 truncate" title={firstText}>{firstText}</span>
-                      <button onClick={() => playAnnouncementTexts(texts, langs, result.chime?.assetPath, result.chime?.languageSounds)}
-                        className="text-xs text-emerald-600 hover:text-emerald-800 shrink-0" title="Reproducir">
-                        <Speaker size={13} />
-                      </button>
-                      <button onClick={() => { setTestResult(result); setTestAllResults(null); }}
-                        className="text-xs text-blue-600 hover:underline shrink-0">Ver</button>
-                    </div>
+                    <details key={eventType} className="group bg-slate-50 rounded-lg border border-slate-200 overflow-hidden">
+                      <summary className="flex items-center gap-2 px-4 py-3 cursor-pointer select-none hover:bg-slate-100 transition">
+                        {result.chime?.assetPath && (
+                          <span className="text-xs text-emerald-600 shrink-0" title={result.chime.assetPath}>♪</span>
+                        )}
+                        <span className="text-sm font-semibold text-slate-800 flex-1">{EVENT_LABELS[eventType] || eventType.replace(/_/g, " ")}</span>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); const merged = { ...result.chime?.languageSounds, ...getLangAudioMap() }; playAnnouncementTexts(texts, langs, result.chime?.assetPath, Object.keys(merged).length ? merged : undefined); }}
+                          className="text-emerald-600 hover:text-emerald-800 p-1 rounded hover:bg-emerald-50" title="Reproducir">
+                          <Speaker size={14} />
+                        </button>
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setTestResult(result); setTestAllResults(null); }}
+                          className="text-blue-600 hover:text-blue-800 text-xs hover:underline">Ver individual</button>
+                        <span className="text-slate-400 group-open:rotate-180 transition-transform text-xs">▼</span>
+                      </summary>
+                      <div className="px-4 pb-3 space-y-2 border-t border-slate-200">
+                        {langs.map((lang) => (
+                          <div key={lang} className="flex gap-3 items-start pt-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 shrink-0 w-6 pt-0.5">{lang}</span>
+                            <span className="text-sm text-slate-700 leading-relaxed">{(texts as any)[lang]}</span>
+                          </div>
+                        ))}
+                        {langs.length === 0 && (
+                          <p className="text-xs text-slate-400 pt-2">Sin textos generados</p>
+                        )}
+                      </div>
+                    </details>
                   );
                 })}
               </div>
@@ -760,17 +890,18 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                   <button onClick={() => {
                     const texts = testResult.composed || testResult;
                     const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
-                    playAnnouncementTexts(texts, langs, testResult.chime?.assetPath, testResult.chime?.languageSounds);
+                    const merged = { ...testResult.chime?.languageSounds, ...getLangAudioMap() };
+                    playAnnouncementTexts(texts, langs, testResult.chime?.assetPath, Object.keys(merged).length ? merged : undefined);
                   }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700">
-                    <Speaker size={13} /> Reproduir
+                    <Speaker size={13} /> Reproducir
                   </button>
                 )}
               </div>
               {testResult ? (
                 <div className="space-y-3">
                   {testResult.eventType && (
-                    <div className="text-xs text-slate-500">Evento: {testResult.eventType}</div>
+                    <div className="text-xs text-slate-500">Evento: {EVENT_LABELS[testResult.eventType] || testResult.eventType}</div>
                   )}
                   {testResult.chime && (
                     <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">

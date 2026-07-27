@@ -324,30 +324,67 @@
 
 ## Funcionalidad: Locuciones y TTS (Text-to-Speech)
 
-**Objetivo:** Gestionar locuciones de megafonía con soporte multilingüe y síntesis de voz vía Web Speech API.
+**Objetivo:** Gestionar locuciones de megafonía con soporte multilingüe y síntesis de voz vía servidor (macOS `say` + Edge TTS) con fallback a Web Speech API del navegador.
 
 **Actores:** Administrador, viajeros (escuchan los anuncios).
 
-**Precondiciones:** El navegador admite Web Speech API.
+**Precondiciones:** Servidor backend corriendo (para TTS server-side). Web Speech API como fallback del navegador.
+
+### Arquitectura TTS
+
+```
+┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
+│  Frontend   │────▶│  Backend /tts/*   │────▶│  macOS say      │
+│  (React)    │     │  (Express)        │     │  (local voice)  │
+│             │     │                   │     └─────────────────┘
+│  speakWith  │     │  TTSService       │
+│  Fallback() │     │  ├─ _synthesize   │     ┌─────────────────┐
+│             │     │  │   MacOS()      │────▶│  Edge TTS WS    │
+│             │     │  └─ _synthesize   │     │  (cloud fallback)│
+│             │     │      EdgeTTS()    │     └─────────────────┘
+│  Web Speech │     │                   │
+│  API (final │     │  Cache MD5        │
+│  fallback)  │     │  uploads/tts/     │
+└─────────────┘     └──────────────────┘
+```
 
 **Flujo principal:**
 
-1. El administrador accede a la pestaña "Voz" o "Locuciones" del panel de administración.
-2. Configura las plantillas de anuncio para salidas y llegadas, con variables `{number}`, `{type_name}`, `{destination}`, `{platform}`, `{sector}`.
-3. Cada idioma puede tener su propia plantilla vía el mapa `announce_templates_map`.
-4. Se pueden definir presets de anuncios (bienvenida, cierre, retraso, etc.).
-5. La configuración de voz incluye: velocidad (rate), tono (pitch), volumen y selección de voz por idioma.
-6. El anuncio se dispara desde la interfaz de administración o desde la página de trenes, usando `window.speechSynthesis.speak()`.
+1. El administrador accede a la pestaña "Voz" o usa el simulador de megafonía.
+2. Configura plantillas de anuncio para salidas/llegadas con variables `{number}`, `{type_name}`, `{destination}`, `{platform}`, `{sector}`.
+3. Cada idioma puede tener su propia plantilla vía `announce_templates_map`.
+4. Se pueden definir presets de anuncios (bienvenida, cierre, retraso, etc.) — 15 perfiles realistas de tren disponibles.
+5. La síntesis de voz sigue esta cadena:
+   - **Backend**: `POST /admin/tts/synthesize` → macOS `say` → Edge TTS WebSocket
+   - **Fallback**: Web Speech API del navegador (`window.speechSynthesis.speak()`)
+6. `speakWithFallback()` gestiona automáticamente la cadena de fallback.
+7. El audio del servidor se cachea por hash MD5 del contenido.
 
 **Flujos alternativos:**
 
 - **Pre-anuncio:** Si el tipo de tren o el operador tiene un archivo de audio de pre-anuncio (OGG/Opus/MP3), se reproduce antes de la síntesis de voz.
-- **Lista de voces:** Se carga automáticamente de `speechSynthesis.getVoices()`.
+- **Per-language audio:** Cada idioma puede tener su propio asset de audio (merge durante playback).
+- **Edge TTS**: Cuando macOS `say` no está disponible (Linux, Windows) o falla, usa Microsoft Edge neural voices vía WebSocket.
+
+**Idiomas soportados:**
+
+| Idioma | macOS `say` voice | Edge TTS voice        |
+| ------ | ----------------- | --------------------- |
+| es     | Mónica            | es-ES-ElviraNeural    |
+| ca     | Montse            | ca-ES-JoanaNeural     |
+| en     | Samantha          | en-GB-SoniaNeural     |
+| fr     | Thomas            | fr-FR-DeniseNeural    |
+| eu     | Mikel*            | eu-ES-AinhoaNeural    |
+| gl     | Mónica*           | gl-ES-RoiNeural       |
+
+*Voz no instalada por defecto en macOS — usa fallback con voz predeterminada.
 
 **Errores esperables:**
 
-- Si el navegador no soporta Web Speech API, el botón de anunciar no hace nada visible.
-- Las voces pueden no estar disponibles para todos los idiomas configurados.
+- Si el backend no está disponible, se usa Web Speech API del navegador.
+- Las voces Edge TTS requieren conexión a internet.
+- macOS `say` cae en voz predeterminada si la voz específica no está instalada.
+- Los audios de pre-anuncio no tienen temporización sincronizada con la TTS.
 
 **Permisos:** Administrador (Basic Auth).
 
@@ -355,20 +392,26 @@
 
 - Config: `tts_rate`, `tts_pitch`, `tts_volume`, `tts_voice`, `tts_voice_map`, `announce_departure`, `announce_arrival`, `announce_templates_map`, `announce_presets`.
 - Audios de pre-anuncio en `Operators.pre_announce_ogg`, `TrainTypes.pre_announce_ogg`, `Stations.pre_announce_ogg`.
+- Cache de audio en `uploads/tts/` (archivos AIFF/MP3 con hash MD5).
 
 **Componentes técnicos:**
 
-- `frontend/src/lib/tts.ts` — Funciones `speak`, `renderTemplate`, `defaultTemplate`, `loadVoiceSettings`, `getVoices`, `getVoiceURIForLanguage`.
-- `frontend/src/components/admin/LocutionsPanel.tsx` — Interfaz de gestión de plantillas y presets.
-- `frontend/src/pages/Admin.tsx:698-757` — Configuración de voz y tests de anuncio.
+- `backend/src/services/ttsService.js` — Servicio TTS con macOS `say` + Edge TTS fallback + cache MD5.
+- `backend/src/routes.js:1167-1193` — Endpoints `/admin/tts/*` (synthesize, voices, provider, cache).
+- `frontend/src/lib/tts.ts` — `speakWithFallback()`, `speakServerSide()`, `speak()`.
+- `frontend/src/lib/api.ts:476-487` — `ttsSynthesize()`, `ttsListVoices()`, `ttsGetProvider()`.
+- `frontend/src/pages/Admin.tsx` — `VoiceSelect` component, voice tab multiselect.
+- `frontend/src/components/admin/MegaphonyPanel.tsx` — Simulador megafonía con train presets, auto-preview, per-language audio.
+- `frontend/src/components/admin/LocutionsPanel.tsx` — Gestión de plantillas y presets.
 
 **Riesgos o limitaciones:**
 
-- Web Speech API no funciona en todos los navegadores (especialmente en iOS/chromium).
-- No hay fallback si la voz seleccionada no está disponible (se queda en silencio).
-- Los audios de pre-anuncio no tienen temporización sincronizada con la TTS.
+- Edge TTS requiere conexión a internet y puede tener latencia.
+- macOS `say` no está disponible en Linux/Windows.
+- Web Speech API no funciona en todos los navegadores (especialmente en iOS).
+- No hay fallback si todas las voces fallan silenciosamente.
 
-**Evidencias:** `frontend/src/lib/tts.ts:1-258`, `frontend/src/components/admin/LocutionsPanel.tsx:1-73`, `frontend/src/pages/Admin.tsx:698-757`.
+**Evidencias:** `backend/src/services/ttsService.js`, `backend/src/routes.js:1167-1193`, `frontend/src/lib/tts.ts:253-284`, `frontend/src/components/admin/MegaphonyPanel.tsx`.
 
 ---
 

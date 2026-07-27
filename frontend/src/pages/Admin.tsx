@@ -385,6 +385,101 @@ function summarizeImportedRoutes(raw: any): ImportedRouteSummary {
   };
 }
 
+function VoiceSelect({ voices, value, onChange, placeholder }: {
+  voices: SpeechSynthesisVoice[];
+  value: string;
+  onChange: (uri: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [serverVoices, setServerVoices] = useState<any[]>([]);
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open || serverVoices.length > 0) return;
+    api.ttsListVoices().then(setServerVoices).catch(() => {});
+  }, [open, serverVoices.length]);
+
+  const allVoices = [
+    ...serverVoices.map((v) => ({ voiceURI: v.id || v.name || v.uri || "", name: v.name || v.id || "", lang: v.lang || v.language || "", source: "server" as const })),
+    ...voices.map((v) => ({ voiceURI: v.voiceURI, name: v.name, lang: v.lang, source: "browser" as const })),
+  ];
+
+  const selected = allVoices.find((v) => v.voiceURI === value);
+  const filtered = allVoices.filter((v) => {
+    const q = search.toLowerCase();
+    return !q || v.name.toLowerCase().includes(q) || v.lang.toLowerCase().includes(q);
+  });
+  const serverFiltered = filtered.filter((v) => v.source === "server");
+  const browserFiltered = filtered.filter((v) => v.source === "browser");
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => { setOpen(true); setSearch(""); setTimeout(() => inputRef.current?.focus(), 0); }}
+        className="w-full flex items-center justify-between gap-2 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white hover:border-slate-300 transition text-left">
+        <span className={selected ? "text-slate-800" : "text-slate-400"}>
+          {selected ? `${selected.name} · ${selected.lang}` : (placeholder || "Seleccionar voz")}
+        </span>
+        <svg className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
+          <div className="p-2 border-b border-slate-100">
+            <input ref={inputRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar voz..." className="w-full px-2.5 py-1.5 text-sm border border-slate-200 rounded-md focus:border-blue-900 focus:outline-none" />
+          </div>
+          <div className="max-h-56 overflow-y-auto py-0.5">
+            <button type="button" onClick={() => { onChange(""); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition ${!value ? "bg-blue-50 text-blue-900 font-medium" : "text-slate-500"}`}>
+              {placeholder || "Voz por defecto"}
+            </button>
+            {serverFiltered.length > 0 && (
+              <>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Servidor (neural)</div>
+                {serverFiltered.map((v) => (
+                  <button key={`srv-${v.voiceURI}`} type="button"
+                    onClick={() => { onChange(v.voiceURI); setOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition flex items-center justify-between ${value === v.voiceURI ? "bg-blue-50 text-blue-900 font-medium" : "text-slate-800"}`}>
+                    <span className="truncate">{v.name}</span>
+                    <span className="text-xs text-slate-400 shrink-0 ml-2">{v.lang}</span>
+                  </button>
+                ))}
+              </>
+            )}
+            {browserFiltered.length > 0 && (
+              <>
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Navegador</div>
+                {browserFiltered.map((v) => (
+                  <button key={`brw-${v.voiceURI}`} type="button"
+                    onClick={() => { onChange(v.voiceURI); setOpen(false); }}
+                    className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition flex items-center justify-between ${value === v.voiceURI ? "bg-blue-50 text-blue-900 font-medium" : "text-slate-800"}`}>
+                    <span className="truncate">{v.name}</span>
+                    <span className="text-xs text-slate-400 shrink-0 ml-2">{v.lang}</span>
+                  </button>
+                ))}
+              </>
+            )}
+            {filtered.length === 0 && (
+              <div className="px-3 py-3 text-xs text-slate-400 text-center">Sin resultados</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const [config, setConfig] = useState<Config | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
@@ -423,6 +518,9 @@ export default function Admin() {
   const [ttsVoiceMap, setTtsVoiceMap] = useState<Record<string, string>>({});
   const [templateMap, setTemplateMap] = useState<Record<string, AnnouncementTemplateSet>>({});
   const [voicePreviewLanguage, setVoicePreviewLanguage] = useState<Language>("es");
+  const [voiceVisibleLangs, setVoiceVisibleLangs] = useState<Language[]>(["es", "ca", "en", "eu", "gl"]);
+  const [voiceLangDropdownOpen, setVoiceLangDropdownOpen] = useState(false);
+  const voiceLangDropdownRef = useRef<HTMLDivElement>(null);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>({ rate: 0.95, pitch: 1, volume: 1, voiceURI: "" });
   const [announcementModalOpen, setAnnouncementModalOpen] = useState(false);
@@ -434,9 +532,9 @@ export default function Admin() {
   const activeTab = (urlTab as TabType) || "dashboard";
   const setActiveTab = useCallback((tab: TabType) => {
     navigate(tab === "dashboard" ? "/admin" : `/admin/${tab}`, { replace: true });
-    setSidebarOpen(false);
+    if (window.innerWidth < 1024) setSidebarOpen(false);
   }, [navigate]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [newPlace, setNewPlace] = useState("");
   const [autoGen, setAutoGen] = useState(false);
   const [autoInterval, setAutoInterval] = useState(5);
@@ -537,6 +635,15 @@ export default function Admin() {
       .then(setTrains)
       .catch(() => setTrains([]));
   }, [selectedTrainStationId]);
+
+  useEffect(() => {
+    if (!voiceLangDropdownOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (voiceLangDropdownRef.current && !voiceLangDropdownRef.current.contains(e.target as Node)) setVoiceLangDropdownOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [voiceLangDropdownOpen]);
 
   useEffect(() => {
     if (autoGen) {
@@ -1061,9 +1168,16 @@ export default function Admin() {
   };
 
   return (
-    <div className={`min-h-screen bg-slate-50 ${sidebarOpen ? "lg:grid lg:grid-cols-[260px_1fr]" : "lg:grid lg:grid-cols-1"}`}>
+    <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[260px_1fr]">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? "lg:flex lg:flex-col" : "hidden"} border-r border-slate-200 bg-white`}>
+      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto`}>
         <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-200">
           <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
           <div>
@@ -1106,9 +1220,9 @@ export default function Admin() {
           <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
             <div className="flex items-center gap-3">
               <button onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hidden lg:block" title="Toggle sidebar">
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Toggle sidebar">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+                  <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
               </button>
               <div>
@@ -2718,19 +2832,58 @@ export default function Admin() {
                       Define una voz y una plantilla por idioma. Si un idioma no tiene override, se usa el texto global como fallback.
                     </p>
                   </div>
-                  <div className="min-w-[220px]">
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Idioma de prueba</label>
-                    <select
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
-                      value={voicePreviewLanguage}
-                      onChange={(e) => setVoicePreviewLanguage(e.target.value as Language)}
-                    >
-                      {LANGUAGE_KEYS.map((language) => (
-                        <option key={language} value={language}>
-                          {LANGUAGES[language]}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="flex gap-3 items-end">
+                    <div className="relative" ref={voiceLangDropdownRef}>
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Idiomas visibles</label>
+                      <button type="button" onClick={() => setVoiceLangDropdownOpen((p) => !p)}
+                        className="flex items-center justify-between gap-2 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white hover:border-slate-300 transition min-w-[180px]">
+                        <span className={voiceVisibleLangs.length === 0 ? "text-slate-400" : "text-slate-800"}>
+                          {voiceVisibleLangs.length === 0
+                            ? "Seleccionar"
+                            : voiceVisibleLangs.length === LANGUAGE_KEYS.length
+                              ? "Todos"
+                              : `${voiceVisibleLangs.length} seleccionados`}
+                        </span>
+                        <svg className={`w-4 h-4 text-slate-400 transition-transform ${voiceLangDropdownOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+                      </button>
+                      {voiceLangDropdownOpen && (
+                        <div className="absolute right-0 z-20 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg py-1 max-h-60 overflow-y-auto">
+                          <label className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm border-b border-slate-100">
+                            <input type="checkbox"
+                              checked={voiceVisibleLangs.length === LANGUAGE_KEYS.length}
+                              onChange={() => setVoiceVisibleLangs(voiceVisibleLangs.length === LANGUAGE_KEYS.length ? [] : [...LANGUAGE_KEYS])}
+                              className="rounded border-slate-300 accent-blue-900" />
+                            <span className="font-medium text-slate-700">Todos</span>
+                          </label>
+                          {LANGUAGE_KEYS.map((lang) => (
+                            <label key={lang} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer text-sm">
+                              <input type="checkbox"
+                                checked={voiceVisibleLangs.includes(lang)}
+                                onChange={() => setVoiceVisibleLangs((prev) =>
+                                  prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
+                                )}
+                                className="rounded border-slate-300 accent-blue-900" />
+                              <span className="font-medium text-slate-700">{lang.toUpperCase()}</span>
+                              <span className="text-slate-400">{LANGUAGES[lang]}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-w-[180px]">
+                      <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Idioma de prueba</label>
+                      <select
+                        className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                        value={voicePreviewLanguage}
+                        onChange={(e) => setVoicePreviewLanguage(e.target.value as Language)}
+                      >
+                        {LANGUAGE_KEYS.map((language) => (
+                          <option key={language} value={language}>
+                            {LANGUAGES[language]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
@@ -2739,18 +2892,12 @@ export default function Admin() {
                     <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
                       Voz global de respaldo
                     </label>
-                    <select
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    <VoiceSelect
+                      voices={voices}
                       value={config.tts_voice || ""}
-                      onChange={(e) => setConfig({ ...config, tts_voice: e.target.value })}
-                    >
-                      <option value="">Voz por defecto</option>
-                      {voices.map((v) => (
-                        <option key={v.voiceURI} value={v.voiceURI}>
-                          {v.name} {v.lang ? `· ${v.lang}` : ""}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(uri) => setConfig({ ...config, tts_voice: uri })}
+                      placeholder="Voz por defecto"
+                    />
                     <div className="space-y-4 mt-5">
                       <div>
                         <div className="flex justify-between items-center mb-2">
@@ -2801,7 +2948,7 @@ export default function Admin() {
                   </div>
 
                   <div className="lg:col-span-2 space-y-4">
-                    {LANGUAGE_KEYS.map((language) => {
+                    {voiceVisibleLangs.map((language) => {
                       const label = LANGUAGES[language];
                       const currentTemplates = templateMap[language] || buildTemplateDefaults(language);
                       const currentVoice = ttsVoiceMap[language] ?? "";
@@ -2837,18 +2984,12 @@ export default function Admin() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Voz</label>
-                              <select
-                                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                              <VoiceSelect
+                                voices={voices}
                                 value={currentVoice}
-                                onChange={(e) => setTtsVoiceMap((prev) => ({ ...prev, [language]: e.target.value }))}
-                              >
-                                <option value="">Usar voz global</option>
-                                {voices.map((v) => (
-                                  <option key={`${language}-${v.voiceURI}`} value={v.voiceURI}>
-                                    {v.name} {v.lang ? `· ${v.lang}` : ""}
-                                  </option>
-                                ))}
-                              </select>
+                                onChange={(uri) => setTtsVoiceMap((prev) => ({ ...prev, [language]: uri }))}
+                                placeholder="Usar voz global"
+                              />
                             </div>
                             <div className="text-xs text-slate-500 md:self-end">
                               La voz seleccionada se aplicará automáticamente a los anuncios en este idioma.

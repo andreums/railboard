@@ -121,6 +121,80 @@ Elimina todos los trenes.
 | PUT    | /api/places/:id | Actualiza lugar                 |
 | DELETE | /api/places/:id | Elimina lugar                   |
 
+## TTS (Text-to-Speech)
+
+Endpoints de síntesis de voz server-side. Requiere auth: Basic Auth `admin:railboard`.
+
+### POST /admin/tts/synthesize
+
+Sintetiza texto en audio.
+
+**Body:**
+
+```json
+{
+  "text": "Hola mundo",
+  "language": "es",
+  "voice": "Mónica",
+  "rate": 1,
+  "pitch": 1
+}
+```
+
+**Respuesta:** Audio binario (AIFF format) con Content-Type: `audio/aiff`.
+
+### GET /admin/tts/voices
+
+Lista voces disponibles (server + edge-tts).
+
+**Query params:** `?language=es` (opcional, filtra por idioma)
+
+**Respuesta:**
+
+```json
+{
+  "status": "ok",
+  "data": [
+    { "id": "es-ES-ElviraNeural", "name": "es-ES-ElviraNeural", "lang": "es", "source": "edge-tts" },
+    { "id": "mac-Mónica", "name": "Mónica (macOS)", "lang": "es", "source": "macos" }
+  ]
+}
+```
+
+### GET /admin/tts/provider
+
+Información del proveedor TTS activo.
+
+**Respuesta:**
+
+```json
+{
+  "status": "ok",
+  "data": {
+    "available": true,
+    "provider": "macos",
+    "detail": "macOS say command"
+  }
+}
+```
+
+### GET /admin/tts/cache
+
+Estadísticas del cache de audio.
+
+**Respuesta:**
+
+```json
+{
+  "status": "ok",
+  "data": { "count": 12, "totalSize": 245760 }
+}
+```
+
+### DELETE /admin/tts/cache
+
+Limpia todo el cache de audio TTS.
+
 ## Especiales
 
 | Método | Ruta                       | Descripción                           |

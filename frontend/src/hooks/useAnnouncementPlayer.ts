@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { connectWS, fileUrl } from "../lib/api";
+import { speakWithFallback } from "../lib/tts";
 
 export interface AnnouncementReadyEvent {
   type: "announcement_ready";
@@ -24,8 +25,8 @@ export function useAnnouncementPlayer(onPlay?: (data: AnnouncementReadyEvent["da
   const synthRef = useRef(window.speechSynthesis);
   const currentLangRef = useRef<string | null>(null);
 
-  const speak = useCallback((text: string, lang: string): Promise<void> => {
-    return new Promise((resolve, reject) => {
+  const speak = useCallback(async (text: string, lang: string): Promise<void> => {
+    return new Promise<void>((resolve) => {
       const synth = synthRef.current;
       if (!synth) { resolve(); return; }
       synth.cancel();
@@ -61,7 +62,7 @@ export function useAnnouncementPlayer(onPlay?: (data: AnnouncementReadyEvent["da
     for (const lang of data.languages) {
       const text = data.texts[lang];
       if (!text) continue;
-      await speak(text, lang);
+      await speakWithFallback(text, lang);
     }
     setPlaying(null);
     setSpeaking(false);

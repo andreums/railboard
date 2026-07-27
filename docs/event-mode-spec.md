@@ -412,7 +412,7 @@ Objetivo: Funcionalidades que elevan la experiencia por encima de un simple pane
 - [ ] **NUEVO: Diagnostics** (`/diagnostics`) — estado del servidor, WS clients
 - [ ] **NUEVO: Editor de rutas visual** — crear/modificar rutas desde la UI
 - [ ] **NUEVO: Mapa de red** — representación visual de la maqueta con posición de trenes
-- [ ] **MEJORA: TTS multilingüe** — voz en valenciano/euskera/gallego para encuentros locales
+- [x] **MEJORA: TTS multilingüe** — voz en valenciano/euskera/gallego para encuentros locales
 - [ ] **NUEVO: Programación horaria** — asignar horarios fijos a trenes para simulación realista
 - [ ] **NUEVO: Eventos programados** — cambios automáticos de vía/estado a horas concretas
 - [ ] **NUEVO: Temas visuales** — paletas predefinidas (clásico RENFE, moderno, oscuro, vintage)

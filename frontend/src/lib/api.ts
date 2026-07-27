@@ -472,6 +472,19 @@ export const api = {
   setPlaceTtsPronunciation: (display_name: string, language: string, pronunciation: string) =>
     json("/place-tts-pronunciations", { method: "POST", body: JSON.stringify({ display_name, language, pronunciation }) }).then((r) => r?.data || r),
   deletePlaceTtsPronunciation: (id: number) => json(`/place-tts-pronunciations/${id}`, { method: "DELETE" }),
+  // TTS (server-side synthesis)
+  ttsSynthesize: (text: string, language: string, voice?: string, rate?: number, pitch?: number): Promise<Blob> =>
+    authFetch("/tts/synthesize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, language, voice, rate, pitch }),
+    }).then((r) => r.blob()),
+  ttsListVoices: (language?: string): Promise<any[]> => {
+    const params = language ? `?language=${language}` : "";
+    return json(`/tts/voices${params}`).then((r) => r?.data || r || []);
+  },
+  ttsGetProvider: (): Promise<{ available: boolean; provider: string | null }> =>
+    json("/tts/provider").then((r) => r?.data || r),
   // Format helpers
   formatTimeForSpeech: (time: string, language?: string) =>
     json("/announcements/format-time", { method: "POST", body: JSON.stringify({ time, language }) }),

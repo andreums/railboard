@@ -41,6 +41,7 @@ import EventEngine, { getValidTransitions, getAllStates, getStateDisplayName } f
 import SimulationService from "./services/simulationService.js";
 import HardwareService from "./services/hardwareService.js";
 import AutomationService from "./services/automationService.js";
+import ttsService from "./services/ttsService.js";
 import path from "path";
 import { resolveAnnouncementSound } from "./services/announcementSoundResolver.js";
 import { composeAnnouncements, testCompose, formatTimeForSpeech, formatLocalizedList, getAvailableLocales, getLocaleContent, saveLocaleContent } from "./services/announcementComposer.js";
@@ -802,13 +803,13 @@ r.post("/announcements/test", adminAuth, (req, res) => {
 });
 
 // POST /admin/announcements/event - Trigger an announcement event manually
-r.post("/announcements/event", adminAuth, (req, res) => {
+r.post("/announcements/event", adminAuth, async (req, res) => {
   const { train, eventType, stationId, languages } = req.body;
   if (!train || !eventType) return res.status(400).json({ status: "error", error: "train and eventType are required" });
 
   const result = announcementService.testAnnouncement(train, eventType, languages || ["ca", "es", "en"]);
 
-  const queueId = announcementService.enqueueManual(train, eventType, stationId || train.station_id, languages || ["ca", "es", "en"]);
+  const queueId = await announcementService.enqueueManual(train, eventType, stationId || train.station_id, languages || ["ca", "es", "en"]);
 
   res.json({ status: "ok", data: { ...result, queueId } });
 });
@@ -1140,6 +1141,55 @@ r.post("/hardware/events", (req, res) => {
 // Admin view of hardware events
 r.get("/hardware/events", adminAuth, (req, res) => {
   res.json(hardwareService.getEvents(Number(req.query.limit) || 100));
+});
+
+// ============ TTS (Text-to-Speech) ============
+
+r.get("/tts/voices", adminAuth, async (req, res) => {
+  try {
+    const lang = req.query.language || req.query.lang || null;
+    const voices = await ttsService.listVoices(lang);
+    res.json({ status: "ok", data: voices });
+  } catch (err) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+});
+
+r.get("/tts/provider", adminAuth, async (_req, res) => {
+  try {
+    const info = await ttsService.getProviderInfo();
+    res.json({ status: "ok", data: info });
+  } catch (err) {
+    res.status(500).json({ status: "error", error: err.message });
+  }
+});
+
+r.post("/tts/synthesize", adminAuth, async (req, res) => {
+  const { text, language, voice, rate, pitch } = req.body;
+  if (!text || !text.trim()) return res.status(400).json({ status: "error", error: "text is required" });
+
+  try {
+    const result = await ttsService.synthesize({ text, language, voice, rate, pitch });
+    if (!result) return res.status(500).json({ status: "error", error: "Synthesis failed" });
+
+    const ext = (result.format || "mp3").toLowerCase();
+    const mimeMap = { mp3: "audio/mpeg", ogg: "audio/ogg", wav: "audio/wav", aiff: "audio/aiff", aif: "audio/aiff" };
+    res.set("Content-Type", mimeMap[ext] || "audio/mpeg");
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(result.buffer);
+  } catch (err) {
+    logger.error({ err }, "TTS synthesis error");
+    res.status(500).json({ status: "error", error: err.message });
+  }
+});
+
+r.get("/tts/cache", adminAuth, (_req, res) => {
+  res.json({ status: "ok", data: ttsService.getCacheStats() });
+});
+
+r.delete("/tts/cache", adminAuth, (_req, res) => {
+  ttsService.clearCache();
+  res.json({ status: "ok" });
 });
 
 // ============ ANNOUNCEMENT TRIGGER FROM DATA CHANGES ============

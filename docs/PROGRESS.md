@@ -1,6 +1,6 @@
 # Progreso del Proyecto RailBoard
 
-**Última actualización:** 31 de mayo de 2026
+**Última actualización:** 27 de julio de 2026
 
 ---
 
@@ -79,6 +79,19 @@ RailBoard es una aplicación web de paneles informativos para estaciones de tren
 - ✅ **Tabla responsiva** — sin scroll horizontal forzado
 - ✅ **Acciones por tren** — anunciar por TTS, eliminar
 
+### Fase C.4: Server-Side TTS + Megafonía ✅
+
+- ✅ **Servicio TTS server-side** — macOS `say` + Edge TTS WebSocket como fallback
+- ✅ **6 idiomas**: español, catalán, inglés, francés, euskera, gallego
+- ✅ **Cache MD5** — audio cacheado en `uploads/tts/` para evitar re-síntesis
+- ✅ **Frontend `speakWithFallback()`** — intenta servidor primero, fallback a navegador
+- ✅ **15 train presets realistas** — Cercanías, Regional, AVE, Ouigo, Alvia, etc.
+- ✅ **Auto-preview del simulador** — cambios disparan prueba con debounce 300ms
+- ✅ **Per-language audio selectors** — cada idioma con su asset de audio
+- ✅ **Multiselect de idiomas** — selector múltiple para síntesis multilingüe
+- ✅ **VoiceSelect component** — dropdown con voces servidor + navegador
+- ✅ **Event Labels** — nombres humanos para todos los tipos de evento
+
 ---
 
 ## 🏗️ Arquitectura Técnica
@@ -129,6 +142,8 @@ backend/src/
 ├── db.js                            # Esquema, migraciones, acceso
 ├── routes.js                        # Rutas REST + WebSocket ping
 ├── ws.js                            # Servidor WebSocket, broadcast
+├── services/
+│   └── ttsService.js                # TTS server-side (macOS say + Edge TTS)
 ├── seed.js                          # Datos iniciales
 ├── data/
 │   └── railboard_routes.json        # 57 rutas españolas
@@ -219,7 +234,7 @@ backend/src/
 | **CRUD Tipos de Tren**      | ✅ Completo | Create, read, update, delete                         |
 | **CRUD Lugares**            | ✅ Completo | Create, read, delete                                 |
 | **Multiidioma**             | ✅ Completo | ES, CA, EN, FR, EU, GL                               |
-| **TTS (Text-to-Speech)**    | ✅ Completo | Anuncio de trenes por navegador                      |
+| **TTS (Text-to-Speech)**    | ✅ Completo | Server-side (macOS say + Edge TTS) + fallback navegador, 6 idiomas |
 | **Drag & Drop (Trains)**    | ✅ Completo | Reordenar trenes entre displays                      |
 
 ---

@@ -4,6 +4,112 @@ Registro de cambios y versiones del proyecto.
 
 ---
 
+## [Sesión 27 julio 2026] — Server-Side TTS + Megafonía Mejorada
+
+### ✨ Features Nuevas
+
+#### Backend — Server-Side TTS Service
+
+- **TTS Service** (`backend/src/services/ttsService.js`)
+  - Proveedor primario: macOS `say` (local, rápido, sin red)
+  - Fallback: Microsoft Edge TTS via WebSocket (`eu-ES-AinhoaNeural`, `gl-ES-RoiNeural`, etc.)
+  - Cache MD5 en `uploads/tts/` para evitar síntesis repetida
+  - Soporte para 6 idiomas: es, ca, en, fr, eu, gl
+  - Voces macOS: Mónica (es), Montse (ca), Samantha (en), Thomas (fr)
+  - Voces Edge TTS: ElviraNeural (es), JoanaNeural (ca), SoniaNeural (en), DeniseNeural (fr), AinhoaNeural (eu), RoiNeural (gl)
+
+- **Endpoints TTS** (`backend/src/routes.js`)
+  - `POST /admin/tts/synthesize` — sintetiza texto → audio (AIFF/MP3)
+  - `GET /admin/tts/voices` — lista voces disponibles (server + edge)
+  - `GET /admin/tts/provider` — información del proveedor activo
+  - `GET /admin/tts/cache` — estadísticas de cache
+  - `DELETE /admin/tts/cache` — limpia cache
+
+#### Frontend — TTS Integration
+
+- **`speakWithFallback()`** (`frontend/src/lib/tts.ts`)
+  - Intenta backend server-side primero
+  - Fallback automático a Web Speech API del navegador
+  - Respeta configuración de rate/pitch por idioma
+
+- **`VoiceSelect` Component** (`frontend/src/pages/Admin.tsx`)
+  - Dropdown de voces con secciones: voces del servidor + voces del navegador
+  - Búsqueda por nombre
+  - Click-outside para cerrar
+
+#### Megafonía (MegaphonyPanel)
+
+- **Train Presets realistas** (`frontend/src/components/admin/MegaphonyPanel.tsx`)
+  - 15 perfiles: Cercanías, Regional, AVE, Ouigo, Alvia, Euromed, Intercity, Trenhotel
+  - Retrasos y cancelaciones simuladas
+
+- **Auto-preview del simulador**
+  - Cambios en tipo, preset, idiomas o audio disparan prueba automática (debounce 300ms)
+
+- **Per-language audio selectors**
+  - Cada idioma puede tener su propio asset de audio
+  - Merge de audios durante playback
+
+- **Multiselect de idiomas**
+  - Selector múltiple para elegir idiomas de síntesis
+
+- **Expandable all-events view**
+  - Tarjetas con texto completo por idioma
+  - Botones play/individual por idioma
+
+- **Event Labels**
+  - `EVENT_LABELS` con nombres humanos en español/catalán para todos los tipos de evento
+
+#### Sidebar Fix
+
+- **Admin.tsx**: sidebar se mantiene abierto en desktop, solo cierra en mobile al seleccionar tab
+- Mobile: overlay con hamburger menu
+
+### 🔧 Cambios Técnicos
+
+#### Archivos Modificados
+
+| Archivo                             | Cambios                                                             |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `backend/src/services/ttsService.js` | **NUEVO** — Servicio TTS con macOS `say` + Edge TTS fallback        |
+| `backend/src/routes.js`             | Endpoints `/admin/tts/*`, MIME types AIFF, await fix en enqueue    |
+| `frontend/src/lib/tts.ts`           | `speakWithFallback()`, `speakServerSide()`, server TTS detection   |
+| `frontend/src/lib/api.ts`           | `ttsSynthesize()`, `ttsListVoices()`, `ttsGetProvider()`           |
+| `frontend/src/pages/Admin.tsx`      | `VoiceSelect`, voice tab multiselect, click-outside                |
+| `frontend/src/components/admin/MegaphonyPanel.tsx` | Train presets, auto-preview, per-language audio, event labels |
+
+#### Bug Fixes
+
+- **Queue ID bug** (`routes.js:1109`): `enqueueManual()` ahora usa `await` — devolvía Promise en vez de número
+- **macOS `say` format string**: Cambiado de `--data-format=LEI22050` a escritura en temp file + lectura (macOS no soporta stdout)
+- **Voice name accent**: `"Monica"` → `"Mónica"` (nombre exacto en macOS)
+- **Provider detection**: `say --version` → `say -v ?` (macOS no tiene flag --version)
+
+#### Paquetes
+
+- `voipi` removido (no funcionaba — `child_process` no disponible en browser-like env)
+- `ws` (ya instalado) — usado para Edge TTS WebSocket
+
+### 📊 Métricas
+
+| Aspecto                 | Antes                      | Después                           |
+| ----------------------- | -------------------------- | --------------------------------- |
+| Idiomas TTS             | 2 (es, ca)                 | 6 (es, ca, en, fr, eu, gl)        |
+| Voces disponibles       | Navegador                  | Servidor (12) + Navegador         |
+| Fallback TTS            | Sin fallback               | Server → Browser automático       |
+| Train presets           | Manual                     | 15 perfiles realistas             |
+| Eventos soportados      | Básicos                    | Todos con labels human-readable   |
+| Cache TTS               | No existía                 | MD5 cache en uploads/tts/         |
+
+### 🐛 Fixes
+
+- Queue ID ahora retorna número en vez de Promise
+- Sidebar no se cierra en desktop al cambiar de tab
+- macOS `say` funciona correctamente (escritura a temp file)
+- Provider endpoint retorna "macos" cuando está disponible
+
+---
+
 ## [Sesión 31 mayo 2026] — Generación de Trenes desde Rutas + UI Vertical
 
 ### ✨ Features Nuevas
