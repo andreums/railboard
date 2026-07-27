@@ -325,9 +325,6 @@ export default function Display() {
     [trains],
   );
 
-  // Gravita CSS variables (from ADIF reference)
-  const HEADER_H = "33.333%";
-  const TABLE_H = "66.666%";
   const bgColor = (config?.bgColor as string) || "#050a14";
   const headerBg = (config?.headerBgColor as string) || "#BFEFD5";
   const headerColor = (config?.headerTextColor as string) || "#102341";
@@ -338,7 +335,7 @@ export default function Display() {
 
   // Gravita: row-height = 50% of table height (each row = half the table)
   // Cap to prevent oversized rows with few trains
-  const rowH = `min(calc(${TABLE_H} / ${n}), 10dvh)`;
+  const rowH = `min(calc(84dvh / ${n}), 10dvh)`;
 
   // Column widths — mirror Gravita exactly
   const W_TIME = "11.17%";
@@ -400,7 +397,7 @@ export default function Display() {
         overflow: "hidden",
       }}
     >
-      {/* ══════════ HEADER — 33.333% (Gravita --header-height) ══════════ */}
+      {/* ══════════ HEADER — ~10dvh ══════════ */}
       <header
         style={{
           backgroundColor: headerBg,
@@ -408,7 +405,7 @@ export default function Display() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          height: HEADER_H,
+          height: "12dvh",
           padding: "0 2rem",
           borderBottom: "2px solid rgba(0,0,0,0.10)",
           flexShrink: 0,
@@ -431,7 +428,7 @@ export default function Display() {
             style={{
               fontFamily: "'Oswald', sans-serif",
               fontWeight: 700,
-              fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
+              fontSize: "clamp(3rem, 7dvh, 7rem)",
               lineHeight: 1,
               flexShrink: 0,
             }}
@@ -442,8 +439,8 @@ export default function Display() {
             <span
               style={{
                 fontFamily: "'Oswald', sans-serif",
-                fontWeight: 400,
-                fontSize: "clamp(1.3rem, 3dvh, 3rem)",
+                fontWeight: 700,
+                fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)",
                 letterSpacing: 0,
                 opacity: 1,
                 lineHeight: 1,
@@ -455,7 +452,7 @@ export default function Display() {
               style={{
                 fontFamily: "'Oswald', sans-serif",
                 fontWeight: 700,
-                fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
+                fontSize: "clamp(3rem, 7dvh, 7rem)",
                 lineHeight: 1,
                 whiteSpace: "nowrap",
                 minWidth: 0,
@@ -466,17 +463,14 @@ export default function Display() {
             </span>
           </div>
         </div>
-        {/* Clock — 66% height, 66% font-size (Gravita) */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0, height: "66%" }}>
+        {/* Clock */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
           <div
             style={{
               fontFamily: "'Roboto Mono', monospace",
               fontWeight: 700,
-              fontSize: "clamp(2rem, 4.5dvh, 4.5rem)",
+              fontSize: "clamp(3rem, 6.5dvh, 7rem)",
               lineHeight: 1,
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
             }}
           >
             <Clock
@@ -486,35 +480,28 @@ export default function Display() {
             />
           </div>
         </div>
-        {/* VÍA — aligned with PLATFORM column (Gravita platform-header) */}
-        <div
+        {/* VÍA — aligned with PLATFORM column */}
+        <span
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "34%",
-            fontSize: "34%",
-            flexShrink: 0,
+            position: "absolute",
+            right: "1rem",
+            width: W_PLAT,
+            fontFamily: "'Oswald', sans-serif",
+            fontWeight: 700,
+            fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            opacity: 0.75,
+            textAlign: "center",
+            bottom: "0.4rem",
           }}
         >
-          <span
-            style={{
-              fontFamily: "'Oswald', sans-serif",
-              fontWeight: 700,
-              fontSize: "80%",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              opacity: 0.75,
-              textAlign: "center",
-            }}
-          >
-            {t("platform", lang)}
-          </span>
-        </div>
+          {t("platform", lang)}
+        </span>
       </header>
 
-      {/* ══════════ TABLE — 66.666% (Gravita --table-height) ══════════ */}
-      <div style={{ height: TABLE_H, overflow: "hidden", flexShrink: 0 }}>
+      {/* ══════════ TABLE ══════════ */}
+      <div style={{ height: "84dvh", overflow: "hidden", flexShrink: 0 }}>
         {rows.map((train, i) => {
           const place = mode === "departures" ? train.destination : train.origin;
           const minutes = minutesUntil(train.expected_time);
