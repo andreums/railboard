@@ -67,7 +67,7 @@ export default function TrainSettings() {
                 <h3 className="font-display text-xl mb-4">Editar operador</h3>
                 <div className="flex flex-col gap-3">
                   <input
-                    className="bg-black/40 rounded px-3 py-2"
+                    className="bg-black/40 rounded px-3 py-2 text-board-ink"
                     placeholder="Nombre"
                     value={editingOperator.name}
                     onChange={(e) => setEditingOperator({ ...editingOperator, name: e.target.value })}
@@ -178,13 +178,13 @@ export default function TrainSettings() {
                 <h3 className="font-display text-xl mb-4">Editar tipo de tren</h3>
                 <div className="flex flex-col gap-3">
                   <input
-                    className="bg-black/40 rounded px-3 py-2"
+                    className="bg-black/40 rounded px-3 py-2 text-board-ink"
                     placeholder="Código (AVE)"
                     value={editingType.code}
                     onChange={(e) => setEditingType({ ...editingType, code: e.target.value })}
                   />
                   <input
-                    className="bg-black/40 rounded px-3 py-2"
+                    className="bg-black/40 rounded px-3 py-2 text-board-ink"
                     placeholder="Nombre"
                     value={editingType.name}
                     onChange={(e) => setEditingType({ ...editingType, name: e.target.value })}
@@ -193,7 +193,7 @@ export default function TrainSettings() {
                     type="color"
                     value={editingType.color}
                     onChange={(e) => setEditingType({ ...editingType, color: e.target.value })}
-                    className="bg-black/40 rounded px-3 py-2 h-10"
+                    className="bg-black/40 rounded px-3 py-2 h-10 text-board-ink"
                   />
                   <div>
                     <label className="block text-xs text-board-dim uppercase tracking-wider mb-1.5">Logo</label>
@@ -235,7 +235,7 @@ export default function TrainSettings() {
                       Plantilla de megafonía (opcional)
                     </label>
                     <textarea
-                      className="bg-black/40 rounded px-3 py-2 w-full text-sm min-h-[4rem] resize-y"
+                      className="bg-black/40 rounded px-3 py-2 w-full text-sm min-h-[4rem] resize-y text-board-ink"
                       placeholder="Ej: Atención. Tren {type_name}{number_text} con destino a {destination}, efectuará su salida por la vía {platform}{sector_text}. Paradas: {stops}."
                       value={editingType.announce_template || ""}
                       onChange={(e) => setEditingType({ ...editingType, announce_template: e.target.value })}
@@ -348,7 +348,7 @@ function OperatorCreate({ onCreated }: { onCreated: () => void }) {
   const [logo, setLogo] = useState<File | null>(null);
   return (
     <div className="flex flex-col gap-2">
-      <input className="bg-black/40 rounded px-2 py-1" placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="bg-black/40 rounded px-2 py-1 text-board-ink" placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
       <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] ?? null)} />
       <button
         className="bg-board-amber text-board-bg font-bold rounded py-1"
@@ -374,8 +374,8 @@ function TrainTypeCreate({ onCreated }: { onCreated: () => void }) {
   const [logo, setLogo] = useState<File | null>(null);
   return (
     <div className="flex flex-col gap-2">
-      <input className="bg-black/40 rounded px-2 py-1" placeholder="Código (AVE)" value={code} onChange={(e) => setCode(e.target.value)} />
-      <input className="bg-black/40 rounded px-2 py-1" placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
+      <input className="bg-black/40 rounded px-2 py-1 text-board-ink" placeholder="Código (AVE)" value={code} onChange={(e) => setCode(e.target.value)} />
+      <input className="bg-black/40 rounded px-2 py-1 text-board-ink" placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
       <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] ?? null)} />
       <button

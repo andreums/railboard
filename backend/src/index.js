@@ -124,7 +124,7 @@ app.use((err, req, res, _next) => {
 
 const PORT = process.env.PORT || 4000;
 const server = http.createServer(app);
-attachWebSocket(server);
+attachWebSocket(server, db);
 
 server.listen(PORT, () => {
   logRouteStats();

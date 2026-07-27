@@ -1,0 +1,63 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: railboard-backend-dev
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-railboard}
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
+      - DB_PATH=/app/data/data.db
+      - RATE_LIMIT_MAX=1000
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/migrations:/app/migrations
+      - ./backend/locales:/app/locales
+      - ./backend/data:/app/data
+      - ./backend/uploads:/app/uploads
+      - ./backend/scripts:/app/scripts
+      - db-data-dev:/app/data
+      - uploads-dev:/app/uploads
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: node:20-alpine
+    container_name: railboard-frontend-dev
+    working_dir: /app
+    environment:
+      - VITE_API_URL=http://localhost:4000
+      - VITE_APP_VERSION=dev
+      - CHOKIDAR_USEPOLLING=1
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/package.json:/app/package.json
+      - ./frontend/package-lock.json:/app/package-lock.json
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/tsconfig.json:/app/tsconfig.json
+      - ./frontend/tsconfig.app.json:/app/tsconfig.app.json
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      - ./frontend/postcss.config.js:/app/postcss.config.js
+      - ./frontend/tailwind.config.js:/app/tailwind.config.js
+      - node_modules-dev:/app/node_modules
+    command: sh -c "npm install && npx vite --host 0.0.0.0 --port 5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data-dev:
+  uploads-dev:
+  node_modules-dev:

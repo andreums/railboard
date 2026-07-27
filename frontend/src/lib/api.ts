@@ -585,6 +585,7 @@ export type QueueItem = {
   status: string;
   languages: string;
   composed_data: string;
+  chime_asset_id?: number | null;
   created_at: string;
 };
 
@@ -595,6 +596,7 @@ export type HistoryItem = {
   text_es?: string;
   text_en?: string;
   queue_status: string;
+  chime_asset_id?: number | null;
   played_at?: string;
   created_at: string;
 };
@@ -622,6 +624,7 @@ export type SoundRule = {
   sound_id?: number;
   event_type?: string;
   sound_mode: "SINGLE" | "PER_LANGUAGE";
+  language_sounds?: string | null;
   delay_after_sound_ms?: number;
   delay_between_languages_ms?: number;
   enabled?: number;

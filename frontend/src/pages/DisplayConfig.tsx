@@ -1024,11 +1024,11 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block md:col-span-2">
                   <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Imagen personalizada destino</div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    id={`train-icon-${editingTrain.id || "new"}`}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-400 focus:outline-none"
+            <input
+              type="file"
+              accept="image/*"
+              id={`train-icon-${editingTrain.id || "new"}`}
+              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {

@@ -6,8 +6,95 @@
     "natural": "valencià"
   },
   "time": {
-    "hours": ["zero", "una", "dos", "tres", "quatre", "cinc", "sis", "set", "huit", "nou", "deu", "onze", "dotze", "tretze", "catorze", "quinze", "setze", "disset", "dihuit", "dinou", "vint", "vint-i-una", "vint-i-dos", "vint-i-tres", "vint-i-quatre"],
-    "minutes": ["zero", "un", "dos", "tres", "quatre", "cinc", "sis", "set", "huit", "nou", "deu", "onze", "dotze", "tretze", "catorze", "quinze", "setze", "disset", "dihuit", "dinou", "vint", "vint-i-un", "vint-i-dos", "vint-i-tres", "vint-i-quatre", "vint-i-cinc", "vint-i-sis", "vint-i-set", "vint-i-huit", "vint-i-nou", "trenta", "trenta-un", "trenta-dos", "trenta-tres", "trenta-quatre", "trenta-cinc", "trenta-sis", "trenta-set", "trenta-huit", "trenta-nou", "quaranta", "quaranta-un", "quaranta-dos", "quaranta-tres", "quaranta-quatre", "quaranta-cinc", "quaranta-sis", "quaranta-set", "quaranta-huit", "quaranta-nou", "cinquanta", "cinquanta-un", "cinquanta-dos", "cinquanta-tres", "cinquanta-quatre", "cinquanta-cinc", "cinquanta-sis", "cinquanta-set", "cinquanta-huit", "cinquanta-nou"],
+    "hours": [
+      "zero",
+      "una",
+      "dos",
+      "tres",
+      "quatre",
+      "cinc",
+      "sis",
+      "set",
+      "huit",
+      "nou",
+      "deu",
+      "onze",
+      "dotze",
+      "tretze",
+      "catorze",
+      "quinze",
+      "setze",
+      "disset",
+      "dihuit",
+      "dinou",
+      "vint",
+      "vint-i-una",
+      "vint-i-dos",
+      "vint-i-tres",
+      "vint-i-quatre"
+    ],
+    "minutes": [
+      "zero",
+      "un",
+      "dos",
+      "tres",
+      "quatre",
+      "cinc",
+      "sis",
+      "set",
+      "huit",
+      "nou",
+      "deu",
+      "onze",
+      "dotze",
+      "tretze",
+      "catorze",
+      "quinze",
+      "setze",
+      "disset",
+      "dihuit",
+      "dinou",
+      "vint",
+      "vint-i-un",
+      "vint-i-dos",
+      "vint-i-tres",
+      "vint-i-quatre",
+      "vint-i-cinc",
+      "vint-i-sis",
+      "vint-i-set",
+      "vint-i-huit",
+      "vint-i-nou",
+      "trenta",
+      "trenta-un",
+      "trenta-dos",
+      "trenta-tres",
+      "trenta-quatre",
+      "trenta-cinc",
+      "trenta-sis",
+      "trenta-set",
+      "trenta-huit",
+      "trenta-nou",
+      "quaranta",
+      "quaranta-un",
+      "quaranta-dos",
+      "quaranta-tres",
+      "quaranta-quatre",
+      "quaranta-cinc",
+      "quaranta-sis",
+      "quaranta-set",
+      "quaranta-huit",
+      "quaranta-nou",
+      "cinquanta",
+      "cinquanta-un",
+      "cinquanta-dos",
+      "cinquanta-tres",
+      "cinquanta-quatre",
+      "cinquanta-cinc",
+      "cinquanta-sis",
+      "cinquanta-set",
+      "cinquanta-huit",
+      "cinquanta-nou"
+    ],
     "hour": "hores",
     "hour_singular": "hora",
     "minute": "minuts",
@@ -30,7 +117,8 @@
   "attention": {
     "default": "Atenció.",
     "important": "Atenció si us plau.",
-    "emergency": "Atenció. Emergència."
+    "emergency": "Atenció. Emergència.",
+    "gentle": "Senyores i senyors, atenció si us plau."
   },
   "blocks": {
     "operator": "{operator}",
@@ -57,7 +145,13 @@
     "imminent_departure": "Està a punt d'eixir.",
     "departed": "ha eixit",
     "arriving": "està arribant",
-    "terminates_here": "Este tren finalitza el seu recorregut."
+    "terminates_here": "Este tren finalitza el seu recorregut.",
+    "not_accessible_train": "",
+    "composition": "Tren compost per {cars} cotxes.",
+    "ready_for_boarding": "Està llest per a l'embarcament.",
+    "departing": "El tren està sortint.",
+    "at_platform": "es troba a la via",
+    "all_change": "Preguem als viatgers que desembarquin."
   },
   "service_intro": {
     "commuter": "{line},",
@@ -70,33 +164,86 @@
     "TRAIN_ANNOUNCEMENT": {
       "departure": "Atenció. {service_intro} amb destinació a {destination}, {platform_sector}.",
       "compact_departure": "{line}, destinació {destination}, via {platform}.",
-      "compact_arrival": "{line}, procedent de {origin}, via {platform}."
+      "compact_arrival": "{line}, procedent de {origin}, via {platform}.",
+      "arrival": "Atenció. {service_intro} procedent de {origin}, {platform_sector}."
     },
     "TRAIN_IMMINENT_DEPARTURE": {
-      "default": "{service_intro} amb destinació a {destination}. Està a punt d'eixir."
+      "default": "{service_intro} amb destinació a {destination}. Està a punt d'eixir.",
+      "standing": "{is_at_platform} {service_intro} amb destinació a {destination}. És a punt de sortir."
     },
     "TRAIN_DELAYED": {
-      "default": "Atenció. {service_intro} amb destinació a {destination} {delayed}."
+      "default": "Atenció. {service_intro} amb destinació a {destination} {delayed}.",
+      "with_platform": "Atenció. {service_intro} amb destinació a {destination}, {platform_sector}, {delayed}."
     },
     "TRAIN_CANCELLED": {
       "default": "Atenció. {service_intro} amb destinació a {destination} {cancelled}. Disculpeu les molèsties."
     },
     "PLATFORM_CHANGE": {
-      "default": "Atenció. {service_intro} amb destinació a {destination} {platform_changed}. Consulteu els panells."
+      "default": "Atenció. {service_intro} amb destinació a {destination} {platform_changed}. Consulteu els panells.",
+      "with_sector": "Atenció. {service_intro} amb destinació a {destination} {platform_changed_sector}. Consulteu els panells."
     },
     "LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT": {
       "default": "{service_intro} amb destinació a {destination}, amb eixida a les {time}, {platform_sector}.",
-      "fare_restricted": "Per a este tren no són vàlids els bitllets ni els abonaments de Rodalies ni de serveis regionals."
+      "fare_restricted": "Per a este tren no són vàlids els bitllets ni els abonaments de Rodalies ni de serveis regionals.",
+      "with_stops": "{service_intro} amb destinació a {destination}, amb sortida a les {time}, {platform_sector}. {stopping_pattern}.",
+      "with_fare": "{service_intro} amb destinació a {destination}, amb sortida a les {time}, {platform_sector}. {stopping_pattern}. {fare_restriction}.",
+      "fare_restricted_regional": "Per a aquest tren no són vàlids els bitllets ni els abonaments de Rodalies ni de serveis regionals."
     },
     "TRAIN_STANDING_BY": {
       "default": "{is_at_platform} {service_intro} amb destinació a {destination}.",
-      "with_stops": "{is_at_platform} {service_intro} amb destinació a {destination}. {stopping_pattern}."
+      "with_stops": "{is_at_platform} {service_intro} amb destinació a {destination}. {stopping_pattern}.",
+      "fare_restricted": "{is_at_platform} {service_intro} amb destinació a {destination}. {fare_restriction}."
     },
     "SERVICE_DISRUPTION": {
       "default": "Atenció. A causa de {reason}, s'estan produint alteracions en el servici. Disculpeu les molèsties."
     },
     "GENERAL_INFORMATION": {
       "default": "Atenció. {message}"
+    },
+    "TRAIN_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} amb destinació a {destination}. Està a punt d'efectuar la sortida."
+    },
+    "TRAIN_APPROACHING": {
+      "default": "Atenció. Propera arribada de {service_intro} amb destinació a {destination}, {platform_sector}."
+    },
+    "TRAIN_AT_PLATFORM": {
+      "default": "Atenció. {service_intro} amb destinació a {destination} es troba a la via {platform}.",
+      "accessible": "Atenció. {service_intro} amb destinació a {destination} es troba a la via {platform}. Tren accessible."
+    },
+    "TRAIN_BOARDING": {
+      "default": "Atenció. {service_intro} amb destinació a {destination}, {platform_sector}. Està realitzant l'embarcament.",
+      "accessible": "Atenció. {service_intro} amb destinació a {destination}, {platform_sector}. Està realitzant l'embarcament. Tren accessible."
+    },
+    "TRAIN_DEPARTED": {
+      "default": "Atenció. {service_intro} amb destinació a {destination} ha sortit de la via {platform}."
+    },
+    "LONG_DISTANCE_BOARDING": {
+      "default": "{service_intro} amb destinació a {destination}. Està realitzant l'embarcament per {platform_sector}.",
+      "fare_restricted": "Per a aquest tren no són vàlids els bitllets ni els abonaments de Rodalies ni de serveis regionals."
+    },
+    "LONG_DISTANCE_READY_TO_DEPART": {
+      "default": "{is_at_platform} {service_intro} amb destinació a {destination}, amb sortida a les {time}. Va a efectuar su salida."
+    },
+    "LONG_DISTANCE_IMMINENT_DEPARTURE": {
+      "default": "{is_at_platform} {service_intro} amb destinació a {destination}. És a punt de sortir."
+    },
+    "TRAIN_TERMINATES_HERE": {
+      "default": "Atenció. {service_intro} amb destinació a {destination} finalitza aquí el seu recorregut. Preguem als viatgers que desembarquin."
+    },
+    "COMPACT_SERVICE_ANNOUNCEMENT": {
+      "default": "{service_intro} amb destinació a {destination}, {platform_sector}.",
+      "departure": "{service_intro} amb destinació a {destination}, {platform_sector}.",
+      "arrival": "{service_intro} procedent de {origin}, {platform_sector}."
+    },
+    "TRAIN_ARRIVING": {
+      "default": "{service_intro} procedent de {origin} està entrant en {platform_sector}."
+    },
+    "TRAIN_READY_FOR_BOARDING": {
+      "default": "{service_intro} amb destinació a {destination}, {platform_sector}. Es prega als viatgers que es preparen per a embarcar.",
+      "accessible": "{service_intro} accessible amb destinació a {destination}, {platform_sector}. Es prega als viatgers que es preparen per a embarcar."
+    },
+    "TRAIN_DEPARTING": {
+      "default": "{service_intro} amb destinació a {destination} està eixint de {platform_sector}."
     }
   },
   "stopping_patterns": {
@@ -104,7 +251,9 @@
     "DIRECT": "Este tren és directe",
     "ALL_EXCEPT": "Este tren para a totes les estacions excepte {stations}",
     "ONLY_STOPS_AT": "Este tren només efectua parada a {stations}",
-    "intermediate": "Este tren efectua parada a {stations}"
+    "intermediate": "Este tren efectua parada a {stations}",
+    "SEMI_FAST": "Aquest tren efectua parada a les principals estacions",
+    "CUSTOM": "{description}"
   },
   "fare_restrictions": {
     "commuter_tickets_not_accepted": "bitllets de Rodalies",
@@ -112,14 +261,34 @@
     "regional_tickets_not_accepted": "bitllets de servicis regionals",
     "regional_passes_not_accepted": "abonaments de servicis regionals",
     "none_accepted": "Per a este tren no són vàlids els bitllets ni els abonaments de Rodalies ni de servicis regionals",
-    "some_not_accepted": "Per a este tren no són vàlids {items}"
+    "some_not_accepted": "Per a este tren no són vàlids {items}",
+    "reservation_required": "requereix reserva",
+    "supplement_required": "requereix suplement",
+    "specific_ticket_required": "requereix bitllet específic",
+    "notice": "Per a aquest tren no són vàlids",
+    "nor": "ni"
   },
   "closing_messages": {
     "long_distance": "{operator} Llarga Distància els desitja un bon viatge.",
     "renfe_long_distance": "Renfe Llarga Distància els desitja un bon viatge.",
-    "operator": "{operator} els desitja un bon viatge."
+    "operator": "{operator} els desitja un bon viatge.",
+    "none": ""
   },
   "accessibility": {
-    "accessible": "Tren accessible."
+    "accessible": "Tren accessible.",
+    "wheelchair_space": "Espai per a cadira de rodes.",
+    "priority_seating": "Seients prioritaris.",
+    "visual_aids": "Ajudes visuals a bord.",
+    "audio_aids": "Ajudes auditives a bord."
+  },
+  "pre_recorded_fragments": {
+    "attention": "Atenció",
+    "platform": "via",
+    "departure": "sortida",
+    "arrival": "arribada",
+    "cancelled": "cancel·lat",
+    "delayed": "retard",
+    "accessible": "tren accessible",
+    "boarding": "embarcament"
   }
 }

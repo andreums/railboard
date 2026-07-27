@@ -48,75 +48,100 @@ const EVENT_PRIORITIES = {
   LONG_DISTANCE_IMMINENT_DEPARTURE: "HIGH",
 };
 
+// Mapping from Event Engine uppercase states to legacy capitalized status strings
+const EE_TO_LEGACY_STATUS = {
+  APPROACHING: "Approaching",
+  ARRIVING: "Arriving",
+  STOPPED: "Standing",
+  BOARDING: "Boarding",
+  READY_TO_DEPART: "ReadyToDepart",
+  DEPARTING: "Departing",
+  DEPARTED: "Departed",
+  ARRIVED: "Arrived",
+  DELAYED: "Delayed",
+  CANCELLED: "Cancelled",
+  SCHEDULED: "Scheduled",
+  FINISHED: "Finished",
+};
+
+function normalizeStatus(status) {
+  if (!status) return status;
+  return EE_TO_LEGACY_STATUS[status] || status;
+}
+
 const isLongDistance = (train) => /^(AVE|ALVIA|EUROMED|INTERCITY|IC|AVLO|IRYO|OUIGO|LARGA\s*DISTANCIA)/i.test(train.type_code || train.type_name || "");
 
 export function detectEvent(train, previousTrain) {
   if (!train) return null;
 
+  // Normalize status to legacy format for comparison
+  const normalized = { ...train, status: normalizeStatus(train.status) };
+  const normalizedPrev = previousTrain ? { ...previousTrain, status: normalizeStatus(previousTrain.status) } : null;
+
   const events = [];
 
   if (isLongDistance(train)) {
-    if (!previousTrain) {
-      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT, train });
-    } else if (previousTrain.status !== "Boarding" && train.status === "Boarding") {
-      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_BOARDING, train });
-    } else if (previousTrain.status !== "Departed" && train.status === "Departed") {
-      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_IMMINENT_DEPARTURE, train });
+    if (!normalizedPrev) {
+      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_DEPARTURE_ANNOUNCEMENT, train: normalized });
+    } else if (normalizedPrev.status !== "Boarding" && normalized.status === "Boarding") {
+      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_BOARDING, train: normalized });
+    } else if (normalizedPrev.status !== "Departed" && normalized.status === "Departed") {
+      events.push({ eventType: EVENT_TYPES.LONG_DISTANCE_IMMINENT_DEPARTURE, train: normalized });
     }
   }
 
-  if (train.status === "Cancelled") {
-    events.push({ eventType: EVENT_TYPES.TRAIN_CANCELLED, train });
+  if (normalized.status === "Cancelled") {
+    events.push({ eventType: EVENT_TYPES.TRAIN_CANCELLED, train: normalized });
     return events;
   }
 
-  if (previousTrain) {
+  if (normalizedPrev) {
     if (previousTrain.platform !== train.platform || previousTrain.sector !== train.sector) {
-      events.push({ eventType: EVENT_TYPES.PLATFORM_CHANGE, train });
+      events.push({ eventType: EVENT_TYPES.PLATFORM_CHANGE, train: normalized });
     }
 
     const prevDelay = previousTrain.delay_minutes || previousTrain.delay || 0;
     const currDelay = train.delay_minutes || train.delay || 0;
     if (currDelay > 0 && currDelay !== prevDelay) {
-      events.push({ eventType: EVENT_TYPES.TRAIN_DELAYED, train });
+      events.push({ eventType: EVENT_TYPES.TRAIN_DELAYED, train: normalized });
     }
 
-    if (previousTrain.status !== train.status) {
-      switch (train.status) {
+    if (normalizedPrev.status !== normalized.status) {
+      switch (normalized.status) {
         case "Approaching":
-          events.push({ eventType: EVENT_TYPES.TRAIN_APPROACHING, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_APPROACHING, train: normalized });
           break;
         case "Arriving":
-          events.push({ eventType: EVENT_TYPES.TRAIN_ARRIVING, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_ARRIVING, train: normalized });
           break;
         case "Arrived":
-          events.push({ eventType: EVENT_TYPES.TRAIN_AT_PLATFORM, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_AT_PLATFORM, train: normalized });
           break;
         case "Standing":
-          events.push({ eventType: EVENT_TYPES.TRAIN_STANDING_BY, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_STANDING_BY, train: normalized });
           break;
         case "Boarding":
-          events.push({ eventType: EVENT_TYPES.TRAIN_BOARDING, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_BOARDING, train: normalized });
           break;
         case "ReadyToDepart":
-          events.push({ eventType: EVENT_TYPES.TRAIN_READY_TO_DEPART, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_READY_TO_DEPART, train: normalized });
           break;
         case "ImminentDeparture":
-          events.push({ eventType: EVENT_TYPES.TRAIN_IMMINENT_DEPARTURE, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_IMMINENT_DEPARTURE, train: normalized });
           break;
         case "Departing":
-          events.push({ eventType: EVENT_TYPES.TRAIN_DEPARTING, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_DEPARTING, train: normalized });
           break;
         case "Departed":
-          events.push({ eventType: EVENT_TYPES.TRAIN_DEPARTED, train });
+          events.push({ eventType: EVENT_TYPES.TRAIN_DEPARTED, train: normalized });
           break;
       }
     }
   } else {
-    if (train.status === "Boarding" || train.status === "Standing") {
-      events.push({ eventType: EVENT_TYPES.TRAIN_STANDING_BY, train });
+    if (normalized.status === "Boarding" || normalized.status === "Standing") {
+      events.push({ eventType: EVENT_TYPES.TRAIN_STANDING_BY, train: normalized });
     } else {
-      events.push({ eventType: EVENT_TYPES.TRAIN_ANNOUNCEMENT, train });
+      events.push({ eventType: EVENT_TYPES.TRAIN_ANNOUNCEMENT, train: normalized });
     }
   }
 

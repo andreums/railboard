@@ -1020,8 +1020,8 @@ export const soundRules = {
   get: (id) => db.prepare("SELECT * FROM announcement_sound_rules WHERE id = ?").get(id),
   create: (data) => {
     const info = db.prepare(
-      `INSERT INTO announcement_sound_rules (priority, match_config, sound_id, profile_id, event_type, sound_mode, delay_after_sound_ms, delay_between_languages_ms, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
+      `INSERT INTO announcement_sound_rules (priority, match_config, sound_id, profile_id, event_type, sound_mode, language_sounds, delay_after_sound_ms, delay_between_languages_ms, enabled)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`
     ).run(
       data.priority ?? 0,
       JSON.stringify(data.match_config || {}),
@@ -1029,6 +1029,7 @@ export const soundRules = {
       data.profile_id || null,
       data.event_type || null,
       data.sound_mode || "SINGLE",
+      data.language_sounds ? JSON.stringify(data.language_sounds) : null,
       data.delay_after_sound_ms ?? 600,
       data.delay_between_languages_ms ?? 1000,
     );
@@ -1049,6 +1050,10 @@ export const soundRules = {
     if (updates.match_config !== undefined) {
       sets.push("match_config = ?");
       params.push(JSON.stringify(updates.match_config));
+    }
+    if (updates.language_sounds !== undefined) {
+      sets.push("language_sounds = ?");
+      params.push(updates.language_sounds ? JSON.stringify(updates.language_sounds) : null);
     }
     if (sets.length === 0) return cur;
     params.push(id);

@@ -1,6 +1,23 @@
 import { composeAnnouncements, getAvailableLocales } from "./announcementComposer.js";
 import { detectEvent, detectServiceEvent, detectStopEvent, getEventPriority, getEventTypes } from "./announcementEventDetector.js";
 import { resolveAnnouncementSound, createDefaultSoundRules } from "./announcementSoundResolver.js";
+
+// Direct mapping from announcement event type to priority
+const EVENT_TYPE_PRIORITIES = {
+  TRAIN_CANCELLED: "HIGH",
+  PLATFORM_CHANGE: "HIGH",
+  TRAIN_IMMINENT_DEPARTURE: "HIGH",
+  TRAIN_APPROACHING: "NORMAL",
+  TRAIN_ARRIVING: "NORMAL",
+  TRAIN_AT_PLATFORM: "NORMAL",
+  TRAIN_STANDING_BY: "LOW",
+  TRAIN_BOARDING: "NORMAL",
+  TRAIN_READY_TO_DEPART: "NORMAL",
+  TRAIN_DEPARTING: "NORMAL",
+  TRAIN_DEPARTED: "NORMAL",
+  TRAIN_DELAYED: "NORMAL",
+  TRAIN_ANNOUNCEMENT: "NORMAL",
+};
 import AnnouncementQueue from "./announcementQueue.js";
 import { broadcast } from "../ws.js";
 import logger from "../logger.js";
@@ -175,6 +192,23 @@ class AnnouncementService {
 
   generateAnnouncement(train, eventType, languages) {
     return composeAnnouncements(train, eventType, languages);
+  }
+
+  enqueueStateEvent(trainData, eventType, fromState, toState, stationId, languages) {
+    if (!eventType) return null;
+    const soundInfo = resolveAnnouncementSound(trainData, eventType, this.db);
+    const composed = composeAnnouncements(trainData, eventType, languages);
+
+    return this.queue.enqueue({
+      trainId: trainData.id,
+      stationId,
+      eventType,
+      eventVersion: Date.now(),
+      priority: EVENT_TYPE_PRIORITIES[eventType] || "NORMAL",
+      languages,
+      composedData: composed,
+      chimeAssetId: soundInfo.soundId,
+    });
   }
 
   enqueueManual(train, eventType, stationId, languages) {

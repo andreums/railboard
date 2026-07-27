@@ -2,6 +2,8 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Display from "./pages/Display";
+import DisplayPage from "./pages/DisplayPage";
+import Operator from "./pages/Operator";
 import Admin from "./pages/Admin";
 import DisplayConfigPage from "./pages/DisplayConfig";
 import Trains from "./pages/Trains";
@@ -37,9 +39,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/" element={<Display />} />
         <Route path="/display/:stationId" element={<Display />} />
-        <Route path="/admin" element={<Admin />} />
+        <Route path="/display/station/:stationId" element={<Display />} />
+        <Route path="/s/:displayId" element={<DisplayPage />} />
         <Route path="/admin/displays" element={<DisplayConfigPage />} />
         <Route path="/admin/displays/:stationId" element={<DisplayConfigPage />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/:tab" element={<Admin />} />
+        <Route path="/operator" element={<Operator />} />
         <Route path="/trains" element={<Trains />} />
         <Route path="/train-settings" element={<TrainSettings />} />
         <Route path="*" element={<Navigate to="/" replace />} />

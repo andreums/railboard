@@ -12,6 +12,15 @@ body {
   font-family: "Inter", system-ui, sans-serif;
 }
 
+@layer base {
+  body {
+    @apply text-slate-900;
+  }
+  input, select, textarea {
+    @apply text-slate-900;
+  }
+}
+
 @keyframes marquee-full {
   0% {
     transform: translateX(100vw);

@@ -6,8 +6,95 @@
     "natural": "català"
   },
   "time": {
-    "hours": ["zero", "una", "dues", "tres", "quatre", "cinc", "sis", "set", "vuit", "nou", "deu", "onze", "dotze", "tretze", "catorze", "quinze", "setze", "disset", "divuit", "dinou", "vint", "vint-i-una", "vint-i-dues", "vint-i-tres", "vint-i-quatre"],
-    "minutes": ["zero", "un", "dos", "tres", "quatre", "cinc", "sis", "set", "vuit", "nou", "deu", "onze", "dotze", "tretze", "catorze", "quinze", "setze", "disset", "divuit", "dinou", "vint", "vint-i-un", "vint-i-dos", "vint-i-tres", "vint-i-quatre", "vint-i-cinc", "vint-i-sis", "vint-i-set", "vint-i-vuit", "vint-i-nou", "trenta", "trenta-un", "trenta-dos", "trenta-tres", "trenta-quatre", "trenta-cinc", "trenta-sis", "trenta-set", "trenta-vuit", "trenta-nou", "quaranta", "quaranta-un", "quaranta-dos", "quaranta-tres", "quaranta-quatre", "quaranta-cinc", "quaranta-sis", "quaranta-set", "quaranta-vuit", "quaranta-nou", "cinquanta", "cinquanta-un", "cinquanta-dos", "cinquanta-tres", "cinquanta-quatre", "cinquanta-cinc", "cinquanta-sis", "cinquanta-set", "cinquanta-vuit", "cinquanta-nou"],
+    "hours": [
+      "zero",
+      "una",
+      "dues",
+      "tres",
+      "quatre",
+      "cinc",
+      "sis",
+      "set",
+      "vuit",
+      "nou",
+      "deu",
+      "onze",
+      "dotze",
+      "tretze",
+      "catorze",
+      "quinze",
+      "setze",
+      "disset",
+      "divuit",
+      "dinou",
+      "vint",
+      "vint-i-una",
+      "vint-i-dues",
+      "vint-i-tres",
+      "vint-i-quatre"
+    ],
+    "minutes": [
+      "zero",
+      "un",
+      "dos",
+      "tres",
+      "quatre",
+      "cinc",
+      "sis",
+      "set",
+      "vuit",
+      "nou",
+      "deu",
+      "onze",
+      "dotze",
+      "tretze",
+      "catorze",
+      "quinze",
+      "setze",
+      "disset",
+      "divuit",
+      "dinou",
+      "vint",
+      "vint-i-un",
+      "vint-i-dos",
+      "vint-i-tres",
+      "vint-i-quatre",
+      "vint-i-cinc",
+      "vint-i-sis",
+      "vint-i-set",
+      "vint-i-vuit",
+      "vint-i-nou",
+      "trenta",
+      "trenta-un",
+      "trenta-dos",
+      "trenta-tres",
+      "trenta-quatre",
+      "trenta-cinc",
+      "trenta-sis",
+      "trenta-set",
+      "trenta-vuit",
+      "trenta-nou",
+      "quaranta",
+      "quaranta-un",
+      "quaranta-dos",
+      "quaranta-tres",
+      "quaranta-quatre",
+      "quaranta-cinc",
+      "quaranta-sis",
+      "quaranta-set",
+      "quaranta-vuit",
+      "quaranta-nou",
+      "cinquanta",
+      "cinquanta-un",
+      "cinquanta-dos",
+      "cinquanta-tres",
+      "cinquanta-quatre",
+      "cinquanta-cinc",
+      "cinquanta-sis",
+      "cinquanta-set",
+      "cinquanta-vuit",
+      "cinquanta-nou"
+    ],
     "hour": "hores",
     "hour_singular": "hora",
     "minute": "minuts",
@@ -75,7 +162,7 @@
   },
   "events": {
     "TRAIN_ANNOUNCEMENT": {
-      "departure": "Atenció. {service_intro} amb destinació a {destination}, {platform_sector}.",
+      "departure": "{service_intro} amb destinació {destination}, {platform_sector}.",
       "arrival": "Atenció. {service_intro} procedent de {origin}, {platform_sector}.",
       "compact_departure": "{line}, destinació {destination}, via {platform}.",
       "compact_arrival": "{line}, procedent de {origin}, via {platform}."
@@ -142,6 +229,21 @@
     },
     "TRAIN_TERMINATES_HERE": {
       "default": "Atenció. {service_intro} amb destinació a {destination} finalitza aquí el seu recorregut. Preguem als viatgers que desembarquin."
+    },
+    "COMPACT_SERVICE_ANNOUNCEMENT": {
+      "default": "{service_intro} amb destinació {destination}, {platform_sector}.",
+      "departure": "{service_intro} amb destinació {destination}, {platform_sector}.",
+      "arrival": "{service_intro} procedent de {origin}, {platform_sector}."
+    },
+    "TRAIN_ARRIVING": {
+      "default": "{service_intro} procedent de {origin} està entrant a {platform_sector}."
+    },
+    "TRAIN_READY_FOR_BOARDING": {
+      "default": "{service_intro} amb destinació {destination}, {platform_sector}. Es prega als viatgers que es preparin per pujar.",
+      "accessible": "{service_intro} accessible amb destinació {destination}, {platform_sector}. Es prega als viatgers que es preparin per pujar."
+    },
+    "TRAIN_DEPARTING": {
+      "default": "{service_intro} amb destinació {destination} està sortint de {platform_sector}."
     }
   },
   "stopping_patterns": {
@@ -169,7 +271,7 @@
   "closing_messages": {
     "long_distance": "{operator} Llarga Distància els desitja un bon viatge.",
     "renfe_long_distance": "Renfe Llarga Distància els desitja un bon viatge.",
-    "operator": "{operator} els desitja un bon viatge.",
+    "operator": "",
     "none": ""
   },
   "accessibility": {

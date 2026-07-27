@@ -778,17 +778,23 @@ r.get("/announcements/history", adminAuth, (_req, res) => {
 
 // POST /admin/announcements/test - Test compose an announcement
 r.post("/announcements/test", adminAuth, (req, res) => {
-  const { train, eventType, languages } = req.body;
+  const { train, eventType, languages, sound_id } = req.body;
   const data = train || req.body;
   const composed = testCompose({ ...data, eventType, languages });
-  const soundInfo = resolveAnnouncementSound(data, eventType, db);
+  let soundInfo = resolveAnnouncementSound(data, eventType, db);
+  if (sound_id) {
+    const asset = db.prepare("SELECT id, file_path, name FROM audio_assets WHERE id = ?").get(sound_id);
+    if (asset) {
+      soundInfo = { ...soundInfo, soundId: asset.id, assetPath: asset.file_path, languageSounds: null };
+    }
+  }
   res.json({
     status: "ok",
     data: {
       composed,
       eventType,
-      chime: soundInfo?.assetPath
-        ? { id: soundInfo.soundId, assetPath: soundInfo.assetPath, soundMode: soundInfo.soundMode, delayAfterSoundMs: soundInfo.delayAfterSoundMs, soundVolume: soundInfo.soundVolume }
+      chime: soundInfo?.assetPath || soundInfo?.languageSounds
+        ? { id: soundInfo.soundId, assetPath: soundInfo.assetPath || null, soundMode: soundInfo.soundMode, languageSounds: soundInfo.languageSounds || null, delayAfterSoundMs: soundInfo.delayAfterSoundMs, soundVolume: soundInfo.soundVolume }
         : null,
       ruleApplied: soundInfo?.ruleId ? soundInfo : null,
     },

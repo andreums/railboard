@@ -418,6 +418,7 @@ export default function Display() {
           flexShrink: 0,
           gap: "1rem",
           boxSizing: "border-box",
+          position: "relative",
         }}
       >
         {/* Logo + mode + station */}
@@ -461,10 +462,8 @@ export default function Display() {
                 fontSize: "clamp(3rem, 7dvh, 7rem)",
                 lineHeight: 1,
                 whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                maxWidth: "40vw",
-                flexShrink: 0,
+                minWidth: 0,
+                flex: "1 1 auto",
               }}
             >
               {boardStationName}
@@ -487,19 +486,25 @@ export default function Display() {
               fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
             />
           </div>
-          <span
-            style={{
-              fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              opacity: 0.75,
-              marginTop: "0.1rem",
-              fontWeight: 700,
-            }}
-          >
-            {t("platform", lang)}
-          </span>
         </div>
+        {/* VÍA — aligned with PLATFORM column */}
+        <span
+          style={{
+            position: "absolute",
+            right: "1rem",
+            width: W_PLAT,
+            fontFamily: "'Oswald', sans-serif",
+            fontWeight: 700,
+            fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            opacity: 0.75,
+            textAlign: "center",
+            bottom: "0.4rem",
+          }}
+        >
+          {t("platform", lang)}
+        </span>
       </header>
 
       {/* ══════════ TABLE ══════════ */}
@@ -664,8 +669,9 @@ export default function Display() {
                   style={{
                     width: "48%",
                     height: "100%",
-                    display: "grid",
-                    placeItems: "center start",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
                     overflow: "hidden",
                     lineHeight: 0,
                   }}
@@ -678,7 +684,7 @@ export default function Display() {
                           alt={train.type_code || ""}
                           style={{
                             maxWidth: "100%",
-                            height: "40%",
+                            height: "0.9em",
                             width: "auto",
                             objectFit: "contain",
                             borderRadius: "0.2em",
@@ -695,14 +701,12 @@ export default function Display() {
                           alt={train.operator_name || ""}
                           style={{
                             maxWidth: "100%",
-        height: "0.9em",
+                            height: "0.9em",
                             width: "auto",
                             objectFit: "contain",
                             borderRadius: "0.2em",
                             display: "block",
                             margin: 0,
-                            overflow: "visible",
-                            transform: "translateY(0.25em)",
                           }}
                           onError={(e) => handleImgError(e, train.operator_name || "Logo")}
                         />
@@ -716,8 +720,6 @@ export default function Display() {
                             lineHeight: 1,
                             textTransform: "uppercase",
                             letterSpacing: "0.04em",
-                            transform: "translateY(0.25em)",
-                            display: "inline-block",
                           }}
                         >
                           {train.operator_name}
@@ -743,7 +745,7 @@ export default function Display() {
                     textAlign: "center",
                   }}
                 >
-                  <div style={{ whiteSpace: "nowrap", minWidth: "5ch", transform: "translateY(0.25em)" }}>{padNum}</div>
+                  <div style={{ whiteSpace: "nowrap", minWidth: "5ch" }}>{padNum}</div>
                 </div>
                 {/* Margin */}
                 <div style={{ width: "2%" }} />
@@ -810,7 +812,7 @@ export default function Display() {
                 }}
               >
                 {hasStops && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden", marginTop: "10px" }}>
+                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
                     <ScrollText text={train.stops.join(" · ")} color="#ffffff" bold fontSize="100%" />
                   </div>
                 )}
@@ -826,9 +828,7 @@ export default function Display() {
                   height: "40%",
                   fontSize: "19%",
                   display: "flex",
-                  flexDirection: "row",
                   alignItems: "center",
-                  gap: "0.4em",
                   overflow: "hidden",
                   boxSizing: "border-box",
                 }}
@@ -837,12 +837,12 @@ export default function Display() {
                   <img
                     src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
                     alt="Cercanías"
-                    style={{ height: "1em", width: "auto", objectFit: "contain", flexShrink: 0 }}
+                    style={{ height: "1.22em", width: "auto", objectFit: "contain", flexShrink: 0, marginRight: "0.4em" }}
                     onError={(e) => handleImgError(e, "Cercanías")}
                   />
                 )}
                 {hasObservations && (
-                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ minWidth: 0, overflow: "hidden" }}>
                     <ScrollText text={train.observations!} color="#5FE0AF" bold fontSize="100%" />
                   </div>
                 )}

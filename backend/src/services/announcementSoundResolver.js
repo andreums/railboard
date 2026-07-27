@@ -38,25 +38,43 @@ export function resolveAnnouncementSound(train, eventType, db) {
   }
 
   if (candidates.length === 0) {
-    return { soundId: null, ruleId: null, assetPath: null, soundMode: "SINGLE", delayAfterSoundMs: 600, delayBetweenLanguagesMs: 1000, soundVolume: 1.0 };
+    return { soundId: null, ruleId: null, assetPath: null, soundMode: "SINGLE", languageSounds: null, delayAfterSoundMs: 600, delayBetweenLanguagesMs: 1000, soundVolume: 1.0 };
   }
 
   const best = candidates.reduce((a, b) => (a.priority < b.priority ? a : b));
 
-  if (!best.asset_path) {
-    return { soundId: null, ruleId: best.id, assetPath: null, soundMode: best.sound_mode || "SINGLE", delayAfterSoundMs: best.delay_after_sound_ms || 600, delayBetweenLanguagesMs: best.delay_between_languages_ms || 1000, soundVolume: best.sound_volume || 1.0 };
+  const soundMode = best.sound_mode || "SINGLE";
+  let languageSounds = null;
+  if (soundMode === "PER_LANGUAGE" && best.language_sounds) {
+    const langMap = safeParseMatchConfig(best.language_sounds);
+    if (langMap && typeof langMap === "object") {
+      languageSounds = {};
+      for (const [lang, assetId] of Object.entries(langMap)) {
+        if (!assetId) continue;
+        const asset = db.prepare("SELECT file_path FROM audio_assets WHERE id = ?").get(assetId);
+        if (asset) languageSounds[lang] = asset.file_path;
+      }
+      if (Object.keys(languageSounds).length === 0) languageSounds = null;
+    }
   }
 
-  return {
+  if (!best.asset_path && !languageSounds) {
+    return { soundId: null, ruleId: best.id, assetPath: null, soundMode, languageSounds: null, delayAfterSoundMs: best.delay_after_sound_ms || 600, delayBetweenLanguagesMs: best.delay_between_languages_ms || 1000, soundVolume: best.sound_volume || 1.0 };
+  }
+
+  const result = {
     soundId: best.sound_id,
     ruleId: best.id,
-    assetPath: best.asset_path,
-    soundMode: best.sound_mode || "SINGLE",
+    assetPath: best.asset_path || null,
+    soundMode,
+    languageSounds,
     delayAfterSoundMs: best.delay_after_sound_ms || 600,
     delayBetweenLanguagesMs: best.delay_between_languages_ms || 1000,
     soundVolume: best.sound_volume || 1.0,
     ruleMatch: best.match_config,
   };
+
+  return result;
 }
 
 function safeParseMatchConfig(raw) {
@@ -77,10 +95,24 @@ export function createDefaultSoundRules(db) {
      VALUES (?, ?, ?, ?, ?, ?, 1)`
   );
 
-  stmt.run(100, JSON.stringify({ service_type: "COMMUTER" }), null, "SINGLE", 500, 800);
-  stmt.run(200, JSON.stringify({ service_type: "REGIONAL" }), null, "SINGLE", 600, 1000);
-  stmt.run(300, JSON.stringify({ service_type: "LONG_DISTANCE" }), null, "SINGLE", 800, 1200);
-  stmt.run(400, JSON.stringify({}), null, "SINGLE", 600, 1000);
+  // State-specific rules (lower priority = higher precedence)
+  stmt.run(310, JSON.stringify({ event_type: "TRAIN_CANCELLED" }), null, "SINGLE", 800, 1200);
+  stmt.run(320, JSON.stringify({ event_type: "PLATFORM_CHANGE" }), null, "SINGLE", 600, 1000);
+  stmt.run(330, JSON.stringify({ event_type: "TRAIN_IMMINENT_DEPARTURE" }), null, "SINGLE", 400, 800);
+  stmt.run(340, JSON.stringify({ event_type: "TRAIN_DEPARTING" }), null, "SINGLE", 500, 1000);
+  stmt.run(350, JSON.stringify({ event_type: "TRAIN_APPROACHING" }), null, "SINGLE", 600, 1000);
+  stmt.run(360, JSON.stringify({ event_type: "TRAIN_ARRIVING" }), null, "SINGLE", 600, 1000);
+  stmt.run(370, JSON.stringify({ event_type: "TRAIN_BOARDING" }), null, "SINGLE", 500, 1000);
+  stmt.run(380, JSON.stringify({ event_type: "TRAIN_AT_PLATFORM" }), null, "SINGLE", 600, 1000);
+  stmt.run(390, JSON.stringify({ event_type: "TRAIN_DELAYED" }), null, "SINGLE", 700, 1000);
+
+  // Service-type fallbacks
+  stmt.run(400, JSON.stringify({ service_type: "COMMUTER" }), null, "SINGLE", 500, 800);
+  stmt.run(500, JSON.stringify({ service_type: "REGIONAL" }), null, "SINGLE", 600, 1000);
+  stmt.run(600, JSON.stringify({ service_type: "LONG_DISTANCE" }), null, "SINGLE", 800, 1200);
+
+  // Catch-all
+  stmt.run(999, JSON.stringify({}), null, "SINGLE", 600, 1000);
 
   logger.info("Default sound rules created");
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, fileUrl, connectWS, type Train, type Operator, type TrainType, type Station, type AudioAsset, type SoundRule, type SoundProfile } from "../../lib/api";
 import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear, FileText, Save } from "lucide-react";
+import { speak, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
 
 type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales" | "templates";
 
@@ -104,8 +105,8 @@ const TRAIN_PRESETS: Record<string, any> = {
   },
 };
 
-export default function MegaphonyPanel({ operators, trainTypes, trains, stations }: {
-  operators: Operator[]; trainTypes: TrainType[]; trains: Train[]; stations: Station[];
+export default function MegaphonyPanel({ operators, trainTypes, trains, stations, ttsConfig }: {
+  operators: Operator[]; trainTypes: TrainType[]; trains: Train[]; stations: Station[]; ttsConfig?: any;
 }) {
   const [activeTab, setActiveTab] = useState<TabType>("dashboard");
   const [config, setConfig] = useState<any>(null);
@@ -135,6 +136,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
   const [testResult, setTestResult] = useState<any>(null);
   const [testStationId, setTestStationId] = useState<number | null>(null);
   const [testAllResults, setTestAllResults] = useState<any[] | null>(null);
+  const [testSoundId, setTestSoundId] = useState<number | null>(null);
 
   // Template editor state
   const [templateLang, setTemplateLang] = useState("ca");
@@ -166,19 +168,32 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const playAnnouncementTexts = async (texts: Record<string, string>, languages: string[]) => {
-    const synth = window.speechSynthesis;
-    synth.cancel();
+  const playAudioFile = (assetPath?: string): Promise<void> => {
+    if (!assetPath) return Promise.resolve();
+    return new Promise((resolve) => {
+      const audio = new Audio(fileUrl(assetPath) || assetPath);
+      audio.volume = 0.7;
+      audio.onended = () => resolve();
+      audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
+    });
+  };
+
+  const playAnnouncementTexts = async (texts: Record<string, string>, languages: string[], chimeAssetPath?: string, languageSounds?: Record<string, string>) => {
+    if (chimeAssetPath) await playAudioFile(chimeAssetPath);
     for (const lang of languages) {
+      const vs = {
+        ...loadVoiceSettings(ttsConfig),
+        voiceURI: getVoiceURIForLanguage(ttsConfig, lang),
+      };
+      const langSound = languageSounds?.[lang];
+      if (langSound) await playAudioFile(langSound);
       const text = texts[lang];
       if (!text) continue;
       await new Promise<void>((resolve) => {
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.lang = lang === "ca" ? "ca-ES" : lang === "es" ? "es-ES" : lang === "en" ? "en-GB" : lang === "va" ? "ca-ES" : lang === "eu" ? "eu-ES" : "gl-ES";
-        utterance.rate = 0.95;
-        utterance.onend = () => resolve();
-        utterance.onerror = () => resolve();
-        synth.speak(utterance);
+        const u = speak(text, vs, lang);
+        u.onend = () => resolve();
+        u.onerror = () => resolve();
       });
     }
   };
@@ -230,6 +245,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
         train: trainData,
         eventType: testEventType,
         languages: testLanguages,
+        sound_id: testSoundId,
       });
       setTestResult(result);
     } catch (err: any) {
@@ -296,7 +312,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     const results: any[] = [];
     for (const et of EVENT_TYPES) {
       try {
-        const r = await api.testAnnouncement({ train: trainData, eventType: et, languages: testLanguages });
+        const r = await api.testAnnouncement({ train: trainData, eventType: et, languages: testLanguages, sound_id: testSoundId });
         results.push({ eventType: et, result: r });
       } catch { /* skip failed */ }
     }
@@ -533,7 +549,11 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                       <td className="px-4 py-2 text-slate-500">{(() => { try { return JSON.parse(item.languages || "[]").join(", "); } catch { return ""; } })()}</td>
                       <td className="px-4 py-2 text-slate-500 text-xs">{new Date(item.created_at).toLocaleString()}</td>
                       <td className="px-4 py-2">
-                        <button onClick={() => { setNowPlaying({ eventType: item.event_type, languages: JSON.parse(item.languages || "[]"), texts }); playAnnouncementTexts(texts, JSON.parse(item.languages || "[]")); }}
+                        <button onClick={() => {
+                          const chimeAsset = audioAssets.find((a) => a.id === item.chime_asset_id);
+                          setNowPlaying({ eventType: item.event_type, languages: JSON.parse(item.languages || "[]"), texts });
+                          playAnnouncementTexts(texts, JSON.parse(item.languages || "[]"), chimeAsset?.file_path);
+                        }}
                           className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Reproducir">
                           <Play size={14} />
                         </button>
@@ -586,7 +606,11 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                       </td>
                       <td className="px-4 py-2 text-xs text-slate-400">{new Date(item.created_at).toLocaleString()}</td>
                       <td className="px-4 py-2">
-                        <button onClick={() => { setNowPlaying({ eventType: item.event_type, languages: langs, texts }); playAnnouncementTexts(texts, langs); }}
+                        <button onClick={() => {
+                          const chimeAsset = audioAssets.find((a) => a.id === item.chime_asset_id);
+                          setNowPlaying({ eventType: item.event_type, languages: langs, texts });
+                          playAnnouncementTexts(texts, langs, chimeAsset?.file_path);
+                        }}
                           className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600" title="Reproducir">
                           <Play size={14} />
                         </button>
@@ -611,7 +635,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Evento</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Evento</label>
                 <select value={testEventType} onChange={(e) => setTestEventType(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   {EVENT_TYPES.map((et) => <option key={et} value={et}>{et}</option>)}
@@ -619,7 +643,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Estación</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Estación</label>
                 <select value={testStationId || ""} onChange={(e) => setTestStationId(e.target.value ? Number(e.target.value) : null)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   <option value="">Sin estación</option>
@@ -628,7 +652,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Tren real (si existe en el sistema)</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Tren real (si existe en el sistema)</label>
                 <select value={testTrainId || ""} onChange={(e) => { setTestTrainId(e.target.value ? Number(e.target.value) : null); }}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   <option value="">Ninguno (usa perfil de ejemplo)</option>
@@ -637,7 +661,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Perfil de tren de ejemplo</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Perfil de tren de ejemplo</label>
                 <select value={testPresetId} onChange={(e) => setTestPresetId(e.target.value)}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
                   {Object.keys(TRAIN_PRESETS).map((k) => <option key={k} value={k}>{k}</option>)}
@@ -645,19 +669,28 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Idiomas</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Idiomas</label>
                 <div className="flex gap-2 flex-wrap">
                   {LANGUAGES.map((lang) => (
-                    <label key={lang} className="flex items-center gap-1 text-sm">
+                    <label key={lang} className="flex items-center gap-1 text-sm text-slate-800">
                       <input type="checkbox" checked={testLanguages.includes(lang)}
                         onChange={() => setTestLanguages((prev) =>
                           prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
                         )}
-                        className="rounded border-slate-300" />
+                        className="rounded border-slate-300 accent-blue-900" />
                       {LANG_LABELS[lang]}
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Chime / jingle (opcional)</label>
+                <select value={testSoundId ?? ""} onChange={(e) => setTestSoundId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                  <option value="">Usar reglas de sonido</option>
+                  {audioAssets.map((a) => <option key={a.id} value={a.id}>{a.name} ({a.asset_type})</option>)}
+                </select>
               </div>
 
               <div className="flex gap-2 pt-2 flex-wrap">
@@ -680,21 +713,38 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
           {testAllResults ? (
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-800">Todos los eventos</h3>
-                <button onClick={() => setTestAllResults(null)}
-                  className="text-xs text-slate-400 hover:text-slate-600">Cerrar</button>
+                <h3 className="font-semibold text-slate-800">Todos los eventos ({testAllResults.length})</h3>
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    for (const { eventType, result } of testAllResults) {
+                      const texts = result.composed || result;
+                      const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
+                      await playAnnouncementTexts(texts, langs, result.chime?.assetPath, result.chime?.languageSounds);
+                    }
+                  }}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700">
+                    <Speaker size={13} /> Reproducir todos
+                  </button>
+                  <button onClick={() => setTestAllResults(null)}
+                    className="text-xs text-slate-400 hover:text-slate-600">Cerrar</button>
+                </div>
               </div>
               <div className="space-y-2 max-h-[60vh] overflow-y-auto">
                 {testAllResults.map(({ eventType, result }) => {
                   const texts = result.composed || result;
                   const firstText = Object.values(texts).find((v: any) => typeof v === "string" && v.length > 0) as string || "";
+                  const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
                   return (
-                    <div key={eventType} className="bg-slate-50 rounded-lg p-3 flex items-start gap-3">
+                    <div key={eventType} className="bg-slate-50 rounded-lg p-3 flex items-start gap-2">
                       {result.chime?.assetPath && (
                         <span className="text-xs text-emerald-600 shrink-0" title={result.chime.assetPath}>♪</span>
                       )}
                       <span className="text-xs font-mono text-slate-500 whitespace-nowrap min-w-[14ch]">{eventType.replace(/_/g, " ")}</span>
                       <span className="text-sm text-slate-800 flex-1 truncate" title={firstText}>{firstText}</span>
+                      <button onClick={() => playAnnouncementTexts(texts, langs, result.chime?.assetPath, result.chime?.languageSounds)}
+                        className="text-xs text-emerald-600 hover:text-emerald-800 shrink-0" title="Reproducir">
+                        <Speaker size={13} />
+                      </button>
                       <button onClick={() => { setTestResult(result); setTestAllResults(null); }}
                         className="text-xs text-blue-600 hover:underline shrink-0">Ver</button>
                     </div>
@@ -710,7 +760,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                   <button onClick={() => {
                     const texts = testResult.composed || testResult;
                     const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
-                    playAnnouncementTexts(texts, langs);
+                    playAnnouncementTexts(texts, langs, testResult.chime?.assetPath, testResult.chime?.languageSounds);
                   }}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs hover:bg-amber-700">
                     <Speaker size={13} /> Reproduir
@@ -723,15 +773,25 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                     <div className="text-xs text-slate-500">Evento: {testResult.eventType}</div>
                   )}
                   {testResult.chime && (
-                    <div className="bg-slate-50 rounded-lg p-3 text-xs">
-                      <span className="font-medium text-slate-600">Chime:</span>{' '}
-                      {testResult.chime.assetPath ? (
-                        <span className="text-emerald-600">✓ {testResult.chime.assetPath}</span>
-                      ) : (
-                        <span className="text-slate-400">Ninguno (predeterminado)</span>
+                    <div className="bg-slate-50 rounded-lg p-3 text-xs space-y-1">
+                      <div>
+                        <span className="font-medium text-slate-600">Chime:</span>{' '}
+                        {testResult.chime.assetPath ? (
+                          <span className="text-emerald-600">✓ {testResult.chime.assetPath}</span>
+                        ) : (
+                          <span className="text-slate-400">Ninguno (predeterminado)</span>
+                        )}
+                      </div>
+                      {testResult.chime.languageSounds && Object.keys(testResult.chime.languageSounds).length > 0 && (
+                        <div>
+                          <span className="font-medium text-slate-600">Per lengua:</span>{' '}
+                          {Object.entries(testResult.chime.languageSounds).map(([lang, path]) => (
+                            <span key={lang} className="text-emerald-600 mr-2">{lang}: ✓ {path as string}</span>
+                          ))}
+                        </div>
                       )}
                       {testResult.ruleApplied && (
-                        <div className="mt-1 text-slate-400">Regla: {JSON.stringify(testResult.ruleApplied)}</div>
+                        <div className="text-slate-400">Regla: {JSON.stringify(testResult.ruleApplied)}</div>
                       )}
                     </div>
                   )}
@@ -878,7 +938,9 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Asset de audio</label>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      {editingRule.sound_mode === "PER_LANGUAGE" ? "Asset global (fallback)" : "Asset de audio"}
+                    </label>
                     <select value={editingRule.sound_id || ""}
                       onChange={(e) => setEditingRule({ ...editingRule, sound_id: e.target.value ? Number(e.target.value) : undefined })}
                       className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
@@ -896,6 +958,29 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                     </select>
                   </div>
                 </div>
+                {editingRule.sound_mode === "PER_LANGUAGE" && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {LANGUAGES.map((lang) => (
+                      <div key={lang}>
+                        <label className="block text-xs font-medium text-slate-500 mb-1">{LANG_LABELS[lang] || lang}</label>
+                        <select value={(editingRule.language_sounds ? (typeof editingRule.language_sounds === "string" ? JSON.parse(editingRule.language_sounds) : editingRule.language_sounds)[lang] : "") || ""}
+                          onChange={(e) => {
+                            const current = editingRule.language_sounds
+                              ? (typeof editingRule.language_sounds === "string" ? JSON.parse(editingRule.language_sounds) : editingRule.language_sounds)
+                              : {};
+                            setEditingRule({
+                              ...editingRule,
+                              language_sounds: { ...current, [lang]: e.target.value ? Number(e.target.value) : undefined },
+                            });
+                          }}
+                          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                          <option value="">Ninguno</option>
+                          {audioAssets.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-xs font-medium text-slate-500 mb-1">Delay post-sonido (ms)</label>
@@ -1214,7 +1299,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                   <label className="flex items-center gap-2 text-sm pb-2">
                     <input type="checkbox" checked={editingProfile.enabled !== 0}
                       onChange={(e) => setEditingProfile({ ...editingProfile, enabled: e.target.checked ? 1 : 0 })}
-                      className="rounded border-slate-300" />
+                      className="rounded border-slate-300 accent-blue-900" />
                     Activo
                   </label>
                 </div>
