@@ -342,14 +342,12 @@ export default function Display() {
   // Cap lower to prevent oversized rows that clip inner elements when few rows are visible.
   const rowH = `min(calc(${tableH} / ${n}), 10dvh)`;
 
-  // Column widths — mirror Gravita exactly
+  // Column widths — mirror Gravita exactly (from ADIF reference)
   const W_TIME = "11.17%";
-  const W_DEST = "51%";
-  const W_PROD = "23%";
-  const W_PLAT = "8.5%";
-  // margin between dest and prod: 0.5%
+  const W_DEST = "60.33%";
+  const W_PROD = "18%";
+  const W_PLAT = "10%";
   const W_MARG = "0.5%";
-  // access not shown (no access data)
 
   if (error) {
     return (
@@ -487,7 +485,7 @@ export default function Display() {
             />
           </div>
         </div>
-        {/* VÍA — aligned with PLATFORM column */}
+        {/* VÍA — aligned with PLATFORM column (right edge = table paddingRight) */}
         <span
           style={{
             position: "absolute",
@@ -664,10 +662,10 @@ export default function Display() {
                   boxSizing: "border-box",
                 }}
               >
-                {/* Logo slot */}
+                {/* Logo slot — 61% of product column */}
                 <div
                   style={{
-                    width: "48%",
+                    width: "61%",
                     height: "100%",
                     display: "flex",
                     alignItems: "center",
@@ -728,12 +726,12 @@ export default function Display() {
                     </>
                   )}
                 </div>
-                {/* Margin */}
+                {/* Margin — 2% */}
                 <div style={{ width: "2%" }} />
-                {/* Number slot */}
+                {/* Number slot — 35% of product column */}
                 <div
                   style={{
-                    width: "48%",
+                    width: "35%",
                     height: "100%",
                     fontSize: "90%",
                     display: "flex",
@@ -747,7 +745,7 @@ export default function Display() {
                 >
                   <div style={{ whiteSpace: "nowrap", minWidth: "5ch" }}>{padNum}</div>
                 </div>
-                {/* Margin */}
+                {/* Margin — 2% */}
                 <div style={{ width: "2%" }} />
               </div>
 
@@ -818,13 +816,15 @@ export default function Display() {
                 )}
               </div>
 
-              {/* MARGIN */}
+              {/* MARGIN — lower row */}
+              <div style={{ width: W_MARG, height: "40%" }} />
+              {/* Extra margin — matches Gravita's list-margin-inf */}
               <div style={{ width: W_MARG, height: "40%" }} />
 
-              {/* OBSERVATIONS — only under type + train number column */}
+              {/* OBSERVATIONS — 27% width, aligned under product + platform */}
               <div
                 style={{
-                  width: `calc(${W_PROD} + ${W_PLAT})`,
+                  width: "27%",
                   height: "40%",
                   fontSize: "19%",
                   display: "flex",
@@ -848,8 +848,8 @@ export default function Display() {
                 )}
               </div>
 
-              {/* PLATFORM lower (empty, keeps column alignment) */}
-              <div style={{ width: 0, height: "40%" }} />
+              {/* Margin-end — matches Gravita's list-margin-inf-end */}
+              <div style={{ width: W_MARG, height: "40%" }} />
             </div>
           );
         })}
