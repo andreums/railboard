@@ -36,9 +36,11 @@ export default function OperatorLogo({
 }) {
   const normalizedName = (operatorName || "").toLowerCase().trim();
   const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || /^C\d|MA-C\d/i.test(typeCode || "");
+  const isRegional = /^R\d/i.test(typeCode || "");
   const isAVE = normalizedName.includes("ave") || typeCode === "AVE";
 
-  const logoSrc = typeLogo ? fileUrl(typeLogo) : operatorLogo ? fileUrl(operatorLogo) : null;
+  const showTypeLogo = (isCercanias || isRegional) && typeLogo;
+  const logoSrc = showTypeLogo ? fileUrl(typeLogo) : operatorLogo ? fileUrl(operatorLogo) : null;
 
   if (isCercanias || isAVE) {
     const bgColor = isAVE ? "#9B1B7A" : "#FFFFFF";

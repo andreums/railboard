@@ -1,11 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
+import {
+  LayoutDashboard, ShieldCheck, FileJson, Route as RouteIcon, Building2,
+  Train as TrainIcon, Tags, MapPin, ClipboardList, Monitor, Building,
+  Palette, Mic, Volume2, GitBranch, Radio, Cpu, Brain, Megaphone,
+} from "lucide-react";
 
 const defaultConfig = (stationName = ""): Config => ({
   station_name: stationName,
@@ -46,6 +51,60 @@ const EVENT_TYPES: { id: string; label: string }[] = [
   { id: "PLATFORM_CHANGE", label: "Canvi de via" },
 ];
 
+const sidebarGroups = [
+  {
+    label: "General",
+    items: [
+      { id: "dashboard", label: "Panel", icon: LayoutDashboard, to: "/admin" },
+      { id: "validation", label: "Validación", icon: ShieldCheck, to: "/admin?tab=validation" },
+      { id: "import", label: "Importación de datos", icon: FileJson, to: "/admin?tab=import" },
+    ],
+  },
+  {
+    label: "Infraestructura ferroviaria",
+    items: [
+      { id: "routes", label: "Rutas", icon: RouteIcon, to: "/admin?tab=routes" },
+      { id: "operators", label: "Operadores", icon: Building2, to: "/admin?tab=operators" },
+      { id: "trains", label: "Trenes", icon: TrainIcon, to: "/admin?tab=trains" },
+      { id: "types", label: "Tipos de tren", icon: Tags, to: "/admin?tab=types" },
+      { id: "places", label: "Destinos", icon: MapPin, to: "/admin?tab=places" },
+      { id: "services", label: "Servicios", icon: ClipboardList, to: "/admin?tab=services" },
+    ],
+  },
+  {
+    label: "Displays y señalética",
+    items: [
+      { id: "displays", label: "Displays", icon: Monitor, to: "/admin/displays" },
+      { id: "station", label: "Estación actual", icon: Building, to: "/admin?tab=station" },
+      { id: "styles", label: "Estilos", icon: Palette, to: "/admin?tab=styles" },
+    ],
+  },
+  {
+    label: "Audio y locuciones",
+    items: [
+      { id: "voice", label: "Voz e idiomas", icon: Mic, to: "/admin?tab=voice" },
+      { id: "locutions", label: "Locuciones", icon: Volume2, to: "/admin?tab=locutions" },
+    ],
+  },
+  {
+    label: "Información al viajero",
+    items: [
+      { id: "displayScreens", label: "Pantallas", icon: Monitor, to: "/admin?tab=displayScreens" },
+      { id: "megaphony", label: "Megafonía", icon: Megaphone, to: "/admin?tab=megaphony" },
+      { id: "audioNodes", label: "Nodos audio", icon: Radio, to: "/admin?tab=audioNodes" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { id: "devices", label: "Dispositivos", icon: Radio, to: "/admin?tab=devices" },
+      { id: "hardware", label: "Hardware", icon: Cpu, to: "/admin?tab=hardware" },
+      { id: "simulation", label: "Simulación", icon: GitBranch, to: "/admin?tab=simulation" },
+      { id: "automation", label: "Automatización", icon: Brain, to: "/admin?tab=automation" },
+    ],
+  },
+];
+
 const formatPlatform = (train: Train) => {
   const sector = train.sector && train.sector !== "-" ? train.sector : "";
   const platform = train.platform && train.platform !== "-" ? train.platform : "";
@@ -57,6 +116,8 @@ const formatPlatform = (train: Train) => {
 
 export default function DisplayConfigPage() {
   const { stationId } = useParams<{ stationId?: string }>();
+  const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"config" | "platforms" | "style" | "trains" | "types">("config");
   const [displays, setDisplays] = useState<DisplaySummary[]>([]);
   const [globalConfig, setGlobalConfig] = useState<Config | null>(null);
@@ -70,6 +131,7 @@ export default function DisplayConfigPage() {
   const [busy, setBusy] = useState(false);
   const [announcingId, setAnnouncingId] = useState<number | null>(null);
   const [announcePopup, setAnnouncePopup] = useState<{ train: Train } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [popupEventType, setPopupEventType] = useState<string>("TRAIN_ANNOUNCEMENT");
   const [popupLanguages, setPopupLanguages] = useState<Language[]>([]);
   const [popupSoundId, setPopupSoundId] = useState<number | null>(null);
@@ -443,11 +505,56 @@ export default function DisplayConfigPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[260px_1fr]">
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
+      )}
+      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto`}>
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-200">
+          <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
           <div>
+            <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
+            <p className="text-xs text-slate-500">Administración</p>
+          </div>
+        </div>
+        <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
+          {sidebarGroups.map((group) => (
+            <div key={group.label}>
+              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.id}
+                      to={item.to}
+                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        item.id === "displays"
+                          ? "bg-blue-50 text-blue-900 font-semibold"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <Icon size={17} className="shrink-0" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <div className="flex min-w-0 flex-col">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
             <div className="flex items-center gap-3">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 lg:hidden" title="Toggle sidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+              </button>
               {displayedStation.logo_url && (
                 <img
                   src={fileUrl(displayedStation.logo_url)!}
@@ -458,20 +565,19 @@ export default function DisplayConfigPage() {
               )}
               <div>
                 <h1 className="text-lg font-bold text-slate-900">{displayName}</h1>
-                <p className="text-xs text-slate-500">ID {displayedStation.id}</p>
+                <p className="text-sm text-slate-500">ID {displayedStation.id} · {trains.length} trens</p>
               </div>
             </div>
+            <div className="flex items-center gap-3">
+              <Link to="/admin/displays" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                ← Llista
+              </Link>
+              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
+                Admin
+              </Link>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Link to="/admin/displays" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-              ← Lista
-            </Link>
-            <Link to="/admin" className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
-              Admin
-            </Link>
-          </div>
-        </div>
-      </header>
+        </header>
 
       <main className="h-[calc(100vh-81px)] w-full px-4 sm:px-6 py-4 space-y-4 overflow-hidden flex flex-col">
         <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
@@ -1248,6 +1354,7 @@ export default function DisplayConfigPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }
