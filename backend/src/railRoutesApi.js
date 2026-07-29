@@ -88,7 +88,7 @@ function buildRowsFromServices(stationId, mode) {
         trainTypeCode: trainType?.code || svc.train_type_code || "SERV",
         trainTypeName: trainType?.name || svc.train_type_name || "Servicio",
         trainTypeColor: trainType?.color || null,
-        trainTypeLogo: svc.train_type_logo || null,
+        trainTypeLogo: svc.train_type_logo || trainType?.logo_url || null,
         trainTypeDestinationIcon: trainType?.destination_icon_url || null,
         customIcon: null,
         iconMode: "destination",
