@@ -35,8 +35,8 @@ export default function OperatorLogo({
   typeLogo?: string | null;
 }) {
   const normalizedName = (operatorName || "").toLowerCase().trim();
-  const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || /^C\d|MA-C\d/i.test(typeCode || "");
-  const isRegional = /^R\d/i.test(typeCode || "");
+  const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || /^(MA-)?C\d?$|^C-\d/i.test(typeCode || "");
+  const isRegional = /^(MA-)?R\d?$|^R-\d/i.test(typeCode || "");
   const isAVE = normalizedName.includes("ave") || typeCode === "AVE";
 
   const showTypeLogo = (isCercanias || isRegional) && typeLogo;

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
-import { LANGUAGES, type Language } from "../lib/i18n";
+import { LANGUAGES, t, type Language } from "../lib/i18n";
 import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildSectorOptions } from "../lib/trainOptions";
@@ -188,6 +188,7 @@ export default function DisplayConfigPage() {
     const langs = displayedConfig?.languages?.length ? displayedConfig.languages : [(displayedConfig?.language as Language) ?? "es"];
     return Array.from(new Set(langs.map((language) => language as Language))).filter(Boolean);
   }, [displayedConfig]);
+  const displayLanguage: Language = displayedLanguages[0] || "es";
   const displaySectorOptions = buildSectorOptions(displayedConfig, []);
   const trains = current?.trains || [];
 
@@ -1447,17 +1448,17 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <div className="md:col-span-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Restriccions de bitllets</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t("fare-restrictions", displayLanguage)}</label>
                   <div className="flex flex-wrap gap-x-4 gap-y-2">
-                    {[
-                      ["commuterTicketsNotAccepted", "Bitllets Rodalies"],
-                      ["commuterPassesNotAccepted", "Abonaments Rodalies"],
-                      ["regionalTicketsNotAccepted", "Bitllets Regionals"],
-                      ["regionalPassesNotAccepted", "Abonaments Regionals"],
-                      ["reservationRequired", "Reserva obligatòria"],
-                      ["supplementRequired", "Suplement obligatori"],
-                      ["specificTicketRequired", "Bitllet específic"],
-                    ].map(([key, label]) => (
+                    {([
+                      ["commuterTicketsNotAccepted", "fare-commuter-tickets"],
+                      ["commuterPassesNotAccepted", "fare-commuter-passes"],
+                      ["regionalTicketsNotAccepted", "fare-regional-tickets"],
+                      ["regionalPassesNotAccepted", "fare-regional-passes"],
+                      ["reservationRequired", "fare-reservation"],
+                      ["supplementRequired", "fare-supplement"],
+                      ["specificTicketRequired", "fare-specific-ticket"],
+                    ] as const).map(([key, i18nKey]) => (
                       <label key={key} className="flex items-center gap-1.5 text-sm text-slate-800 cursor-pointer select-none">
                         <input
                           type="checkbox"
@@ -1468,7 +1469,7 @@ export default function DisplayConfigPage() {
                           })}
                           className="w-4 h-4 rounded border-slate-500 text-blue-900 focus:ring-blue-900"
                         />
-                        {label}
+                        {t(i18nKey, displayLanguage)}
                       </label>
                     ))}
                   </div>
