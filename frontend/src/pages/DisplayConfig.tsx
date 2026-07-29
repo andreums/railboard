@@ -131,7 +131,6 @@ export default function DisplayConfigPage() {
   const [busy, setBusy] = useState(false);
   const [announcingId, setAnnouncingId] = useState<number | null>(null);
   const [announcePopup, setAnnouncePopup] = useState<{ train: Train } | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [popupEventType, setPopupEventType] = useState<string>("TRAIN_ANNOUNCEMENT");
   const [popupLanguages, setPopupLanguages] = useState<Language[]>([]);
   const [popupSoundId, setPopupSoundId] = useState<number | null>(null);
@@ -439,53 +438,112 @@ export default function DisplayConfigPage() {
 
   if (displayMode === "multiple" && !displayedStation) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <div className="w-full mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Displays</h1>
-              <p className="text-slate-500">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleAddDisplay}
-                className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
-              >
-                + Añadir display
-              </button>
-              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-                ← Volver al admin
-              </Link>
-            </div>
+      <div className="min-h-screen bg-slate-50">
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {displays.map((display) => (
-              <Link
-                key={display.station.id}
-                to={`/admin/displays/${display.station.id}`}
-                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:border-blue-300 transition"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">{display.station.short || display.station.name}</h2>
-                    <p className="text-sm text-slate-500">{display.station.name}</p>
-                  </div>
-                  {display.station.logo_url && (
-                    <img
-                      src={fileUrl(display.station.logo_url)!}
-                      alt={display.station.name}
-                      className="w-10 h-10 object-contain"
-                      onError={(e) => handleImgError(e, display.station.name)}
-                    />
-                  )}
+        )}
+        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
+          <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
+                <p className="text-xs text-slate-500">Administración</p>
+              </div>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
+            {sidebarGroups.map((group) => (
+              <div key={group.label}>
+                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        to={item.to}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                          item.id === "displays"
+                            ? "bg-blue-50 text-blue-900 font-semibold"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                      >
+                        <Icon size={17} className="shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
                 </div>
-                <div className="mt-4 text-sm text-slate-700">
-                  <div>{display.trains.length} trenes</div>
-                  <div className="text-slate-500">Modo: {display.config.mode || "departures"}</div>
-                </div>
-              </Link>
+              </div>
             ))}
           </div>
+        </aside>
+        <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
+          <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+            <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Toggle sidebar">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+                <h1 className="text-lg font-bold text-slate-900">Displays</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleAddDisplay}
+                  className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
+                >
+                  + Añadir display
+                </button>
+                <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                  Admin
+                </Link>
+              </div>
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 py-4">
+            {displays.length === 0 ? (
+              <div className="text-slate-500 text-sm">No hay displays configurados.</div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {displays.map((display) => (
+                  <Link
+                    key={display.station.id}
+                    to={`/admin/displays/${display.station.id}`}
+                    className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:border-blue-300 transition"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-xl font-bold text-slate-900">{display.station.short || display.station.name}</h2>
+                        <p className="text-sm text-slate-500">{display.station.name}</p>
+                      </div>
+                      {display.station.logo_url && (
+                        <img
+                          src={fileUrl(display.station.logo_url)!}
+                          alt={display.station.name}
+                          className="w-10 h-10 object-contain"
+                          onError={(e) => handleImgError(e, display.station.name)}
+                        />
+                      )}
+                    </div>
+                    <div className="mt-4 text-sm text-slate-700">
+                      <div>{display.trains.length} trenes</div>
+                      <div className="text-slate-500">Modo: {display.config.mode || "departures"}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </main>
         </div>
       </div>
     );
@@ -493,31 +551,104 @@ export default function DisplayConfigPage() {
 
   if (!displayedStation) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <div className="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white shadow-sm p-6">
-          <p className="text-slate-500">No hay displays configurados.</p>
-          <Link to="/admin" className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-            ← Volver al admin
-          </Link>
+      <div className="min-h-screen bg-slate-50">
+        {sidebarOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+            <div className="absolute inset-0 bg-black/40" />
+          </div>
+        )}
+        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
+          <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
+              <div>
+                <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
+                <p className="text-xs text-slate-500">Administración</p>
+              </div>
+            </div>
+            <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
+            {sidebarGroups.map((group) => (
+              <div key={group.label}>
+                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
+                <div className="space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.id}
+                        to={item.to}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                          item.id === "displays"
+                            ? "bg-blue-50 text-blue-900 font-semibold"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                        }`}
+                      >
+                        <Icon size={17} className="shrink-0" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </aside>
+        <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
+          <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+            <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Toggle sidebar">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+                <h1 className="text-lg font-bold text-slate-900">Displays</h1>
+              </div>
+              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                Admin
+              </Link>
+            </div>
+          </header>
+          <main className="flex-1 overflow-auto px-4 md:px-6 lg:px-8 py-4">
+            <div className="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+              <p className="text-slate-500">No hay displays configurados.</p>
+              <Link to="/admin" className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                ← Volver al admin
+              </Link>
+            </div>
+          </main>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[260px_1fr]">
+    <div className="min-h-screen bg-slate-50">
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
           <div className="absolute inset-0 bg-black/40" />
         </div>
       )}
-      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto`}>
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-200">
-          <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
-            <p className="text-xs text-slate-500">Administración</p>
+      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
+        <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
+            <div>
+              <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
+              <p className="text-xs text-slate-500">Administración</p>
+            </div>
           </div>
+          <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
         <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
           {sidebarGroups.map((group) => (
@@ -546,11 +677,11 @@ export default function DisplayConfigPage() {
           ))}
         </div>
       </aside>
-      <div className="flex min-w-0 flex-col">
+      <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
             <div className="flex items-center gap-3">
-              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 lg:hidden" title="Toggle sidebar">
+              <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600" title="Toggle sidebar">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
                 </svg>
@@ -579,7 +710,7 @@ export default function DisplayConfigPage() {
           </div>
         </header>
 
-      <main className="h-[calc(100vh-81px)] w-full px-4 sm:px-6 py-4 space-y-4 overflow-hidden flex flex-col">
+      <main className="flex-1 flex flex-col overflow-auto px-4 sm:px-6 py-4 space-y-4">
         <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
@@ -1315,6 +1446,33 @@ export default function DisplayConfigPage() {
                     ))}
                   </select>
                 </label>
+                <div className="md:col-span-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Restriccions de bitllets</label>
+                  <div className="flex flex-wrap gap-x-4 gap-y-2">
+                    {[
+                      ["commuterTicketsNotAccepted", "Bitllets Rodalies"],
+                      ["commuterPassesNotAccepted", "Abonaments Rodalies"],
+                      ["regionalTicketsNotAccepted", "Bitllets Regionals"],
+                      ["regionalPassesNotAccepted", "Abonaments Regionals"],
+                      ["reservationRequired", "Reserva obligatòria"],
+                      ["supplementRequired", "Suplement obligatori"],
+                      ["specificTicketRequired", "Bitllet específic"],
+                    ].map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-1.5 text-sm text-slate-800 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={!!(editingTrain.fare_restrictions as any)?.[key]}
+                          onChange={(e) => setEditingTrain({
+                            ...editingTrain,
+                            fare_restrictions: { ...(editingTrain.fare_restrictions as any || {}), [key]: e.target.checked },
+                          })}
+                          className="w-4 h-4 rounded border-slate-500 text-blue-900 focus:ring-blue-900"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <label className="block md:col-span-2">
                   <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Observaciones</div>
                   <textarea
