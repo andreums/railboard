@@ -35,7 +35,7 @@ export default function OperatorLogo({
   typeLogo?: string | null;
 }) {
   const normalizedName = (operatorName || "").toLowerCase().trim();
-  const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || typeCode === "C";
+  const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || /^C\d|MA-C\d/i.test(typeCode || "");
   const isAVE = normalizedName.includes("ave") || typeCode === "AVE";
 
   const logoSrc = typeLogo ? fileUrl(typeLogo) : operatorLogo ? fileUrl(operatorLogo) : null;
@@ -51,7 +51,7 @@ export default function OperatorLogo({
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: bgColor,
-          borderRadius: "clamp(6px, 0.5vw, 11px)",
+          borderRadius: "clamp(12px, 1vw, 22px)",
           width: "clamp(140px, 11vw, 235px)",
           height: "clamp(40px, 3.2vw, 68px)",
           flexShrink: 0,
@@ -99,7 +99,7 @@ export default function OperatorLogo({
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "#FFFFFF",
-          borderRadius: "clamp(6px, 0.5vw, 11px)",
+          borderRadius: "clamp(12px, 1vw, 22px)",
           width: "clamp(140px, 11vw, 235px)",
           height: "clamp(40px, 3.2vw, 68px)",
           flexShrink: 0,
@@ -133,7 +133,7 @@ export default function OperatorLogo({
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: bgColor,
-        borderRadius: "clamp(6px, 0.5vw, 11px)",
+        borderRadius: "clamp(12px, 1vw, 22px)",
         width: "clamp(140px, 11vw, 235px)",
         height: "clamp(40px, 3.2vw, 68px)",
         flexShrink: 0,

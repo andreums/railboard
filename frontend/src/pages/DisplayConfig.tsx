@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
-import { announceTrain, getAnnouncementTemplate } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
@@ -32,6 +31,20 @@ const defaultConfig = (stationName = ""): Config => ({
   showDestinationIcon: true,
 });
 
+const EVENT_TYPES: { id: string; label: string }[] = [
+  { id: "TRAIN_ANNOUNCEMENT", label: "Anunci de tren" },
+  { id: "TRAIN_APPROACHING", label: "Tren apropant-se" },
+  { id: "TRAIN_ARRIVING", label: "Tren arribant" },
+  { id: "TRAIN_AT_PLATFORM", label: "Tren a via" },
+  { id: "TRAIN_READY_FOR_BOARDING", label: "Preparat per a embarcar" },
+  { id: "TRAIN_BOARDING", label: "Embarcant" },
+  { id: "TRAIN_IMMINENT_DEPARTURE", label: "Eixida imminent" },
+  { id: "TRAIN_DEPARTING", label: "Tren eixint" },
+  { id: "TRAIN_DELAYED", label: "Tren amb retard" },
+  { id: "TRAIN_CANCELLED", label: "Tren cancel·lat" },
+  { id: "PLATFORM_CHANGE", label: "Canvi de via" },
+];
+
 const formatPlatform = (train: Train) => {
   const sector = train.sector && train.sector !== "-" ? train.sector : "";
   const platform = train.platform && train.platform !== "-" ? train.platform : "";
@@ -55,6 +68,11 @@ export default function DisplayConfigPage() {
   const [localConfig, setLocalConfig] = useState<Config | null>(null);
   const [busy, setBusy] = useState(false);
   const [announcingId, setAnnouncingId] = useState<number | null>(null);
+  const [announcePopup, setAnnouncePopup] = useState<{ train: Train } | null>(null);
+  const [popupEventType, setPopupEventType] = useState<string>("TRAIN_ANNOUNCEMENT");
+  const [popupLanguages, setPopupLanguages] = useState<Language[]>([]);
+  const [popupSoundId, setPopupSoundId] = useState<number | null>(null);
+  const [audioAssets, setAudioAssets] = useState<{ id: number; name: string; asset_type: string }[]>([]);
   const [editingTrain, setEditingTrain] = useState<Partial<Train> | null>(null);
   const [trainSaving, setTrainSaving] = useState(false);
   const [editingStopsText, setEditingStopsText] = useState("");
@@ -115,6 +133,13 @@ export default function DisplayConfigPage() {
   useEffect(() => {
     setStationNameDraft(displayedConfig?.station_name || displayedStation?.short || displayedStation?.name || "");
   }, [displayedStation?.id, displayedStation?.name, displayedStation?.short, displayedConfig?.station_name]);
+
+  useEffect(() => {
+    if (!announcePopup) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setAnnouncePopup(null); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [announcePopup]);
 
   const update = (patch: Partial<Config>) => {
     setLocalConfig((prev) => ({
@@ -203,29 +228,31 @@ export default function DisplayConfigPage() {
   };
 
   const announceRow = async (train: Train) => {
-    if (!displayedStation || !displayedConfig) return;
+    setPopupEventType("TRAIN_ANNOUNCEMENT");
+    setPopupLanguages(displayedLanguages);
+    setPopupSoundId(null);
+    setAnnouncePopup({ train });
     try {
-      setAnnouncingId(train.id);
-      announceTrain(train as any, {
-        ...(globalConfig || {}),
-        ...(displayedConfig || {}),
-      });
-    } finally {
-      window.setTimeout(() => setAnnouncingId((current) => (current === train.id ? null : current)), 1000);
-    }
+      const assets = await api.listAudioAssets();
+      setAudioAssets(assets.filter((a) => ["CHIME", "GONG", "ATTENTION_TONE"].includes(a.asset_type)));
+    } catch { setAudioAssets([]); }
   };
 
-  const announceRowWithStops = async (train: Train) => {
-    if (!displayedStation || !displayedConfig) return;
+  const executeAnnounce = async () => {
+    if (!announcePopup || !displayedStation) return;
+    const { train } = announcePopup;
     try {
       setAnnouncingId(train.id);
-      const mergedConfig = { ...(globalConfig || {}), ...(displayedConfig || {}) };
-      const mode = mergedConfig.mode === "arrivals" ? "arrivals" : "departures";
-      const baseTemplate = train.type_announce_template || getAnnouncementTemplate(mergedConfig, mode);
-      const stopsSuffix = train.stops?.length
-        ? ` ${{ es: "Paradas", ca: "Parades", en: "Stops", fr: "Arrêts", eu: "Geldialdiak", gl: "Paradas" }[mergedConfig.language as string] || "Paradas"}: ${train.stops.join(", ")}.`
-        : "";
-      announceTrain(train as any, mergedConfig, baseTemplate + stopsSuffix);
+      setAnnouncePopup(null);
+      await api.triggerAnnouncementEvent({
+        train,
+        eventType: popupEventType,
+        stationId: displayedStation.id,
+        languages: popupLanguages,
+        sound_id: popupSoundId || undefined,
+      });
+    } catch (err: any) {
+      setError(err?.message || "Error al encolar el anuncio");
     } finally {
       window.setTimeout(() => setAnnouncingId((current) => (current === train.id ? null : current)), 1000);
     }
@@ -298,10 +325,10 @@ export default function DisplayConfigPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-amber-400 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-300">Cargando display...</p>
+          <div className="w-12 h-12 border-4 border-blue-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-600">Cargando display...</p>
         </div>
       </div>
     );
@@ -309,10 +336,10 @@ export default function DisplayConfigPage() {
 
   if (error && !displays.length) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white p-6">
-        <div className="max-w-3xl mx-auto bg-white/5 border border-white/10 rounded-xl p-6">
-          <p className="text-red-300 font-semibold">{error}</p>
-          <button onClick={load} className="mt-4 px-4 py-2 rounded-lg bg-amber-500 text-black font-semibold">
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+          <p className="text-red-700 font-semibold">{error}</p>
+          <button onClick={load} className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
             Reintentar
           </button>
         </div>
@@ -342,21 +369,21 @@ export default function DisplayConfigPage() {
 
   if (displayMode === "multiple" && !displayedStation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white p-6">
+      <div className="min-h-screen bg-slate-50 p-6">
         <div className="w-full mx-auto space-y-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Displays</h1>
-              <p className="text-slate-400">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
+              <h1 className="text-3xl font-bold text-slate-900">Displays</h1>
+              <p className="text-slate-500">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={handleAddDisplay}
-                className="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition"
+                className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
               >
                 + Añadir display
               </button>
-              <Link to="/admin" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
+              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
                 ← Volver al admin
               </Link>
             </div>
@@ -366,12 +393,12 @@ export default function DisplayConfigPage() {
               <Link
                 key={display.station.id}
                 to={`/admin/displays/${display.station.id}`}
-                className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-amber-400/60 transition"
+                className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:border-blue-300 transition"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <h2 className="text-xl font-bold text-white">{display.station.short || display.station.name}</h2>
-                    <p className="text-sm text-slate-400">{display.station.name}</p>
+                    <h2 className="text-xl font-bold text-slate-900">{display.station.short || display.station.name}</h2>
+                    <p className="text-sm text-slate-500">{display.station.name}</p>
                   </div>
                   {display.station.logo_url && (
                     <img
@@ -382,7 +409,7 @@ export default function DisplayConfigPage() {
                     />
                   )}
                 </div>
-                <div className="mt-4 text-sm text-slate-300">
+                <div className="mt-4 text-sm text-slate-700">
                   <div>{display.trains.length} trenes</div>
                   <div className="text-slate-500">Modo: {display.config.mode || "departures"}</div>
                 </div>
@@ -396,10 +423,10 @@ export default function DisplayConfigPage() {
 
   if (!displayedStation) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white p-6">
-        <div className="max-w-3xl mx-auto bg-white/5 border border-white/10 rounded-xl p-6">
-          <p className="text-slate-300">No hay displays configurados.</p>
-          <Link to="/admin" className="inline-block mt-4 px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
+      <div className="min-h-screen bg-slate-50 p-6">
+        <div className="max-w-3xl mx-auto rounded-xl border border-slate-200 bg-white shadow-sm p-6">
+          <p className="text-slate-500">No hay displays configurados.</p>
+          <Link to="/admin" className="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
             ← Volver al admin
           </Link>
         </div>
@@ -408,8 +435,8 @@ export default function DisplayConfigPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 text-white">
-      <header className="border-b border-white/10 bg-black/40 backdrop-blur-xl sticky top-0 z-40">
+    <div className="min-h-screen bg-slate-50">
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -422,16 +449,16 @@ export default function DisplayConfigPage() {
                 />
               )}
               <div>
-                <h1 className="text-2xl font-bold">{displayName}</h1>
-                <p className="text-xs text-slate-400">ID {displayedStation.id}</p>
+                <h1 className="text-lg font-bold text-slate-900">{displayName}</h1>
+                <p className="text-xs text-slate-500">ID {displayedStation.id}</p>
               </div>
             </div>
           </div>
           <div className="flex gap-2">
-            <Link to="/admin/displays" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
-              ← Lista de displays
+            <Link to="/admin/displays" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+              ← Lista
             </Link>
-            <Link to="/admin" className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10">
+            <Link to="/admin" className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
               Admin
             </Link>
           </div>
@@ -439,7 +466,7 @@ export default function DisplayConfigPage() {
       </header>
 
       <main className="h-[calc(100vh-81px)] w-full px-4 sm:px-6 py-4 space-y-4 overflow-hidden flex flex-col">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-2 backdrop-blur-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
               { id: "config", label: "Configuración" },
@@ -452,7 +479,7 @@ export default function DisplayConfigPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as typeof activeTab)}
                 className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                  activeTab === tab.id ? "bg-amber-500 text-black" : "bg-transparent text-slate-300 hover:bg-white/10"
+                  activeTab === tab.id ? "bg-blue-50 text-blue-900" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
               >
                 {tab.label}
@@ -464,12 +491,12 @@ export default function DisplayConfigPage() {
         <div className="min-h-0 flex-1 overflow-hidden">
           {activeTab === "config" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4 mb-4">
                   <div>
-                    <h2 className="text-lg sm:text-xl font-bold">Configuración del display</h2>
-                    <p className="text-sm text-slate-400">La configuración se guarda de forma independiente para esta estación.</p>
-                    <p className="text-xs text-amber-300 mt-1">
+                    <h2 className="text-lg font-bold text-slate-900">Configuración del display</h2>
+                    <p className="text-sm text-slate-500">La configuración se guarda de forma independiente para esta estación.</p>
+                    <p className="text-xs text-blue-700 mt-1">
                       Modo global: {displayMode === "single" ? "solo un display" : "múltiples displays"}
                     </p>
                   </div>
@@ -477,14 +504,14 @@ export default function DisplayConfigPage() {
                     <Link
                       to={`/display/${displayedStation.id}`}
                       target="_blank"
-                      className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50"
                     >
                       Ver display
                     </Link>
                     <button
                       onClick={save}
                       disabled={saving || busy}
-                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {saving ? "Guardando..." : "Guardar"}
                     </button>
@@ -493,9 +520,9 @@ export default function DisplayConfigPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Nombre de la estación</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Nombre de la estación</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={stationNameDraft}
                       onChange={(e) => setStationNameDraft(e.target.value)}
                     />
@@ -504,9 +531,9 @@ export default function DisplayConfigPage() {
                     </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Modo</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Modo</label>
                     <select
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.mode || "departures"}
                       onChange={(e) => update({ mode: e.target.value as Config["mode"] })}
                     >
@@ -515,9 +542,9 @@ export default function DisplayConfigPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Región / ciudad</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Región / ciudad</label>
                     <select
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.routeRegion || ""}
                       onChange={(e) => update({ routeRegion: e.target.value })}
                     >
@@ -530,12 +557,12 @@ export default function DisplayConfigPage() {
                     </select>
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Idiomas</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Idiomas</label>
                     <div className="flex flex-wrap gap-2 mb-3">
                       {displayedLanguages.map((language) => (
                         <span
                           key={language}
-                          className="inline-flex items-center gap-1 rounded-full bg-amber-400/15 border border-amber-300/30 px-3 py-1 text-xs font-semibold text-amber-200"
+                          className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700"
                         >
                           {LANGUAGES[language]}
                         </span>
@@ -548,7 +575,7 @@ export default function DisplayConfigPage() {
                         return (
                           <label
                             key={code}
-                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${active ? "border-amber-400/60 bg-amber-400/10 text-white" : "border-white/10 bg-black/30 text-slate-300 hover:bg-white/5"}`}
+                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${active ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
                           >
                             <input type="checkbox" checked={active} onChange={(e) => toggleDisplayLanguage(language, e.target.checked)} />
                             <span>{name}</span>
@@ -556,14 +583,14 @@ export default function DisplayConfigPage() {
                         );
                       })}
                     </div>
-                    <p className="text-xs text-slate-400 mt-2">
-                      El primer idioma es el principal. Los anuncios y las voces pueden usar cualquiera de los idiomas seleccionados.
-                    </p>
+<p className="text-xs text-slate-500 mt-2">
+                                              El primer idioma es el principal. Los anuncios y las voces pueden usar cualquiera de los idiomas seleccionados.
+                                            </p>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Logo URL</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Logo URL</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.logo_url || ""}
                       onChange={(e) => update({ logo_url: e.target.value })}
                     />
@@ -575,26 +602,26 @@ export default function DisplayConfigPage() {
 
           {activeTab === "platforms" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-                <h3 className="text-lg font-bold mb-4">Vías y sectores</h3>
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-900">Vías y sectores</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía mínima</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Vía mínima</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.platformMin || "1"}
                       onChange={(e) => update({ platformMin: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vía máxima</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Vía máxima</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.platformMax || "8"}
                       onChange={(e) => update({ platformMax: e.target.value })}
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input
                       type="checkbox"
                       checked={displayedConfig?.platformAllowEmpty !== false}
@@ -603,22 +630,22 @@ export default function DisplayConfigPage() {
                     Permitir sin vía
                   </label>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector mínimo</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sector mínimo</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.sectorMin || "A"}
                       onChange={(e) => update({ sectorMin: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Sector máximo</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sector máximo</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.sectorMax || "D"}
                       onChange={(e) => update({ sectorMax: e.target.value })}
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-slate-200 sm:col-span-2">
+                  <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
                     <input
                       type="checkbox"
                       checked={displayedConfig?.sectorAllowEmpty !== false}
@@ -626,7 +653,7 @@ export default function DisplayConfigPage() {
                     />
                     Permitir sin sector
                   </label>
-                  <label className="flex items-center gap-3 text-slate-100 cursor-pointer">
+                  <label className="flex items-center gap-3 text-slate-700 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={displayedConfig?.showDestinationIcon !== false}
@@ -641,58 +668,58 @@ export default function DisplayConfigPage() {
 
           {activeTab === "style" && (
             <section className="space-y-4 h-full overflow-y-auto pr-1">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-                <h3 className="text-lg font-bold mb-4">Estilo y reloj</h3>
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-900">Estilo y reloj</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fondo</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Fondo</label>
                     <input
                       type="color"
-                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 h-10 cursor-pointer"
                       value={displayedConfig?.bgColor || "#050a14"}
                       onChange={(e) => update({ bgColor: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Cabecera</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Cabecera</label>
                     <input
                       type="color"
-                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 h-10 cursor-pointer"
                       value={displayedConfig?.headerBgColor || "#BFEFD5"}
                       onChange={(e) => update({ headerBgColor: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Texto cabecera</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Texto cabecera</label>
                     <input
                       type="color"
-                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 h-10 cursor-pointer"
                       value={displayedConfig?.headerTextColor || "#102341"}
                       onChange={(e) => update({ headerTextColor: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila principal</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Fila principal</label>
                     <input
                       type="color"
-                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 h-10 cursor-pointer"
                       value={displayedConfig?.rowBgColor || "#1A3254"}
                       onChange={(e) => update({ rowBgColor: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Fila alterna</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Fila alterna</label>
                     <input
                       type="color"
-                      className="w-full bg-black/40 rounded-lg px-2 py-1 h-10"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 h-10 cursor-pointer"
                       value={displayedConfig?.altBgColor || "#102341"}
                       onChange={(e) => update({ altBgColor: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Reloj</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Reloj</label>
                     <select
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.clockMode || "real"}
                       onChange={(e) => update({ clockMode: e.target.value as Config["clockMode"] })}
                     >
@@ -701,20 +728,20 @@ export default function DisplayConfigPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Hora ficticia</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Hora ficticia</label>
                     <input
                       type="time"
                       step="1"
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.clockFakeTime || "12:00:00"}
                       onChange={(e) => update({ clockFakeTime: e.target.value })}
                       disabled={(displayedConfig?.clockMode || "real") !== "fake"}
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Avance</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Avance</label>
                     <select
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.clockFakeStepSeconds || "1"}
                       onChange={(e) => update({ clockFakeStepSeconds: e.target.value })}
                       disabled={(displayedConfig?.clockMode || "real") !== "fake"}
@@ -727,9 +754,9 @@ export default function DisplayConfigPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Pie</label>
+                    <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Pie</label>
                     <input
-                      className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                       value={displayedConfig?.footerText || ""}
                       onChange={(e) => update({ footerText: e.target.value })}
                     />
@@ -741,38 +768,38 @@ export default function DisplayConfigPage() {
 
           {activeTab === "trains" && (
             <section className="space-y-4 h-full overflow-hidden">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-full flex flex-col min-h-0">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm h-full flex flex-col min-h-0">
                 <div className="flex items-center justify-between gap-3 mb-4">
                   <div>
-                    <h3 className="text-lg font-bold">Trenes del display</h3>
-                    <p className="text-sm text-slate-400">{trains.length} trenes asociados</p>
+                    <h3 className="text-lg font-bold text-slate-900">Trenes del display</h3>
+                    <p className="text-sm text-slate-500">{trains.length} trenes asociados</p>
                   </div>
                   <div className="flex flex-wrap gap-2 justify-end">
                     <button
                       onClick={() => openTrainEditor()}
                       disabled={busy || trainSaving}
-                      className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Añadir tren
                     </button>
                     <button
                       onClick={generateTrain}
                       disabled={busy}
-                      className="px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Generar
                     </button>
                     <button
                       onClick={exportTrains}
                       disabled={busy}
-                      className="px-4 py-2 rounded-lg border border-white/10 text-slate-200 hover:bg-white/10 font-semibold disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Exportar trenes
                     </button>
                     <button
                       onClick={clearTrains}
                       disabled={busy}
-                      className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-60"
+                      className="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       Vaciar
                     </button>
@@ -780,12 +807,12 @@ export default function DisplayConfigPage() {
                 </div>
 
                 {trains.length === 0 ? (
-                  <div className="text-slate-400 text-sm py-4">No hay trenes para este display.</div>
+                  <div className="text-slate-500 text-sm py-4">No hay trenes para este display.</div>
                 ) : (
-                  <div className="overflow-auto rounded-xl border border-white/10 flex-1 min-h-0">
+                  <div className="overflow-auto rounded-xl border border-slate-200 flex-1 min-h-0">
                     <table className="w-full text-[13px]">
-                      <thead className="bg-black/30 border-b border-white/10 sticky top-0 z-10">
-                        <tr className="text-xs uppercase tracking-wide text-slate-400">
+                      <thead className="border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
+                        <tr className="text-xs uppercase tracking-wide text-slate-500">
                           <th className="text-left py-2 px-3">Hora</th>
                           <th className="text-left py-2 px-3">Número</th>
                           <th className="text-left py-2 px-3">Tipo</th>
@@ -795,18 +822,18 @@ export default function DisplayConfigPage() {
                           <th className="text-center py-2 px-3">Acciones</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/5 text-sm">
+                      <tbody className="divide-y divide-slate-200 text-sm">
                         {trains.map((train) => (
-                          <tr key={train.id} className="hover:bg-white/5 transition">
-                            <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-200">
+                          <tr key={train.id} className="hover:bg-slate-50 transition">
+                            <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-900">
                               <div className="flex flex-col gap-0.5">
                                 <div className="font-semibold text-xs">{train.scheduled_time}</div>
                                 {train.expected_time !== train.scheduled_time && (
-                                  <div className="text-xs text-green-300">Est. {train.expected_time}</div>
+                                  <div className="text-xs text-green-700">Est. {train.expected_time}</div>
                                 )}
                               </div>
                             </td>
-                            <td className="py-2 px-3 font-mono text-amber-300 font-semibold whitespace-nowrap">{train.number}</td>
+                            <td className="py-2 px-3 font-mono font-semibold text-slate-900 whitespace-nowrap">{train.number}</td>
                             <td className="py-2 px-3 whitespace-nowrap">
                               <div className="flex items-center gap-1.5">
                                 {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
@@ -825,14 +852,14 @@ export default function DisplayConfigPage() {
                                     {train.type_code || "—"}
                                   </span>
                                 ) : (
-                                  <span className="text-white text-xs">{train.type_code || "—"}</span>
+                                  <span className="text-slate-900 text-xs">{train.type_code || "—"}</span>
                                 )}
                               </div>
                             </td>
-                            <td className="py-2 px-3 text-slate-200 whitespace-nowrap truncate max-w-[8rem]">
+                            <td className="py-2 px-3 text-slate-700 whitespace-nowrap truncate max-w-[8rem]">
                               {train.operator_name || "—"}
                             </td>
-                            <td className="py-2 px-3 text-white">
+                            <td className="py-2 px-3 text-slate-900">
                               <div className="flex items-center gap-1.5 truncate">
                                 {train.type_destination_icon && (
                                   <img
@@ -846,55 +873,47 @@ export default function DisplayConfigPage() {
                               </div>
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">
-                              <span
-                                className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                  train.status === "Departed"
-                                    ? "bg-green-900/50 text-green-200"
-                                    : train.status === "Boarding"
-                                      ? "bg-amber-900/50 text-amber-200"
-                                      : train.status === "Delayed"
-                                        ? "bg-red-900/50 text-red-200"
-                                        : train.status === "Cancelled"
-                                          ? "bg-gray-900/50 text-gray-200"
-                                          : "bg-blue-900/50 text-blue-200"
-                                }`}
+<span
+                                                  className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                                    train.status === "Departed"
+                                                      ? "bg-green-100 text-green-800"
+                                                      : train.status === "Boarding"
+                                                        ? "bg-amber-100 text-amber-800"
+                                                        : train.status === "Delayed"
+                                                          ? "bg-red-100 text-red-800"
+                                                          : train.status === "Cancelled"
+                                                            ? "bg-slate-100 text-slate-700"
+                                                            : "bg-slate-100 text-slate-700"
+                                                  }`}
                               >
                                 {formatPlatform(train)}
                               </span>
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap">
                               <div className="flex items-center justify-center gap-1">
-                                <button
-                                  onClick={() => openTrainEditor(train)}
-                                  disabled={busy || trainSaving}
-                                  className="px-2 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black text-xs font-semibold disabled:opacity-60"
-                                  title="Editar"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  onClick={() => announceRow(train)}
-                                  disabled={announcingId === train.id}
-                                  className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold disabled:opacity-60"
-                                  title="Anunciar"
-                                >
-                                  🔊
-                                </button>
-                                <button
-                                  onClick={() => announceRowWithStops(train)}
-                                  disabled={announcingId === train.id}
-                                  className="px-2 py-1 rounded bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-semibold disabled:opacity-60"
-                                  title="Anunciar con paradas"
-                                >
-                                  🎤
-                                </button>
-                                <button
-                                  onClick={() => deleteTrain(train.id)}
-                                  className="px-2 py-1 rounded bg-red-900/50 hover:bg-red-900 text-red-200 text-xs font-semibold"
-                                  title="Eliminar"
-                                >
-                                  ✕
-                                </button>
+<button
+                                                  onClick={() => openTrainEditor(train)}
+                                                  disabled={busy || trainSaving}
+                                                  className="px-2 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                                  title="Editar"
+                                                >
+                                                  ✏️
+                                                </button>
+                                                 <button
+                                                   onClick={() => announceRow(train)}
+                                                   disabled={announcingId === train.id}
+                                                   className="px-2 py-1 rounded bg-blue-900 hover:bg-blue-800 text-white text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+                                                   title="Anunciar"
+                                                 >
+                                                   🔊
+                                                 </button>
+                                                <button
+                                                  onClick={() => deleteTrain(train.id)}
+                                                  className="px-2 py-1 rounded border border-red-200 bg-red-50 text-red-700 text-xs font-semibold hover:bg-red-100"
+                                                  title="Eliminar"
+                                                >
+                                                  ✕
+                                                </button>
                               </div>
                             </td>
                           </tr>
@@ -909,13 +928,13 @@ export default function DisplayConfigPage() {
 
           {activeTab === "types" && (
             <section className="space-y-4 h-full overflow-hidden">
-              <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-full flex flex-col">
+              <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm h-full flex flex-col">
                 <div className="mb-4">
-                  <h3 className="text-lg font-bold">Tipos de tren</h3>
-                  <p className="text-sm text-slate-400">Configura iconos y anuncios de megafonía por tipo de tren</p>
+                  <h3 className="text-lg font-bold text-slate-900">Tipos de tren</h3>
+                  <p className="text-sm text-slate-500">Configura iconos y anuncios de megafonía por tipo de tren</p>
                 </div>
 
-                <div className="overflow-auto rounded-lg border border-white/10 flex-1 min-h-0">
+                <div className="overflow-auto rounded-lg border border-slate-200 flex-1 min-h-0">
                   <div className="grid gap-3 p-4">
                     {trainTypes.map((type) => (
                       <TypeCard key={type.id} type={type} onUpdated={load} />
@@ -928,23 +947,109 @@ export default function DisplayConfigPage() {
         </div>
       </main>
 
+      {announcePopup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30"
+        >
+          <div
+            className="bg-white border border-slate-200 rounded-xl shadow-xl p-5 w-80"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <h4 className="text-sm font-semibold text-slate-900">Anunciar tren</h4>
+              <button onClick={() => setAnnouncePopup(null)} className="text-slate-400 hover:text-slate-600 text-sm">&times;</button>
+            </div>
+            <p className="text-xs text-slate-500 mb-3">
+              {announcePopup.train.type_name} {announcePopup.train.number} &middot; {announcePopup.train.destination}
+            </p>
+
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Evento</label>
+            <div className="flex flex-wrap gap-1.5 mb-3 max-h-32 overflow-y-auto">
+              {EVENT_TYPES.map((event) => (
+                <button
+                  key={event.id}
+                  onClick={() => setPopupEventType(event.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-semibold transition ${
+                    popupEventType === event.id
+                      ? "bg-blue-900 text-white shadow-sm"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {event.label}
+                </button>
+              ))}
+            </div>
+
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Idiomas</label>
+            <div className="flex flex-wrap gap-x-3 gap-y-1.5 mb-3">
+              {displayedLanguages.map((lang) => (
+                <label key={lang} className="flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={popupLanguages.includes(lang)}
+                    onChange={(e) => {
+                      if (e.target.checked) setPopupLanguages((prev) => [...prev, lang]);
+                      else setPopupLanguages((prev) => prev.filter((l) => l !== lang));
+                    }}
+                    className="rounded border-slate-300 accent-blue-900"
+                  />
+                  {LANGUAGES[lang]}
+                </label>
+              ))}
+            </div>
+
+            {audioAssets.length > 0 && (
+              <>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">So d'avís</label>
+                <select
+                  value={popupSoundId ?? ""}
+                  onChange={(e) => setPopupSoundId(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition mb-3"
+                >
+                  <option value="">Sense so</option>
+                  {audioAssets.map((a) => (
+                    <option key={a.id} value={a.id}>{a.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setAnnouncePopup(null)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50"
+              >
+                Cancel·lar
+              </button>
+              <button
+                onClick={executeAnnounce}
+                disabled={announcingId === announcePopup.train.id || !popupLanguages.length}
+                className="px-3 py-1.5 rounded-lg bg-blue-900 text-xs font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {announcingId === announcePopup.train.id ? "Anunciant..." : "Anunciar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {editingTrain && (
         <div
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => !trainSaving && setEditingTrain(null)}
         >
           <div
-            className="w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-2xl border border-white/10 bg-slate-950/95 shadow-2xl"
+            className="bg-white border border-slate-200 rounded-xl shadow-xl max-w-4xl w-full max-h-[92vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-white/10 bg-white/5">
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
               <div>
-                <h3 className="text-xl font-bold">{editingTrain.id ? "Editar tren" : "Añadir tren"}</h3>
-                <p className="text-xs text-slate-400">{displayedStation.short || displayedStation.name}</p>
+                <h3 className="text-lg font-bold text-slate-900">{editingTrain.id ? "Editar tren" : "Añadir tren"}</h3>
+                <p className="text-xs text-slate-500">{displayedStation.short || displayedStation.name}</p>
               </div>
               <button
                 onClick={() => setEditingTrain(null)}
-                className="w-9 h-9 rounded-full border border-white/10 text-slate-300 hover:bg-white/10"
+                className="w-8 h-8 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center"
                 aria-label="Cerrar"
               >
                 ✕
@@ -954,17 +1059,17 @@ export default function DisplayConfigPage() {
             <div className="p-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Número</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Número</div>
                   <input
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.number || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, number: e.target.value })}
                   />
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Estado</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Estado</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.status || "Scheduled"}
                     onChange={(e) => setEditingTrain({ ...editingTrain, status: e.target.value as Train["status"] })}
                   >
@@ -977,9 +1082,9 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Operador</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Operador</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.operator_id ?? ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, operator_id: e.target.value ? Number(e.target.value) : null })}
                   >
@@ -992,9 +1097,9 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Tipo</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Tipo</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.train_type_id ?? ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, train_type_id: e.target.value ? Number(e.target.value) : null })}
                   >
@@ -1007,28 +1112,28 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Origen</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Origen</div>
                   <input
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.origin || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, origin: e.target.value })}
                   />
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Destino</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino</div>
                   <input
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.destination || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, destination: e.target.value })}
                   />
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Imagen personalizada destino</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Imagen personalizada destino</div>
             <input
               type="file"
               accept="image/*"
               id={`train-icon-${editingTrain.id || "new"}`}
-              className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none"
+              className="w-full rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:outline-none"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
@@ -1038,13 +1143,13 @@ export default function DisplayConfigPage() {
                     }}
                   />
                   {editingTrain.custom_icon_url && (
-                    <div className="mt-2 text-xs text-slate-400">Imagen actual: {editingTrain.custom_icon_url}</div>
+                    <div className="mt-2 text-xs text-slate-500">Imagen actual: {editingTrain.custom_icon_url}</div>
                   )}
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Mostrar</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Mostrar</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={trainIconMode}
                     onChange={(e) => setTrainIconMode(e.target.value as typeof trainIconMode)}
                   >
@@ -1056,27 +1161,27 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Hora programada</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Hora programada</div>
                   <input
                     type="time"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.scheduled_time || "12:00"}
                     onChange={(e) => setEditingTrain({ ...editingTrain, scheduled_time: e.target.value })}
                   />
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Hora estimada</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Hora estimada</div>
                   <input
                     type="time"
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.expected_time || "12:00"}
                     onChange={(e) => setEditingTrain({ ...editingTrain, expected_time: e.target.value })}
                   />
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Vía</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Vía</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.platform && editingTrain.platform !== "-" ? editingTrain.platform : ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, platform: e.target.value })}
                   >
@@ -1088,9 +1193,9 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Sector</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sector</div>
                   <select
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.sector && editingTrain.sector !== "-" ? editingTrain.sector : ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, sector: e.target.value })}
                   >
@@ -1102,17 +1207,17 @@ export default function DisplayConfigPage() {
                   </select>
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Observaciones</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Observaciones</div>
                   <textarea
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white min-h-24 resize-y"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition min-h-24 resize-y"
                     value={editingTrain.observations || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, observations: e.target.value })}
                   />
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Paradas intermedias</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Paradas intermedias</div>
                   <textarea
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white min-h-24 resize-y"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition min-h-24 resize-y"
                     placeholder="Una parada por línea. Usa ';' para separar en la misma línea."
                     value={editingStopsText}
                     onChange={(e) => setEditingStopsText(e.target.value)}
@@ -1124,14 +1229,14 @@ export default function DisplayConfigPage() {
                 <button
                   onClick={() => setEditingTrain(null)}
                   disabled={trainSaving}
-                  className="px-4 py-2 rounded-lg border border-white/10 text-slate-300 hover:bg-white/10 disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-60"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={saveTrain}
                   disabled={trainSaving}
-                  className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {trainSaving ? "Guardando..." : "Guardar tren"}
                 </button>
@@ -1157,7 +1262,7 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
   };
 
   return (
-    <div className="border border-white/10 rounded-lg p-4 bg-black/20">
+    <div className="rounded-lg border border-slate-200 bg-white p-4">
       <div className="flex items-center justify-between gap-4 mb-3">
         <div className="flex items-center gap-2 min-w-0">
           {type.color && (
@@ -1168,7 +1273,7 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
               {type.code}
             </span>
           )}
-          <span className="font-semibold text-white truncate">{type.name}</span>
+          <span className="font-semibold text-slate-900 truncate">{type.name}</span>
         </div>
         <button
           onClick={() => {
@@ -1188,16 +1293,16 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
             };
             input.click();
           }}
-          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm whitespace-nowrap shrink-0"
+          className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800 whitespace-nowrap shrink-0"
         >
           {type.destination_icon_url ? "Cambiar" : "Agregar"} icono
         </button>
       </div>
-      {type.destination_icon_url && <div className="text-xs text-slate-400 mb-2">Icono: {type.destination_icon_url}</div>}
+      {type.destination_icon_url && <div className="text-xs text-slate-500 mb-2">Icono: {type.destination_icon_url}</div>}
       <div className="mt-3">
-        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Plantilla de megafonía (opcional)</label>
+        <label className="blocktext-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Plantilla de megafonía (opcional)</label>
         <textarea
-          className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm min-h-[4rem] resize-y"
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition text-sm min-h-[4rem] resize-y"
           placeholder="Ej: Atención. Tren {type_name}{number_text} con destino a {destination}, efectuará su salida por la vía {platform}{sector_text}. Paradas: {stops}."
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -1209,7 +1314,7 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
         {draft !== (type.announce_template || "") && (
           <button
             onClick={saveTemplate}
-            className="mt-2 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm"
+            className="mt-2 inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
           >
             Guardar plantilla
           </button>

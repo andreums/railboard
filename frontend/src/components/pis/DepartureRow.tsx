@@ -67,12 +67,10 @@ export default function DepartureRow({
   train,
   index,
   mode,
-  maxRows,
 }: {
   train: Train;
   index: number;
   mode: "departures" | "arrivals";
-  maxRows: number;
 }) {
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
@@ -90,13 +88,13 @@ export default function DepartureRow({
   const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
   const hasStops = train.stops && train.stops.length > 0;
   const hasObservations = Boolean(train.observations?.trim());
-  const isCommuter = train.type_code && /^(C(-\d+)?[A-Z]?|R\d+[A-Z]?)$/i.test(train.type_code);
+  const isCommuter = train.type_code && /[A-Z]+-C\d|^C-?\d|^R\d/i.test(train.type_code);
 
   return (
     <div
       style={{
         width: "100%",
-        height: `calc((100vh - clamp(90px, 13.2vh, 150px)) / ${maxRows})`,
+        height: "clamp(100px, 12.4vh, 150px)",
         backgroundColor: index % 2 === 0 ? "#1A3355" : "#0F2441",
         display: "grid",
         gridTemplateColumns: "12% 59% 12% 9% 8%",
@@ -204,6 +202,7 @@ export default function DepartureRow({
             whiteSpace: "nowrap",
             flexShrink: 0,
             marginLeft: "auto",
+            marginRight: "clamp(12px, 1.5vw, 30px)",
           }}
         >
           {platText}
@@ -252,7 +251,7 @@ export default function DepartureRow({
         {hasStops && (
           <div style={{ width: "100%", height: "clamp(18px, 1.8vw, 36px)", overflow: "hidden" }}>
             <ScrollText
-              text={train.stops.join(" \u00B7 ")}
+              text={[...train.stops].reverse().join(" \u00B7 ")}
               color="rgba(255,255,255,0.92)"
               fontSize="clamp(16px, 1.6vw, 32px)"
               fontWeight={700}

@@ -1,5 +1,8 @@
 export default function LineBadge({ code, color }: { code: string; color?: string | null }) {
-  const label = code.toUpperCase().trim();
+  const raw = code.toUpperCase().trim();
+  const cleaned = raw.replace(/^[A-Z]+-/, "");
+  const m = cleaned.match(/^(C)(\d.*)$/);
+  const label = m ? `${m[1]}-${m[2]}` : cleaned;
   const bg = color && color.trim() ? color : "#2E4DA7";
 
   return (
@@ -14,7 +17,8 @@ export default function LineBadge({ code, color }: { code: string; color?: strin
         fontWeight: 700,
         fontSize: "clamp(21px, 2vw, 39px)",
         lineHeight: 1,
-        padding: "clamp(4px, 0.45vw, 10px) clamp(10px, 0.9vw, 21px)",
+        padding: "clamp(4px, 0.45vw, 10px) 0",
+        minWidth: "clamp(70px, 6.5vw, 130px)",
         borderRadius: "clamp(16px, 1.5vw, 32px)",
         whiteSpace: "nowrap",
         flexShrink: 0,

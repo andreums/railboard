@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { api, connectWS, type Config, type Train, type Station, type Place } from "../lib/api";
 import { useParams } from "react-router-dom";
 import SteamTrain from "../components/SteamTrain";
@@ -70,6 +70,8 @@ function parseStopsText(stopsText?: string | null) {
 
 const MAX_VISIBLE_ROWS = 7;
 
+const ROW_HEIGHT_PX = 134; // approximate px for scroll height calculation
+
 export default function Display() {
   const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
   const [config, setConfig] = useState<Config | null>(null);
@@ -82,6 +84,9 @@ export default function Display() {
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const [langIndex, setLangIndex] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
 
   const refresh = async () => {
     try {
@@ -205,16 +210,40 @@ export default function Display() {
 
   const rows = useMemo(
     () =>
-      [...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status))]
-        .sort((a, b) => {
-          const aTime = a.expected_time !== "\u2014" ? a.expected_time : a.scheduled_time;
-          const bTime = b.expected_time !== "\u2014" ? b.expected_time : b.scheduled_time;
-          if (aTime === "\u2014" || bTime === "\u2014") return 0;
-          return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
-        })
-        .slice(0, MAX_VISIBLE_ROWS),
+      [...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status))].sort((a, b) => {
+        const aTime = a.expected_time !== "\u2014" ? a.expected_time : a.scheduled_time;
+        const bTime = b.expected_time !== "\u2014" ? b.expected_time : b.scheduled_time;
+        if (aTime === "\u2014" || bTime === "\u2014") return 0;
+        return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
+      }),
     [trains],
   );
+
+  const handleScroll = useCallback(() => {
+    if (scrollRef.current) {
+      setScrollTop(scrollRef.current.scrollTop);
+    }
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+    ro.observe(el);
+    setContainerHeight(el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  const VISIBLE_BUFFER = 3;
+  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT_PX) - VISIBLE_BUFFER);
+  const endIdx = Math.min(rows.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT_PX) + VISIBLE_BUFFER);
+  const visibleRows = rows.slice(startIdx, endIdx);
+  const totalHeight = rows.length * ROW_HEIGHT_PX;
+  const offsetY = startIdx * ROW_HEIGHT_PX;
 
   if (error) {
     return (
@@ -279,26 +308,68 @@ export default function Display() {
         fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
         headerBg={config?.headerBgColor}
         headerTextColor={config?.headerTextColor}
+        logoUrl={config?.logo_url}
       />
 
       <div
+        ref={scrollRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
-          overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
+          overflowY: "auto",
+          overflowX: "hidden",
+          position: "relative",
         }}
       >
-        {rows.map((train, i) => (
-          <DepartureRow
-            key={train.id}
-            train={train}
-            index={i}
-            mode={mode as "departures" | "arrivals"}
-            maxRows={Math.max(rows.length, MAX_VISIBLE_ROWS)}
-          />
-        ))}
+        <div style={{ height: totalHeight, position: "relative" }}>
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              transform: `translateY(${offsetY}px)`,
+            }}
+          >
+            {visibleRows.map((train, i) => (
+              <DepartureRow
+                key={train.id}
+                train={train}
+                index={startIdx + i}
+                mode={mode as "departures" | "arrivals"}
+              />
+            ))}
+          </div>
+        </div>
       </div>
+
+      {config?.footerText && (
+        <footer
+          style={{
+            flexShrink: 0,
+            height: "clamp(28px, 3vh, 48px)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
+            backgroundColor: "rgba(0,0,0,0.35)",
+            overflow: "hidden",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <div
+            className="animate-marquee-full"
+            style={{
+              whiteSpace: "nowrap",
+              color: "#3d5a80",
+              fontSize: "clamp(14px, 1.6vh, 24px)",
+              textTransform: "uppercase",
+              letterSpacing: "0.2em",
+              fontWeight: 700,
+            }}
+          >
+            <span>{config.footerText}</span>
+          </div>
+        </footer>
+      )}
     </div>
   );
 }

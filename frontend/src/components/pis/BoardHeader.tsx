@@ -1,5 +1,7 @@
 import PisClock from "./PisClock";
 import { t, type Language } from "../../lib/i18n";
+import { fileUrl } from "../../lib/api";
+import { handleImgError } from "../../lib/svgPlaceholder";
 
 export default function BoardHeader({
   stationName,
@@ -10,6 +12,7 @@ export default function BoardHeader({
   fakeStepSeconds,
   headerBg,
   headerTextColor,
+  logoUrl,
 }: {
   stationName: string;
   mode: "departures" | "arrivals";
@@ -19,6 +22,7 @@ export default function BoardHeader({
   fakeStepSeconds?: number;
   headerBg?: string;
   headerTextColor?: string;
+  logoUrl?: string | null;
 }) {
   const bg = headerBg || "#BFEFD5";
   const color = headerTextColor || "#071E43";
@@ -52,13 +56,14 @@ export default function BoardHeader({
       >
         {/* ADIF Logo */}
         <img
-          src="/adif.svg"
+          src={logoUrl ? fileUrl(logoUrl)! : "/adif.svg"}
           alt="ADIF"
           style={{
-            height: "clamp(36px, 4.5vh, 60px)",
+            height: "clamp(40px, 3.6vw, 72px)",
             width: "auto",
             flexShrink: 0,
           }}
+          onError={(e) => { if (logoUrl) { e.currentTarget.style.display = "none"; } handleImgError(e, "Logo"); }}
         />
 
         {/* Title: Salidas / Llegadas */}

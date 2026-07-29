@@ -1,18 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
-  <!-- ADIF Icon: stylized railway tracks / bridge -->
-  <g transform="translate(0, 2)">
-    <!-- Left pillar -->
-    <rect x="4" y="8" width="6" height="40" rx="1" fill="#071E43"/>
-    <!-- Right pillar -->
-    <rect x="42" y="8" width="6" height="40" rx="1" fill="#071E43"/>
-    <!-- Top beam -->
-    <rect x="4" y="6" width="44" height="6" rx="1" fill="#071E43"/>
-    <!-- Arch / track representation -->
-    <path d="M10 18 Q25 28 40 18" stroke="#071E43" stroke-width="4" fill="none" stroke-linecap="round"/>
-    <path d="M10 28 Q25 38 40 28" stroke="#071E43" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <!-- Center vertical -->
-    <rect x="23" y="14" width="4" height="34" rx="1" fill="#071E43"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 100">
+  <g fill="#071E43">
+    <path d="M36,15c2.5,1.8,33.5,27,78.5,83.5c6,7.6,12,16.8,12.3,22.3c0.8,9.3-8.8,17.2-25.4,23.2
+      C88,149,50.5,137.5,29.5,130c8.5-11.4,17-24.4,25-38.5c28-49.8,31-64.6,27-76c-3.7-10.8-11.5-10.4-14-9.8
+      c2.3-0.4,10.3,0.8,11.9,11.7c2,13.6-6.2,25.8-46.5,78C21.5,109,12.5,119.5,4,128
+      C-9.2,129.7-28,129,1.5,86.5c7.2-17.2,22.5-39,43-54.5C61.5,20,36,15,36,15z"/>
   </g>
-  <!-- "adif" text -->
-  <text x="58" y="44" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#071E43" letter-spacing="-1">adif</text>
+  <text x="140" y="58" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="700" fill="#071E43" letter-spacing="-1.5">adif</text>
 </svg>
