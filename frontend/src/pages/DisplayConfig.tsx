@@ -377,25 +377,27 @@ export default function DisplayConfigPage() {
 
   if (displayMode === "multiple" && !displayedStation) {
     return (
-      <div className="min-h-screen bg-slate-50 p-6">
-        <div className="w-full mx-auto space-y-6">
-          <div className="flex items-center justify-between">
+      <div className="min-h-screen bg-slate-50 flex flex-col">
+        <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+          <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Displays</h1>
-              <p className="text-slate-500">Modo múltiple activo. Selecciona una estación para configurar su pantalla.</p>
+              <h1 className="text-lg font-bold text-slate-900">Displays</h1>
+              <p className="text-sm text-slate-500">Selecciona una estació per a configurar la seua pantalla</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
               <button
                 onClick={handleAddDisplay}
-                className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
+                className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800"
               >
-                + Añadir display
+                + Nou display
               </button>
-              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-                ← Volver al admin
+              <Link to="/admin" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
+                ← Admin
               </Link>
             </div>
           </div>
+        </header>
+        <div className="flex-1 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {displays.map((display) => (
               <Link
@@ -445,26 +447,24 @@ export default function DisplayConfigPage() {
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="w-full px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              {displayedStation.logo_url && (
-                <img
-                  src={fileUrl(displayedStation.logo_url)!}
-                  alt={displayedStation.name}
-                  className="w-10 h-10 object-contain"
-                  onError={(e) => handleImgError(e, displayedStation.name)}
-                />
-              )}
-              <div>
-                <h1 className="text-lg font-bold text-slate-900">{displayName}</h1>
-                <p className="text-xs text-slate-500">ID {displayedStation.id}</p>
-              </div>
+        <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
+          <div className="flex items-center gap-3">
+            {displayedStation.logo_url && (
+              <img
+                src={fileUrl(displayedStation.logo_url)!}
+                alt={displayedStation.name}
+                className="w-10 h-10 object-contain"
+                onError={(e) => handleImgError(e, displayedStation.name)}
+              />
+            )}
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">{displayName}</h1>
+              <p className="text-sm text-slate-500">ID {displayedStation.id}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-3">
             <Link to="/admin/displays" className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50">
-              ← Lista
+              ← Llista
             </Link>
             <Link to="/admin" className="inline-flex items-center justify-center rounded-lg bg-blue-900 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-800">
               Admin

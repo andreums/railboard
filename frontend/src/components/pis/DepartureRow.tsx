@@ -158,7 +158,7 @@ export default function DepartureRow({
           opacity: isCancelled ? 0.45 : 1,
         }}
       >
-        {isCommuter && train.type_code && (
+        {isCommuter && train.type_code && !train.type_logo && (
           <LineBadge code={train.type_code} color={train.type_color} />
         )}
         {iconUrl && (
