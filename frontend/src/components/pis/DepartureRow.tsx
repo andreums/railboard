@@ -92,7 +92,7 @@ export default function DepartureRow({
   const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
   const hasStops = train.stops && train.stops.length > 0;
   const hasObservations = Boolean(train.observations?.trim());
-  const isCommuter = train.type_code && /^(MA-)?[CR]\d?$|^[CR]-\d/i.test(train.type_code);
+  const isCommuter = train.type_code && /^(MA-)?[CR]\d*[A-Z]?$/i.test(train.type_code);
 
   const iconMode = train.icon_mode || (showDestinationIcon !== false ? "destination" : "none");
   let iconUrl: string | undefined | null = null;
