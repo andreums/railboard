@@ -14,6 +14,7 @@ function authHeaders(): Record<string, string> {
 export type Train = {
   id: number;
   number: string;
+  number2?: string | null;
   operator_id: number | null;
   operator_name?: string | null;
   operator_logo?: string | null;
@@ -28,6 +29,7 @@ export type Train = {
   type_destination_icon?: string | null;
   origin: string;
   destination: string;
+  destination2?: string | null;
   stops: string[];
   stopping_pattern?: string | null;
   except_stations?: string[];

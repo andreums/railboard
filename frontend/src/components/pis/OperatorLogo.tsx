@@ -40,7 +40,7 @@ export default function OperatorLogo({
   const isAVE = normalizedName.includes("ave") || typeCode === "AVE";
 
   const showTypeLogo = (isCercanias || isRegional) && typeLogo;
-  const defaultCommuterLogo = isCercanias ? "/uploads/cercanias-logo.svg" : null;
+  const defaultCommuterLogo = isCercanias ? fileUrl("/uploads/cercanias-logo.svg") : null;
   const logoSrc = showTypeLogo ? fileUrl(typeLogo) : defaultCommuterLogo ? defaultCommuterLogo : operatorLogo ? fileUrl(operatorLogo) : null;
 
   if (isCercanias || isAVE) {

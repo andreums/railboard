@@ -142,20 +142,22 @@ export function getTrain(id) {
 export function createTrain(t) {
   const stmt = db.prepare(`
     INSERT INTO trains
-      (number, operator_id, train_type_id, origin, destination, stops,
+      (number, number2, operator_id, train_type_id, origin, destination, destination2, stops,
        scheduled_time, expected_time, platform, sector, status, observations,
        station_id, custom_icon_url, icon_mode, stopping_pattern, fare_restrictions, except_stations)
     VALUES
-      (@number, @operator_id, @train_type_id, @origin, @destination, @stops,
+      (@number, @number2, @operator_id, @train_type_id, @origin, @destination, @destination2, @stops,
        @scheduled_time, @expected_time, @platform, @sector, @status, @observations,
        @station_id, @custom_icon_url, @icon_mode, @stopping_pattern, @fare_restrictions, @except_stations)
   `);
   const info = stmt.run({
     number: t.number,
+    number2: t.number2 || null,
     operator_id: t.operator_id ?? null,
     train_type_id: t.train_type_id ?? null,
     origin: t.origin,
     destination: t.destination,
+    destination2: t.destination2 || null,
     stops: JSON.stringify(t.stops || []),
     scheduled_time: t.scheduled_time,
     expected_time: t.expected_time || t.scheduled_time,
@@ -179,8 +181,8 @@ export function updateTrain(id, t) {
   const next = { ...cur, ...t };
   db.prepare(
     `UPDATE trains SET
-       number=@number, operator_id=@operator_id, train_type_id=@train_type_id,
-       origin=@origin, destination=@destination, stops=@stops,
+        number=@number, number2=@number2, operator_id=@operator_id, train_type_id=@train_type_id,
+        origin=@origin, destination=@destination, destination2=@destination2, stops=@stops,
        scheduled_time=@scheduled_time, expected_time=@expected_time,
        platform=@platform, sector=@sector, status=@status,
        observations=@observations, station_id=@station_id,
@@ -190,10 +192,12 @@ export function updateTrain(id, t) {
   ).run({
     id,
     number: next.number,
+    number2: next.number2 || null,
     operator_id: next.operator_id ?? null,
     train_type_id: next.train_type_id ?? null,
     origin: next.origin,
     destination: next.destination,
+    destination2: next.destination2 || null,
     stops: JSON.stringify(next.stops || []),
     scheduled_time: next.scheduled_time,
     expected_time: next.expected_time,

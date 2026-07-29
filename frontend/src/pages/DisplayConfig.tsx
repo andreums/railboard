@@ -1305,11 +1305,20 @@ export default function DisplayConfigPage() {
             <div className="p-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <label className="block">
-                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Número</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Número 1</div>
                   <input
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.number || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, number: e.target.value })}
+                  />
+                </label>
+                <label className="block">
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Número 2</div>
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
+                    value={editingTrain.number2 || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, number2: e.target.value })}
+                    placeholder="Opcional"
                   />
                 </label>
                 <label className="block">
@@ -1366,11 +1375,20 @@ export default function DisplayConfigPage() {
                   />
                 </label>
                 <label className="block md:col-span-2">
-                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino</div>
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino 1</div>
                   <input
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
                     value={editingTrain.destination || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, destination: e.target.value })}
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino 2</div>
+                  <input
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
+                    value={editingTrain.destination2 || ""}
+                    onChange={(e) => setEditingTrain({ ...editingTrain, destination2: e.target.value })}
+                    placeholder="Opcional"
                   />
                 </label>
                 <label className="block md:col-span-2">
