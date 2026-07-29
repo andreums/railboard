@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, useRef } from "react";
-import { api, connectWS, fileUrl, type Config, type Train, type Place, type Station } from "../lib/api";
+import { useEffect, useMemo, useState } from "react";
+import { api, connectWS, type Config, type Train, type Station, type Place } from "../lib/api";
 import { useParams } from "react-router-dom";
-import Clock from "../components/Clock";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
 import { resolveDisplayLanguage } from "../lib/tts";
-import { handleImgError } from "../lib/svgPlaceholder";
+import BoardHeader from "../components/pis/BoardHeader";
+import DepartureRow from "../components/pis/DepartureRow";
 
 const SUPPORTED_LANGUAGES = new Set<string>(["es", "ca", "en", "fr", "eu", "gl"]);
 
@@ -56,21 +56,8 @@ function minutesUntil(hhmm: string) {
 }
 
 function orderMinutesUntil(hhmm: string) {
-  // Keep imminent trains at the top, but move clearly-past trains to next-day order.
   let diff = minutesUntil(hhmm);
   if (diff < -5) diff += 24 * 60;
-  return diff;
-}
-
-function timeToMinutes(hhmm: string) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function clockMinuteDelta(fromHHMM: string, toHHMM: string) {
-  let diff = timeToMinutes(toHHMM) - timeToMinutes(fromHHMM);
-  if (diff > 12 * 60) diff -= 24 * 60;
-  if (diff < -12 * 60) diff += 24 * 60;
   return diff;
 }
 
@@ -81,98 +68,7 @@ function parseStopsText(stopsText?: string | null) {
     .filter(Boolean);
 }
 
-function TrainTypeBadge({ code, color }: { code: string; color?: string | null }) {
-  const label = code.toUpperCase().trim();
-  // Use color from DB always; only fall back to defaults if no color provided
-  const isCommuter = /^(C(-\d+)?[A-Z]?|R\d+[A-Z]?)$/i.test(label);
-  const bg = color && color.trim() ? color : isCommuter ? "#2E4DA7" : "#7C1D2E";
-  const width = isCommuter ? "1.8em" : "2.2em";
-  const fontSize = label.length > 4 ? 17 : label.length > 3 ? 19 : 21;
-
-  return (
-    <svg
-      viewBox="0 0 100.1 54.6"
-      aria-label={label}
-      role="img"
-      style={{
-        display: "block",
-        width,
-        height: "1.22em",
-        overflow: "visible",
-        transform: "translateY(0.25em)",
-      }}
-    >
-      <rect x="0" y="0" width="100.1" height="54.6" rx="11" fill={bg} />
-      <text
-        x="50"
-        y="50%"
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontFamily="Oswald, Arial, sans-serif"
-        fontSize={fontSize}
-        fontWeight="700"
-        fill="#fff"
-      >
-        {label}
-      </text>
-    </svg>
-  );
-}
-
-/** Scrolls horizontally only when text overflows its container */
-function ScrollText({
-  text,
-  color,
-  bold,
-  fontSize,
-  fontFamily,
-  fontWeight,
-  textDecoration,
-}: {
-  text: string;
-  color: string;
-  bold?: boolean;
-  fontSize?: string;
-  fontFamily?: string;
-  fontWeight?: number;
-  textDecoration?: string;
-}) {
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const spanRef = useRef<HTMLSpanElement>(null);
-  const [scrolling, setScrolling] = useState(false);
-
-  useEffect(() => {
-    const check = () => {
-      if (wrapRef.current && spanRef.current) setScrolling(spanRef.current.scrollWidth > wrapRef.current.clientWidth + 1);
-    };
-    const timer = setTimeout(check, 120);
-    window.addEventListener("resize", check);
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener("resize", check);
-    };
-  }, [text]);
-
-  return (
-    <div ref={wrapRef} style={{ overflow: "hidden", width: "100%", height: "100%", display: "flex", alignItems: "center" }}>
-      <span
-        ref={spanRef}
-        style={{
-          display: "inline-block",
-          whiteSpace: "nowrap",
-          color,
-          fontFamily: fontFamily ?? "inherit",
-          fontWeight: fontWeight ?? (bold ? 700 : 400),
-          fontSize: fontSize ?? "inherit",
-          textDecoration: textDecoration ?? "none",
-          animation: scrolling ? "marquee-pause 18s linear infinite" : "none",
-        }}
-      >
-        {text}
-      </span>
-    </div>
-  );
-}
+const MAX_VISIBLE_ROWS = 7;
 
 export default function Display() {
   const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
@@ -180,7 +76,7 @@ export default function Display() {
   const [trains, setTrains] = useState<Train[]>([]);
   const [stations, setStations] = useState<Station[]>([]);
   const [places, setPlaces] = useState<Place[]>([]);
-  const [boardStationName, setBoardStationName] = useState<string>("—");
+  const [boardStationName, setBoardStationName] = useState<string>("\u2014");
   const [boardMode, setBoardMode] = useState<"departures" | "arrivals" | "mixed">("departures");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -193,11 +89,9 @@ export default function Display() {
       setStations(st);
       setPlaces(p);
 
-      // Respect displayMode: "single" ignores URL param, "multiple" uses it
       const displayMode = c?.displayMode || "multiple";
       let stationId = 1;
       if (displayMode === "single") {
-        // Single mode: always use the configured station (ignore URL param)
         if (c?.station_name && st?.length) {
           const found = st.find((s) => s.name.includes(c.station_name) || c.station_name.includes(s.name));
           if (found) stationId = found.id;
@@ -205,7 +99,6 @@ export default function Display() {
           stationId = st[0].id;
         }
       } else {
-        // Multiple mode: use URL param, fall back to config or first station
         const parsedStationId = Number(stationIdParam);
         if (Number.isFinite(parsedStationId) && parsedStationId > 0 && st.some((s) => s.id === parsedStationId)) {
           stationId = parsedStationId;
@@ -225,7 +118,6 @@ export default function Display() {
       }
       setConfig(stationConfig);
 
-      // Get board data already normalized by backend
       const mode = stationConfig?.mode || c?.mode || "departures";
       try {
         const boardData = await api.getStationBoard(stationId, mode as "departures" | "arrivals");
@@ -255,16 +147,15 @@ export default function Display() {
         }));
         setTrains(normalizedRows);
         setBoardStationName(
-          boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "—",
+          boardData?.station?.displayName || boardData?.station?.name || stationConfig?.station_name || c?.station_name || "\u2014",
         );
         setBoardMode((boardData?.mode || mode) as "departures" | "arrivals" | "mixed");
         setError(null);
       } catch (boardError) {
-        // Fallback to legacy trains if board endpoint fails
         try {
           const tr = await api.listTrains();
           setTrains(tr);
-          setBoardStationName(stationConfig?.station_name || c?.station_name || "—");
+          setBoardStationName(stationConfig?.station_name || c?.station_name || "\u2014");
           setBoardMode((mode as "departures" | "arrivals") || "departures");
           setError(null);
         } catch (fallbackError) {
@@ -278,7 +169,7 @@ export default function Display() {
     } catch (error) {
       console.error("Refresh error:", error);
       setTrains([]);
-      setError("Error al cargar la configuración");
+      setError("Error al cargar la configuraci\u00f3n");
       setLoading(false);
     }
   };
@@ -297,7 +188,6 @@ export default function Display() {
     };
   }, [stationIdParam]);
 
-  // ── Language rotation: cycle every 5s when multiple languages configured ──
   const displayLanguages = useMemo(() => resolveDisplayLanguages(config), [config]);
   const hasMultipleLanguages = displayLanguages.length > 1;
 
@@ -312,37 +202,19 @@ export default function Display() {
 
   const mode = boardMode || (config?.mode as "departures" | "arrivals") || "departures";
   const lang = hasMultipleLanguages ? displayLanguages[langIndex] || displayLanguages[0] : (resolveDisplayLanguage(config) as Language);
+
   const rows = useMemo(
     () =>
       [...trains.filter((tr) => !["Departed", "Arrived"].includes(tr.status))]
         .sort((a, b) => {
-          const aTime = a.expected_time !== "—" ? a.expected_time : a.scheduled_time;
-          const bTime = b.expected_time !== "—" ? b.expected_time : b.scheduled_time;
-          if (aTime === "—" || bTime === "—") return 0;
+          const aTime = a.expected_time !== "\u2014" ? a.expected_time : a.scheduled_time;
+          const bTime = b.expected_time !== "\u2014" ? b.expected_time : b.scheduled_time;
+          if (aTime === "\u2014" || bTime === "\u2014") return 0;
           return orderMinutesUntil(aTime) - orderMinutesUntil(bTime);
         })
-        .slice(0, 12),
+        .slice(0, MAX_VISIBLE_ROWS),
     [trains],
   );
-
-  const bgColor = (config?.bgColor as string) || "#050a14";
-  const headerBg = (config?.headerBgColor as string) || "#BFEFD5";
-  const headerColor = (config?.headerTextColor as string) || "#102341";
-  const rowBg = (config?.rowBgColor as string) || "#1A3254";
-  const altBg = (config?.altBgColor as string) || "#102341";
-
-  const n = rows.length || 1;
-
-  // Gravita: row-height = 50% of table height (each row = half the table)
-  // Cap to prevent oversized rows with few trains
-  const rowH = `min(calc(84dvh / ${n}), 10dvh)`;
-
-  // Column widths — mirror Gravita exactly
-  const W_TIME = "11.17%";
-  const W_DEST = "60.33%";
-  const W_PROD = "18%";
-  const W_PLAT = "10%";
-  const W_MARG = "0.5%";
 
   if (error) {
     return (
@@ -361,7 +233,7 @@ export default function Display() {
         }}
       >
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>⚠️</div>
+          <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>&#9888;&#65039;</div>
           <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0" }}>{error}</h1>
           <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>Reintentando en 5 segundos...</p>
         </div>
@@ -389,497 +261,44 @@ export default function Display() {
   return (
     <div
       style={{
-        height: "100dvh",
+        width: "100vw",
+        height: "100vh",
         display: "flex",
         flexDirection: "column",
-        backgroundColor: bgColor,
-        fontFamily: "'Roboto Condensed', sans-serif",
+        backgroundColor: "#050a14",
+        fontFamily: "'Roboto Condensed', 'Inter', Arial, sans-serif",
         overflow: "hidden",
       }}
     >
-      {/* ══════════ HEADER — ~10dvh ══════════ */}
-      <header
-        style={{
-          backgroundColor: headerBg,
-          color: headerColor,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          height: "12dvh",
-          padding: "0 2rem",
-          borderBottom: "2px solid rgba(0,0,0,0.10)",
-          flexShrink: 0,
-          gap: "1rem",
-          boxSizing: "border-box",
-          position: "relative",
-        }}
-      >
-        {/* Logo + mode + station */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0, height: "100%" }}>
-          {config?.logo_url && (
-            <img
-              src={config.logo_url}
-              alt="Logo"
-              style={{ height: "70%", width: "auto", flexShrink: 0 }}
-              onError={(e) => handleImgError(e, config?.station_name || "Logo")}
-            />
-          )}
-          <span
-            style={{
-              fontFamily: "'Oswald', sans-serif",
-              fontWeight: 700,
-              fontSize: "clamp(3rem, 7dvh, 7rem)",
-              lineHeight: 1,
-              flexShrink: 0,
-            }}
-          >
-            {t(mode === "departures" ? "departures" : "arrivals", lang)}
-          </span>
-          <div style={{ display: "flex", flexDirection: "row", alignItems: "baseline", marginLeft: "0.6rem", gap: "0.6rem", minWidth: 0 }}>
-            <span
-              style={{
-                fontFamily: "'Oswald', sans-serif",
-                fontWeight: 700,
-                fontSize: "clamp(1.0rem, 2.2dvh, 2.6rem)",
-                letterSpacing: 0,
-                opacity: 1,
-                lineHeight: 1,
-              }}
-            >
-              {t("station-of", lang)}
-            </span>
-            <span
-              style={{
-                fontFamily: "'Oswald', sans-serif",
-                fontWeight: 700,
-                fontSize: "clamp(3rem, 7dvh, 7rem)",
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-                minWidth: 0,
-                flex: "1 1 auto",
-              }}
-            >
-              {boardStationName}
-            </span>
-          </div>
-        </div>
-        {/* Clock */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-          <div
-            style={{
-              fontFamily: "'Roboto Mono', monospace",
-              fontWeight: 700,
-              fontSize: "clamp(3rem, 6.5dvh, 7rem)",
-              lineHeight: 1,
-            }}
-          >
-            <Clock
-              mode={config?.clockMode === "fake" ? "fake" : "real"}
-              fakeTime={config?.clockFakeTime || "12:00:00"}
-              fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
-            />
-          </div>
-        </div>
-        {/* VÍA — aligned with PLATFORM column */}
-        <span
-          style={{
-            position: "absolute",
-            right: "1rem",
-            width: W_PLAT,
-            fontFamily: "'Oswald', sans-serif",
-            fontWeight: 700,
-            fontSize: "clamp(1rem, 2.5dvh, 2.4rem)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            opacity: 0.75,
-            textAlign: "center",
-            bottom: "0.4rem",
-          }}
-        >
-          {t("platform", lang)}
-        </span>
-      </header>
+      <BoardHeader
+        stationName={boardStationName}
+        mode={mode as "departures" | "arrivals"}
+        lang={lang}
+        clockMode={config?.clockMode as "real" | "fake" | undefined}
+        fakeTime={config?.clockFakeTime}
+        fakeStepSeconds={Number(config?.clockFakeStepSeconds || 1)}
+        headerBg={config?.headerBgColor}
+        headerTextColor={config?.headerTextColor}
+      />
 
-      {/* ══════════ TABLE ══════════ */}
-      <div style={{ height: "84dvh", overflow: "hidden", flexShrink: 0 }}>
-        {rows.map((train, i) => {
-          const place = mode === "departures" ? train.destination : train.origin;
-          const minutes = minutesUntil(train.expected_time);
-          const isCancelled = train.status === "Cancelled";
-          const isDelayed = train.expected_time !== train.scheduled_time;
-          const expectedDelta = clockMinuteDelta(train.scheduled_time, train.expected_time);
-          const isAhead = expectedDelta < 0;
-          const isBoarding = train.status === "Boarding";
-          const isLeaving = !isCancelled && (isBoarding || (minutes >= 0 && minutes <= 2));
-          const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
-          const showCountdown = !isCancelled && !isDelayed && minutes >= 0 && minutes <= 15;
-          const timeStruck = isCancelled || isDelayed;
-          const hasStops = train.stops?.length > 0;
-          const hasObservations = Boolean(train.observations?.trim());
-
-          const platform = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : "";
-          const sector = train.sector && train.sector !== "-" ? train.sector : "";
-          const platText = platform
-            ? sector
-              ? /^\d+$/.test(platform) && /^\d+$/.test(sector)
-                ? `${platform}-${sector}`
-                : `${platform}${sector}`
-              : platform
-            : "-";
-
-          return (
-            <div
-              key={train.id}
-              style={{
-                // ── Gravita core technique ──
-                // font-size = row height → all % children scale perfectly
-                fontSize: rowH,
-                height: rowH,
-                width: "100%",
-                display: "flex",
-                flexWrap: "wrap", // matches Gravita: upper row + lower row
-                boxSizing: "border-box",
-                backgroundColor: i % 2 === 0 ? rowBg : altBg,
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                overflow: "hidden",
-                color: "white",
-                paddingLeft: "1rem",
-                paddingRight: "1rem",
-              }}
-            >
-              {/* ═══ UPPER ROW — 60% of row height, font 50% (Gravita) ═══ */}
-
-              {/* TIME — 11.17% wide, 60% tall, font 50% of rowH */}
-              <div
-                style={{
-                  width: W_TIME,
-                  height: "60%",
-                  fontSize: "50%",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "flex-start",
-                  fontFamily: "'Roboto Mono', monospace",
-                  fontWeight: 700,
-                  lineHeight: 1,
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                }}
-              >
-                <div
-                  style={{
-                    whiteSpace: "nowrap",
-                    textDecoration: timeStruck ? "line-through" : "none",
-                    textDecorationColor: isCancelled ? "#555" : "#999",
-                    color: isCancelled ? "#4a5568" : "#ffffff",
-                    animation: isLeaving ? "departure-time-blink 0.9s ease-in-out infinite" : "none",
-                    transform: "translateY(0.25em)",
-                  }}
-                >
-                  {showCountdown ? (
-                    <>
-                      {Math.max(0, minutes)}
-                      <span style={{ fontSize: "40%", marginLeft: "0.2em" }}>{t("minute-short", lang)}</span>
-                    </>
-                  ) : (
-                    train.scheduled_time
-                  )}
-                </div>
-              </div>
-
-              {/* DESTINATION — 60.33% wide, 60% tall, font 50% of rowH */}
-              <div
-                style={{
-                  width: W_DEST,
-                  height: "60%",
-                  fontSize: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  paddingLeft: "calc(0.4em - 10px)",
-                  gap: "0.5em",
-                }}
-              >
-                {(() => {
-                  const mode = train.icon_mode || (config?.showDestinationIcon !== false ? "destination" : "none");
-                  if (mode === "none") return null;
-
-                  let iconUrl: string | undefined | null = null;
-                  if (mode === "custom") iconUrl = train.custom_icon_url;
-                  else if (mode === "destination") iconUrl = train.type_destination_icon || train.type_logo || train.operator_logo;
-                  else if (mode === "type") iconUrl = train.type_logo;
-                  else if (mode === "operator") iconUrl = train.operator_logo;
-
-                  if (!iconUrl) return null;
-
-                  return (
-                    <img
-                      src={fileUrl(iconUrl || null)!}
-                      alt=""
-                      style={{
-                        height: "1em",
-                        width: "auto",
-                        flexShrink: 0,
-                        objectFit: "contain",
-                      }}
-                      onError={(e) => handleImgError(e, train.destination || "Destino")}
-                    />
-                  );
-                })()}
-                <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
-                  <ScrollText
-                    text={place}
-                    color={isCancelled ? "#4a5568" : "#ffffff"}
-                    fontFamily="'Oswald', sans-serif"
-                    fontWeight={600}
-                    fontSize="100%"
-                    textDecoration={isCancelled ? "line-through" : "none"}
-                  />
-                </div>
-              </div>
-
-              {/* MARGIN */}
-              <div style={{ width: W_MARG, height: "60%" }} />
-
-              {/* PRODUCT (logo + number) — 18% wide, 60% tall */}
-              {/* Internal split: logo 61%, margin 2%, number 35%, margin 2% */}
-              <div
-                style={{
-                  width: W_PROD,
-                  height: "60%",
-                  fontSize: "50%",
-                  display: "flex",
-                  flexWrap: "nowrap",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                }}
-              >
-                {/* Logo slot — 61% of product column */}
-                <div
-                  style={{
-                    width: "61%",
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                    lineHeight: 0,
-                  }}
-                >
-                  {!(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                    <>
-                      {train.type_logo ? (
-                        <img
-                          src={fileUrl(train.type_logo)!}
-                          alt={train.type_code || ""}
-                          style={{
-                            maxWidth: "100%",
-                            height: "85%",
-                            width: "auto",
-                            objectFit: "contain",
-                            borderRadius: "0.25em",
-                            display: "block",
-                            margin: 0,
-                          }}
-                          onError={(e) => handleImgError(e, train.type_code || train.type_name || "Tren")}
-                        />
-                      ) : train.type_code ? (
-                        <TrainTypeBadge code={train.type_code} color={train.type_color} />
-                      ) : train.operator_logo ? (
-                        <img
-                          src={fileUrl(train.operator_logo)!}
-                          alt={train.operator_name || ""}
-                          style={{
-                            maxWidth: "100%",
-                            height: "85%",
-                            width: "auto",
-                            objectFit: "contain",
-                            borderRadius: "0.25em",
-                            display: "block",
-                            margin: 0,
-                          }}
-                          onError={(e) => handleImgError(e, train.operator_name || "Logo")}
-                        />
-                      ) : train.operator_name ? (
-                        <span
-                          style={{
-                            fontSize: "55%",
-                            fontWeight: 700,
-                            fontFamily: "'Roboto Condensed', sans-serif",
-                            color: "#ffffff",
-                            lineHeight: 1,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.04em",
-                          }}
-                        >
-                          {train.operator_name}
-                        </span>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-                {/* Margin — 2% */}
-                <div style={{ width: "2%" }} />
-                {/* Number slot — 35% of product column */}
-                <div
-                  style={{
-                    width: "35%",
-                    height: "100%",
-                    fontSize: "60%",
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    overflow: "hidden",
-                    fontFamily: "'Roboto Mono', monospace",
-                    fontWeight: 700,
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ whiteSpace: "nowrap", minWidth: "5ch" }}>{padNum}</div>
-                </div>
-                {/* Margin — 2% */}
-                <div style={{ width: "2%" }} />
-              </div>
-
-              {/* PLATFORM — 10% wide, 60% tall, font 50% of rowH */}
-              <div
-                style={{
-                  width: W_PLAT,
-                  height: "60%",
-                  fontSize: "50%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  fontFamily: "'Oswald', sans-serif",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  paddingRight: 0,
-                  paddingLeft: "0.2em",
-                  // Gravita: platform-preview color when no platform assigned
-                  color: !platform ? "#B9D0FF" : "white",
-                }}
-              >
-                <div style={{ transform: "translateY(0.12em)" }}>{platText}</div>
-              </div>
-
-              {/* ═══ LOWER ROW — 40% of row height, font 32% (Gravita) ═══ */}
-
-              {/* STATUS — lower row on TIME column */}
-              <div
-                style={{
-                  width: W_TIME,
-                  height: "40%",
-                  fontSize: "32%",
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  fontFamily: "'Roboto Mono', monospace",
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  boxSizing: "border-box",
-                }}
-              >
-                {isDelayed && !isCancelled && (
-                  <span style={{ color: isAhead ? "#5FE0AF" : "#FF8557" }}>
-                    {t("estimated", lang)}&nbsp;{train.expected_time}
-                  </span>
-                )}
-                {isCancelled && <span style={{ color: "#FF8557" }}>{t("cancelled", lang)}</span>}
-              </div>
-
-              {/* STOPS — lower row only under DESTINATION column */}
-              <div
-                style={{
-                  width: W_DEST,
-                  height: "40%",
-                  fontSize: "32%",
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                  paddingLeft: "0.4em",
-                  fontFamily: "'Roboto Condensed', sans-serif",
-                }}
-              >
-                {hasStops && (
-                  <div style={{ width: "100%", minWidth: 0, overflow: "hidden" }}>
-                    <ScrollText text={train.stops.join(" · ")} color="#ffffff" bold fontSize="100%" />
-                  </div>
-                )}
-              </div>
-
-              {/* MARGIN — lower row */}
-              <div style={{ width: W_MARG, height: "40%" }} />
-              {/* Extra margin — matches Gravita's list-margin-inf */}
-              <div style={{ width: W_MARG, height: "40%" }} />
-
-              {/* OBSERVATIONS — 27% width, aligned under product + platform */}
-              <div
-                style={{
-                  width: "27%",
-                  height: "40%",
-                  fontSize: "32%",
-                  display: "flex",
-                  alignItems: "center",
-                  overflow: "hidden",
-                  boxSizing: "border-box",
-                }}
-              >
-                {(train.type_name?.includes("Cercanías") || train.type_name?.includes("cercanías")) && (
-                  <img
-                    src="https://info.adif.es/recursos/C01CERMAD.png?v=12"
-                    alt="Cercanías"
-                    style={{ height: "85%", width: "auto", objectFit: "contain", flexShrink: 0, marginRight: "0.4em" }}
-                    onError={(e) => handleImgError(e, "Cercanías")}
-                  />
-                )}
-                {hasObservations && (
-                  <div style={{ minWidth: 0, overflow: "hidden" }}>
-                    <ScrollText text={train.observations!} color="#5FE0AF" bold fontSize="100%" />
-                  </div>
-                )}
-              </div>
-
-              {/* Margin-end — matches Gravita's list-margin-inf-end */}
-              <div style={{ width: W_MARG, height: "40%" }} />
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ══════════ FOOTER — ~4dvh ══════════ */}
-      <footer
+      <div
         style={{
           flex: 1,
-          borderTop: "1px solid rgba(255,255,255,0.08)",
-          backgroundColor: "rgba(0,0,0,0.35)",
           overflow: "hidden",
           display: "flex",
-          alignItems: "center",
+          flexDirection: "column",
         }}
       >
-        <div
-          className="animate-marquee-full"
-          style={{
-            whiteSpace: "nowrap",
-            color: "#3d5a80",
-            fontSize: "clamp(1.2rem, 2.4dvh, 2rem)",
-            textTransform: "uppercase",
-            letterSpacing: "0.2em",
-            fontWeight: 700,
-          }}
-        >
-          <span>
-            {config?.footerText ||
-              `${t("welcome", lang)} ${boardStationName} · ${t("ticket", lang)} · ${t("tracks", lang)} · ${t("wifi", lang)} · ${t("event", lang)}`}
-          </span>
-        </div>
-      </footer>
+        {rows.map((train, i) => (
+          <DepartureRow
+            key={train.id}
+            train={train}
+            index={i}
+            mode={mode as "departures" | "arrivals"}
+            maxRows={Math.max(rows.length, MAX_VISIBLE_ROWS)}
+          />
+        ))}
+      </div>
     </div>
   );
 }

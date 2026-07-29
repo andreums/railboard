@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 60" fill="none">
+  <!-- ADIF Icon: stylized railway tracks / bridge -->
+  <g transform="translate(0, 2)">
+    <!-- Left pillar -->
+    <rect x="4" y="8" width="6" height="40" rx="1" fill="#071E43"/>
+    <!-- Right pillar -->
+    <rect x="42" y="8" width="6" height="40" rx="1" fill="#071E43"/>
+    <!-- Top beam -->
+    <rect x="4" y="6" width="44" height="6" rx="1" fill="#071E43"/>
+    <!-- Arch / track representation -->
+    <path d="M10 18 Q25 28 40 18" stroke="#071E43" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <path d="M10 28 Q25 38 40 28" stroke="#071E43" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <!-- Center vertical -->
+    <rect x="23" y="14" width="4" height="34" rx="1" fill="#071E43"/>
+  </g>
+  <!-- "adif" text -->
+  <text x="58" y="44" font-family="Arial, Helvetica, sans-serif" font-size="38" font-weight="700" fill="#071E43" letter-spacing="-1">adif</text>
+</svg>
