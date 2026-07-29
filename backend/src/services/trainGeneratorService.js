@@ -17,7 +17,24 @@ export function ensureLearnedRailData() {
   const knownTypes = trainTypes.list().map((t) => t.code);
   for (const route of railRoutes) {
     if (!knownTypes.includes(route.code)) {
-      trainTypes.create({ code: route.code, name: route.name, color: route.color });
+      const isCommuter =
+        /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d/i.test(route.code) ||
+        /^(R\d+[A-Z]?|R2N)$/i.test(route.code);
+      trainTypes.create({
+        code: route.code,
+        name: route.name,
+        color: route.color,
+        logo_url: isCommuter ? "/uploads/CERCANIAS.png" : undefined,
+      });
+    }
+  }
+
+  // Set Cercanías logo on existing types that lack it
+  const commuterRegex = /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d|^(R\d+[A-Z]?|R2N)$/i;
+  const allTypes = trainTypes.list();
+  for (const tt of allTypes) {
+    if (!tt.logo_url && commuterRegex.test(tt.code)) {
+      trainTypes.update(tt.id, { logo_url: "/uploads/CERCANIAS.png" });
     }
   }
 

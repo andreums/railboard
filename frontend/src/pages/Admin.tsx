@@ -3236,7 +3236,7 @@ export default function Admin() {
               <div className="p-6 space-y-4 max-h-[70dvh] overflow-y-auto">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">N.º de Tren</label>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">N.º de Tren 1</label>
                     <input
                       type="text"
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
@@ -3245,12 +3245,32 @@ export default function Admin() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino</label>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">N.º de Tren 2</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                      value={(editFormData as any).number2 || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, number2: e.target.value })}
+                      placeholder="Opcional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino 1</label>
                     <input
                       type="text"
                       className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
                       value={editFormData.destination || ""}
                       onChange={(e) => setEditFormData({ ...editFormData, destination: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Destino 2</label>
+                    <input
+                      type="text"
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                      value={(editFormData as any).destination2 || ""}
+                      onChange={(e) => setEditFormData({ ...editFormData, destination2: e.target.value })}
+                      placeholder="Opcional"
                     />
                   </div>
                 </div>

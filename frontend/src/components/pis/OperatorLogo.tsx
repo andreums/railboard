@@ -47,20 +47,23 @@ export default function OperatorLogo({
     const bgColor = isAVE ? "#9B1B7A" : "#FFFFFF";
     const labelColor = isAVE ? "#FFFFFF" : "#071E43";
 
+    console.log(operatorLogo);
+    console.log(operatorName);
+    console.log(typeLogo);
+    console.log(typeCode);
+
     return (
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: bgColor,
           borderRadius: "clamp(12px, 1vw, 22px)",
           width: "clamp(140px, 11vw, 235px)",
           height: "clamp(40px, 3.2vw, 68px)",
           flexShrink: 0,
           overflow: "hidden",
           padding: "clamp(2px, 0.2vw, 6px)",
-        }}
+        }} 
       >
         {logoSrc ? (
           <img

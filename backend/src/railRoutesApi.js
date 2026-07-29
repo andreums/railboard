@@ -119,6 +119,7 @@ function buildRowsFromTrains(stationId, mode) {
       expectedTime: toHHMM(t.expected_time) || toHHMM(t.scheduled_time) || "00:00",
       delayMinutes: 0,
       number: t.number || `TR-${t.id}`,
+      number2: t.number2 || null,
       operatorName: t.operator_name || "Operador",
       operatorLogo: t.operator_logo || null,
       trainTypeCode: t.type_code || "",
@@ -130,11 +131,13 @@ function buildRowsFromTrains(stationId, mode) {
       iconMode: t.icon_mode || "destination",
       origin: t.origin || "Origen",
       destination: t.destination || "Destino",
+      destination2: t.destination2 || null,
       platform: t.platform || "?",
       sector: t.sector || "",
       status: t.status || "Scheduled",
       stopsText: Array.isArray(t.stops) ? t.stops.join(" · ") : "",
       observations: t.observations || "",
+      fareRestrictions: t.fare_restrictions || null,
     };
     if (modeAllows(mode, row.movement) && validateRow(row, `train:${t.id}`)) rows.push(row);
   }

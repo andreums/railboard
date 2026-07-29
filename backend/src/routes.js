@@ -128,6 +128,15 @@ r.put("/trains/reorder", adminAuth, (req, res) => {
 
 r.post("/trains", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
+  if (typeof body.fare_restrictions === "string") {
+    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch {}
+  }
+  if (typeof body.except_stations === "string") {
+    try { body.except_stations = JSON.parse(body.except_stations); } catch {}
+  }
+  if (typeof body.stops === "string") {
+    try { body.stops = JSON.parse(body.stops); } catch {}
+  }
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
   }
@@ -137,6 +146,15 @@ r.post("/trains", adminAuth, upload.single("custom_icon"), validateImageContent,
 });
 r.put("/trains/:id", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
+  if (typeof body.fare_restrictions === "string") {
+    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch {}
+  }
+  if (typeof body.except_stations === "string") {
+    try { body.except_stations = JSON.parse(body.except_stations); } catch {}
+  }
+  if (typeof body.stops === "string") {
+    try { body.stops = JSON.parse(body.stops); } catch {}
+  }
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
   } else if (body.custom_icon_url === "") {

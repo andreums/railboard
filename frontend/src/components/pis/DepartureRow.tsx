@@ -4,6 +4,7 @@ import OperatorLogo from "./OperatorLogo";
 import type { Train } from "../../lib/api";
 import { fileUrl } from "../../lib/api";
 import { handleImgError } from "../../lib/svgPlaceholder";
+import { useAlternating } from "../../lib/useAlternating";
 
 function ScrollText({
   text,
@@ -78,6 +79,9 @@ export default function DepartureRow({
 }) {
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
+  const place2 = mode === "departures" ? train.destination2 : null;
+  const showPlace2 = useAlternating(!!place2);
+  const displayPlace = place2 && showPlace2 ? place2 : place;
 
   const platform = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : "";
   const sector = train.sector && train.sector !== "-" ? train.sector : "";
@@ -92,12 +96,12 @@ export default function DepartureRow({
   const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
   const hasStops = train.stops && train.stops.length > 0;
   const hasObservations = Boolean(train.observations?.trim());
-  const isCommuter = train.type_code && /^(MA-)?[CR]\d*[A-Z]?$/i.test(train.type_code);
+  const isCommuter = train.type_code && /^([A-Z]{2,3}-)?C(-\d+[A-Z]?|\d+[A-Z]?)?$|^R\d*[A-Z]?$/i.test(train.type_code);
 
   const iconMode = train.icon_mode || (showDestinationIcon !== false ? "destination" : "none");
   let iconUrl: string | undefined | null = null;
   if (iconMode === "custom") iconUrl = train.custom_icon_url;
-  else if (iconMode === "destination") iconUrl = train.type_destination_icon || train.type_logo || train.operator_logo;
+  else if (iconMode === "destination") iconUrl = train.type_destination_icon || train.operator_logo;
   else if (iconMode === "type") iconUrl = train.type_logo;
   else if (iconMode === "operator") iconUrl = train.operator_logo;
 
@@ -176,7 +180,7 @@ export default function DepartureRow({
         )}
         <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
           <ScrollText
-            text={place}
+            text={displayPlace}
             color="#FFFFFF"
             fontSize="clamp(28px, 3vw, 65px)"
             fontWeight={700}
@@ -202,20 +206,44 @@ export default function DepartureRow({
           typeCode={train.type_code}
           typeLogo={train.type_logo}
         />
-        <span
+        <div
           style={{
-            fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace",
-            fontWeight: 600,
-            fontSize: "clamp(20px, 2.1vw, 44px)",
-            fontVariantNumeric: "tabular-nums",
-            color: "#FFFFFF",
-            lineHeight: 1,
-            whiteSpace: "nowrap",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            lineHeight: 1.1,
             flexShrink: 0,
           }}
         >
-          {padNum}
-        </span>
+          <span
+            style={{
+              fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace",
+              fontWeight: 600,
+              fontSize: "clamp(20px, 2.1vw, 44px)",
+              fontVariantNumeric: "tabular-nums",
+              color: "#FFFFFF",
+              lineHeight: 1,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {padNum}
+          </span>
+          {train.number2 && (
+            <span
+              style={{
+                fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace",
+                fontWeight: 500,
+                fontSize: "clamp(14px, 1.5vw, 30px)",
+                fontVariantNumeric: "tabular-nums",
+                color: "rgba(255,255,255,0.7)",
+                lineHeight: 1,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {String(train.number2).padStart(5, "0")}
+            </span>
+          )}
+        </div>
         <span
           style={{
             fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",

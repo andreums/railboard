@@ -1,7 +1,15 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { api, fileUrl, connectWS, type DisplayScreen } from "../lib/api";
 import { useParams, Navigate } from "react-router-dom";
+import { useAlternating } from "../lib/useAlternating";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
+
+function AltValue({ primary, secondary, className, containerClass }: { primary: string; secondary?: string | null; className?: string; containerClass?: string }) {
+  const showSecond = useAlternating(!!secondary);
+  const display = secondary && showSecond ? secondary : primary;
+  if (!containerClass) return <span className={className}>{display}</span>;
+  return <div className={containerClass}><span className={className}>{display}</span></div>;
+}
 
 function isDelayed(row: any) {
   return row.status === "Delayed" || (row.expected_time && row.scheduled_time && row.expected_time !== row.scheduled_time);
@@ -144,7 +152,10 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
             {train.operator_logo && (
               <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-6 md:h-10 opacity-60" onError={onImgError} />
             )}
-            <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
+              {train.number2 && <span className="text-sm md:text-base font-bold text-slate-500">{train.number2}</span>}
+            </div>
           </div>
 
           <div className="text-5xl md:text-8xl font-bold text-white mb-2 tabular-nums tracking-tight">
@@ -157,9 +168,7 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
             </div>
           )}
 
-          <div className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6">
-            {train.destination}
-          </div>
+          <AltValue primary={train.destination} secondary={train.destination2} className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6" containerClass="mb-4 md:mb-6" />
 
           {train.platform && (
             <div className="flex items-center gap-4 md:gap-6 text-2xl md:text-4xl font-bold mb-4">
@@ -224,7 +233,7 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
               <div key={i} className="flex items-center justify-between text-xs md:text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-mono tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</span>
-                  <span className="text-slate-400 truncate">{row.destination || ""}</span>
+                  <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate" />
                 </div>
                 <span className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</span>
               </div>
@@ -255,7 +264,7 @@ function ClockDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; ro
           {nextTrains.map((row: any, i: number) => (
             <div key={row.id || i} className="flex items-center justify-between py-2 border-b border-slate-800 text-lg">
               <div className="tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</div>
-              <div className="text-slate-400 truncate mx-4 flex-1 text-center">{row.destination || ""}</div>
+              <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate mx-4 flex-1 text-center" containerClass="mx-4 flex-1 text-center" />
               <div className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</div>
             </div>
           ))}
@@ -283,7 +292,10 @@ function TrainInfoDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen
           <div className="flex items-center gap-3 md:gap-6 mb-4">
             {train.type_logo && <img src={fileUrl(train.type_logo) || ""} alt="" className="h-8 md:h-12 opacity-80" onError={onImgError} />}
             {train.operator_logo && <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-6 md:h-10 opacity-60" onError={onImgError} />}
-            <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
+            <div className="flex flex-col items-center leading-tight">
+              <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
+              {train.number2 && <span className="text-sm md:text-base font-bold text-slate-500">{train.number2}</span>}
+            </div>
           </div>
           <div className="text-5xl md:text-8xl font-bold text-white mb-2 tabular-nums tracking-tight">
             {formatDisplayTime(train.scheduled_time)}
@@ -293,7 +305,7 @@ function TrainInfoDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen
               {lang === "ca" ? "Nova hora:" : lang === "es" ? "Nueva hora:" : "New time:"} {formatDisplayTime(train.expected_time)}
             </div>
           )}
-          <div className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6">{train.destination}</div>
+          <AltValue primary={train.destination} secondary={train.destination2} className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6" containerClass="mb-4 md:mb-6" />
           <div className="flex items-center gap-4 md:gap-6 text-2xl md:text-4xl font-bold mb-4">
             <span className="text-blue-300">
               {lang === "ca" ? "VIA" : lang === "es" ? "VÍA" : "PLATFORM"} {train.platform}
@@ -346,7 +358,7 @@ function TrainInfoDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen
               <div key={i} className="flex items-center justify-between text-xs md:text-sm">
                 <div className="flex items-center gap-2 min-w-0">
                   <span className="font-mono tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</span>
-                  <span className="text-slate-400 truncate">{row.destination || ""}</span>
+                  <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate" />
                 </div>
                 <span className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</span>
               </div>
@@ -464,9 +476,12 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
                   {row.type_logo && (
                   <img src={fileUrl(row.type_logo) || ""} alt="" className="h-4 opacity-60 shrink-0" onError={onImgError} />
                 )}
-                <span className="truncate text-slate-300">{row.number || ""}</span>
+                <div className="flex flex-col leading-tight min-w-0">
+                  <span className="truncate text-slate-300">{row.number || ""}</span>
+                  {row.number2 && <span className="truncate text-xs text-slate-500">{row.number2}</span>}
+                </div>
               </div>
-              <div className="truncate font-medium text-white">{row.destination || ""}</div>
+              <AltValue primary={row.destination || ""} secondary={row.destination2} className="truncate font-medium text-white" />
               <div className="tabular-nums text-slate-400">{row.platform ? `V${row.platform}` : ""}</div>
               <div className="text-right">
                 <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${

@@ -21,8 +21,7 @@ services:
       - ./backend/data:/app/data
       - ./backend/uploads:/app/uploads
       - ./backend/scripts:/app/scripts
-      - db-data-dev:/app/data
-      - uploads-dev:/app/uploads
+      - ./backend/data:/app/data
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
       interval: 15s
@@ -58,6 +57,4 @@ services:
         condition: service_healthy
 
 volumes:
-  db-data-dev:
-  uploads-dev:
   node_modules-dev:

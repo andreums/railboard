@@ -97,10 +97,11 @@ export function setConfig(patch) {
 
 function rowToTrain(r) {
   if (!r) return null;
+  const fareParsed = JSON.parse(r.fare_restrictions || "null");
   return {
     ...r,
     stops: JSON.parse(r.stops || "[]"),
-    fare_restrictions: JSON.parse(r.fare_restrictions || "null"),
+    fare_restrictions: fareParsed && typeof fareParsed === "object" ? fareParsed : null,
     except_stations: JSON.parse(r.except_stations || "[]"),
   };
 }
@@ -1180,7 +1181,7 @@ export const displayScreens = {
     if (!stationId) return { display, rows: [] };
 
     const rows = db.prepare(`
-      SELECT t.id, t.number, t.destination, t.platform, t.sector, t.scheduled_time, t.expected_time, t.status, t.stops, t.observations,
+      SELECT t.id, t.number, t.number2, t.destination, t.destination2, t.platform, t.sector, t.scheduled_time, t.expected_time, t.status, t.stops, t.observations, t.fare_restrictions, t.custom_icon_url, t.icon_mode,
         o.name as operator_name, o.logo_url as operator_logo,
         tc.code as type_code, tc.name as type_name, tc.color as type_color, tc.logo_url as type_logo, tc.destination_icon_url as type_destination_icon,
         s.name as station_name

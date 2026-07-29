@@ -244,6 +244,7 @@ export const api = {
       Object.entries(t).forEach(([key, value]) => {
         if (key === "custom_icon_file") return;
         if (Array.isArray(value)) fd.append(key, JSON.stringify(value));
+        else if (value != null && typeof value === "object") fd.append(key, JSON.stringify(value));
         else if (value != null) fd.append(key, String(value));
       });
       if (hasFile) fd.append("custom_icon", hasFile);
@@ -258,6 +259,7 @@ export const api = {
       Object.entries(t).forEach(([key, value]) => {
         if (key === "custom_icon_file") return;
         if (Array.isArray(value)) fd.append(key, JSON.stringify(value));
+        else if (value != null && typeof value === "object") fd.append(key, JSON.stringify(value));
         else if (value != null) fd.append(key, String(value));
       });
       if (hasFile) fd.append("custom_icon", hasFile);

@@ -45,6 +45,7 @@ export function buildStationBoard(stationId, mode = "departures") {
     stopId: train.id,
     serviceId: train.id,
     number: train.number,
+    number2: train.number2 || null,
     operatorName: train.operator_name || "",
     operatorLogo: train.operator_logo || null,
     trainTypeCode: train.type_code || "",
@@ -52,15 +53,20 @@ export function buildStationBoard(stationId, mode = "departures") {
     trainTypeColor: train.type_color || null,
     trainTypeLogo: train.type_logo || (train.train_type_id ? trainTypes.list().find((t) => t.id === train.train_type_id)?.logo_url : null) || null,
     trainTypeDestinationIcon: train.type_destination_icon || null,
+    iconMode: train.icon_mode || "destination",
+    customIcon: train.custom_icon_url || null,
     destination: train.destination || "—",
+    destination2: train.destination2 || null,
     origin: train.origin || "—",
     stopsText: train.stops && train.stops.length > 0 ? train.stops.join(" · ") : "",
     time: train.scheduled_time || "—",
     expectedTime: train.expected_time || train.scheduled_time || "—",
+    delayMinutes: 0,
     platform: train.platform || "?",
     sector: train.sector || "",
     status: train.status || "Scheduled",
     notes: train.observations || "",
+    fareRestrictions: train.fare_restrictions || null,
   }));
 
   // Normalize services to board row format
