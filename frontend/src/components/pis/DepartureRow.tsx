@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import LineBadge from "./LineBadge";
 import OperatorLogo from "./OperatorLogo";
 import type { Train } from "../../lib/api";
+import { fileUrl } from "../../lib/api";
+import { handleImgError } from "../../lib/svgPlaceholder";
 
 function ScrollText({
   text,
@@ -67,10 +69,12 @@ export default function DepartureRow({
   train,
   index,
   mode,
+  showDestinationIcon,
 }: {
   train: Train;
   index: number;
   mode: "departures" | "arrivals";
+  showDestinationIcon?: boolean;
 }) {
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
@@ -89,6 +93,13 @@ export default function DepartureRow({
   const hasStops = train.stops && train.stops.length > 0;
   const hasObservations = Boolean(train.observations?.trim());
   const isCommuter = train.type_code && /[A-Z]+-C\d|^C-?\d|^R\d/i.test(train.type_code);
+
+  const iconMode = train.icon_mode || (showDestinationIcon !== false ? "destination" : "none");
+  let iconUrl: string | undefined | null = null;
+  if (iconMode === "custom") iconUrl = train.custom_icon_url;
+  else if (iconMode === "destination") iconUrl = train.type_destination_icon || train.type_logo || train.operator_logo;
+  else if (iconMode === "type") iconUrl = train.type_logo;
+  else if (iconMode === "operator") iconUrl = train.operator_logo;
 
   return (
     <div
@@ -149,6 +160,19 @@ export default function DepartureRow({
       >
         {isCommuter && train.type_code && (
           <LineBadge code={train.type_code} color={train.type_color} />
+        )}
+        {iconUrl && (
+          <img
+            src={fileUrl(iconUrl)!}
+            alt=""
+            style={{
+              height: "clamp(18px, 1.8vw, 40px)",
+              width: "auto",
+              flexShrink: 0,
+              objectFit: "contain",
+            }}
+            onError={(e) => handleImgError(e, train.destination || "")}
+          />
         )}
         <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
           <ScrollText
@@ -251,7 +275,7 @@ export default function DepartureRow({
         {hasStops && (
           <div style={{ width: "100%", height: "clamp(18px, 1.8vw, 36px)", overflow: "hidden" }}>
             <ScrollText
-              text={[...train.stops].reverse().join(" \u00B7 ")}
+              text={train.stops.join(" \u00B7 ")}
               color="rgba(255,255,255,0.92)"
               fontSize="clamp(16px, 1.6vw, 32px)"
               fontWeight={700}

@@ -337,6 +337,7 @@ export default function Display() {
                 train={train}
                 index={startIdx + i}
                 mode={mode as "departures" | "arrivals"}
+                showDestinationIcon={config?.showDestinationIcon !== false}
               />
             ))}
           </div>

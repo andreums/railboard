@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, type Language } from "../lib/i18n";
+import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
-import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
+import { buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
 
 const defaultConfig = (stationName = ""): Config => ({
@@ -126,7 +127,6 @@ export default function DisplayConfigPage() {
     const langs = displayedConfig?.languages?.length ? displayedConfig.languages : [(displayedConfig?.language as Language) ?? "es"];
     return Array.from(new Set(langs.map((language) => language as Language))).filter(Boolean);
   }, [displayedConfig]);
-  const displayPlatformOptions = buildPlatformOptions(displayedConfig, []);
   const displaySectorOptions = buildSectorOptions(displayedConfig, []);
   const trains = current?.trains || [];
 
@@ -244,15 +244,27 @@ export default function DisplayConfigPage() {
     try {
       setAnnouncingId(train.id);
       setAnnouncePopup(null);
-      await api.triggerAnnouncementEvent({
+      const result = await api.testAnnouncement({
         train,
         eventType: popupEventType,
-        stationId: displayedStation.id,
         languages: popupLanguages,
         sound_id: popupSoundId || undefined,
       });
+      const composed: Record<string, string> = result?.composed || {};
+      const chimePath: string | null = result?.chime?.assetPath || null;
+      if (chimePath) {
+        const url = fileUrl(chimePath);
+        if (url) await new Audio(url).play().catch(() => {});
+      }
+      for (const lang of popupLanguages) {
+        const text = composed[lang];
+        if (!text) continue;
+        const mergedConfig = { ...(globalConfig || {}), ...(displayedConfig || {}) };
+        const vs = { ...loadVoiceSettings(mergedConfig), voiceURI: getVoiceURIForLanguage(mergedConfig, lang) };
+        await speakWithFallback(text, lang, vs);
+      }
     } catch (err: any) {
-      setError(err?.message || "Error al encolar el anuncio");
+      setError(err?.message || "Error al compondre l'anunci");
     } finally {
       window.setTimeout(() => setAnnouncingId((current) => (current === train.id ? null : current)), 1000);
     }
@@ -314,10 +326,6 @@ export default function DisplayConfigPage() {
     }
   };
 
-  const modalPlatformOptions =
-    editingTrain?.platform && !displayPlatformOptions.includes(editingTrain.platform)
-      ? [...displayPlatformOptions, editingTrain.platform]
-      : displayPlatformOptions;
   const modalSectorOptions =
     editingTrain?.sector && !displaySectorOptions.includes(editingTrain.sector)
       ? [...displaySectorOptions, editingTrain.sector]
@@ -1180,17 +1188,12 @@ export default function DisplayConfigPage() {
                 </label>
                 <label className="block">
                   <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Vía</div>
-                  <select
+                  <input
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition"
-                    value={editingTrain.platform && editingTrain.platform !== "-" ? editingTrain.platform : ""}
+                    placeholder="1, 1-3, 1,2,3 o buit"
+                    value={editingTrain.platform || ""}
                     onChange={(e) => setEditingTrain({ ...editingTrain, platform: e.target.value })}
-                  >
-                    {modalPlatformOptions.map((platform) => (
-                      <option key={platform || "empty"} value={platform}>
-                        {platform ? `Vía ${platform}` : "— Sin vía —"}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
                 <label className="block">
                   <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Sector</div>
