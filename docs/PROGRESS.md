@@ -1,6 +1,6 @@
 # Progreso del Proyecto RailBoard
 
-**Última actualización:** 27 de julio de 2026
+**Última actualización:** 29 de julio de 2026
 
 ---
 
@@ -8,7 +8,7 @@
 
 RailBoard es una aplicación web de paneles informativos para estaciones de tren con:
 
-- **Display público** en tiempo real (llegadas/salidas)
+- **Display público PIS** en tiempo real, réplica pixel-perfect del panel ADIF/Gravita
 - **Panel de administración** completo con control en vivo
 - **Generación inteligente de trenes** desde rutas ferroviarias reales (57 rutas españolas)
 - **WebSocket real-time** para actualizaciones instantáneas
@@ -92,6 +92,25 @@ RailBoard es una aplicación web de paneles informativos para estaciones de tren
 - ✅ **VoiceSelect component** — dropdown con voces servidor + navegador
 - ✅ **Event Labels** — nombres humanos para todos los tipos de evento
 
+### Fase C.5: PIS Pixel-Perfect (Réplica ADIF) ✅
+
+- ✅ **Nueva arquitectura `components/pis/`** — `BoardHeader`, `DepartureRow`, `LineBadge`, `OperatorLogo`, `PisClock`
+- ✅ **Réplica exacta Gravita/ADIF** en `Display.tsx`:
+  - CSS Grid 2 filas (55%/45%), columnas `12% 59% 12% 9% 8%`
+  - Colores de fila alternados `#1A3355` / `#0F2441`
+  - Escalado `clamp()` para 16:9, 16:10 y ultrawide
+  - Marquee en destino, paradas y observaciones
+  - Cancelado: hora tachada, etiqueta naranja, opacidad 0.45
+- ✅ **Virtualización de filas** — renderiza solo filas visibles (scroll + ResizeObserver)
+- ✅ **Logo configurable** — ADIF por defecto (`/adif.svg`) o `logo_url` personalizado por display
+- ✅ **Doble número y doble destino** por tren (`number2`, `destination2`)
+- ✅ **Destino alternante** cada 5s (`lib/useAlternating.ts`, componente `AltValue`)
+- ✅ **Restricciones tarifarias** (`fare_restrictions` JSON: billetes/abonos cercanías, reserva obligatoria)
+- ✅ **Logos Cercanías automáticos** desde generación de rutas (regEx multi-dígito `C10`, `C4B`, `MA-`)
+- ✅ **`typeLogo` solo Cercanías/Regionales** — resto de tipos usan `operatorLogo` o texto
+- ✅ **Sidebar Admin colapsable** — overlay + hamburger en mobile, fija en desktop
+- ✅ **DB movida a `backend/data/data.db`** (WAL), eliminado workflow GitHub Actions
+
 ---
 
 ## 🏗️ Arquitectura Técnica
@@ -106,6 +125,12 @@ frontend/src/
 │   ├── Clock.tsx                    # Reloj digital (real/ficticio)
 │   ├── StatusPill.tsx               # Indicador de estado del tren
 │   ├── SteamTrain.tsx               # Animación SVG del tren
+│   ├── pis/                         # Panel PIS (réplica ADIF)
+│   │   ├── BoardHeader.tsx          # Cabecera con logo + reloj + Vía
+│   │   ├── DepartureRow.tsx         # Fila de salidas (marquee, doble número/destino)
+│   │   ├── LineBadge.tsx            # Píldora de línea con colores
+│   │   ├── OperatorLogo.tsx         # Placas de logo por operador
+│   │   └── PisClock.tsx             # Reloj de panel
 │   ├── admin/
 │   │   ├── GenerationPanel.tsx      # Acciones de generación rápida
 │   │   ├── RoutesPanel.tsx          # Selector de rutas para generación
@@ -113,14 +138,17 @@ frontend/src/
 │   │   └── WSLogPanel.tsx           # Debug de mensajes WebSocket
 │   └── ...
 ├── pages/
-│   ├── Display.tsx                  # Panel público
+│   ├── Display.tsx                  # Panel público PIS (ADIF)
+│   ├── DisplayPage.tsx              # Displays por screen (platform, clock, train-info, board)
 │   ├── Admin.tsx                    # Dashboard principal
 │   ├── Trains.tsx                   # Gestión drag & drop
 │   ├── TrainSettings.tsx            # Operadores y tipos
 │   └── DisplayConfig.tsx            # Config de display individual
 ├── lib/
 │   ├── api.ts                       # API client con autenticación
-│   └── i18n.ts                      # Sistema multiidioma
+│   ├── i18n.ts                      # Sistema multiidioma
+│   ├── tts.ts                       # TTS con fallback (server → navegador)
+│   └── useAlternating.ts            # Hook de alternancia (destinos)
 └── styles/
     └── index.css                    # Tailwind + estilos custom
 ```
@@ -137,18 +165,29 @@ frontend/src/
 **Estructura:**
 
 ```
-backend/src/
-├── index.js                         # Servidor Express, start
-├── db.js                            # Esquema, migraciones, acceso
-├── routes.js                        # Rutas REST + WebSocket ping
-├── ws.js                            # Servidor WebSocket, broadcast
-├── services/
-│   └── ttsService.js                # TTS server-side (macOS say + Edge TTS)
-├── seed.js                          # Datos iniciales
+backend/
+├── src/
+│   ├── index.js                         # Servidor Express, start
+│   ├── db.js                            # Esquema, migraciones, acceso
+│   ├── routes.js                        # Rutas REST + WebSocket ping
+│   ├── ws.js                            # Servidor WebSocket, broadcast
+│   ├── railRoutesApi.js                 # Build de filas de panel desde trenes
+│   ├── services/
+│   │   ├── ttsService.js                # TTS server-side (macOS say + Edge TTS)
+│   │   ├── boardService.js              # Compose de station board (modo dep/arr)
+│   │   ├── trainGeneratorService.js     # Generación de trenes + logos Cercanías auto
+│   │   └── ...
+│   ├── seed.js                          # Datos iniciales
+│   ├── data/
+│   │   └── railboard_routes.json        # 57 rutas españolas
+│   └── scripts/
+│       └── ws_e2e_test.mjs              # Test E2E con WS + fallback curl
 ├── data/
-│   └── railboard_routes.json        # 57 rutas españolas
-└── scripts/
-    └── ws_e2e_test.mjs              # Test E2E con WS + fallback curl
+│   └── data.db                          # SQLite (WAL) — antes backend/railboard.db
+├── uploads/
+│   ├── tts/                             # Cache de audio TTS (MD5 hash)
+│   └── ...                              # Imágenes subidas (logos)
+└── package.json
 ```
 
 **Migraciones Automáticas:**
@@ -178,40 +217,37 @@ backend/src/
 
 ## 🔧 Cambios Técnicos Recientes (Última Sesión)
 
-### 1. Integración de Rutas Ferroviarias
+### 1. Arquitectura PIS (Réplica ADIF)
 
-- **Archivo:** `backend/src/data/railboard_routes.json`
-  - 57 rutas españolas con operador, tipo, red, paradas
-  - Cargado al startup del backend
-- **Endpoint:** `POST /admin/trains/from-route/:code`
-  - Valida código de ruta
-  - Extrae metadatos (operador, tipo, plataformas, paradas)
-  - Crea tren con destino = segundo al último parador
+- **Ubicación:** `frontend/src/components/pis/`
+  - `BoardHeader.tsx` — cabecera (logo, reloj, etiqueta Vía)
+  - `DepartureRow.tsx` — fila de salidas con marquee, doble número/destino
+  - `LineBadge.tsx`, `OperatorLogo.tsx`, `PisClock.tsx`
+- **`Display.tsx` refactorizado** — CSS Grid 2 filas (55%/45%), columnas `12% 59% 12% 9% 8%`, virtualización de filas
+- **Logo configurable** — `config.logo_url` (ADIF por defecto)
 
-### 2. Frontend: RoutesPanel
+### 2. Doble Número / Destino + Alternancia
 
-- **Ubicación:** `frontend/src/components/admin/RoutesPanel.tsx`
-- Dropdown de rutas con filtros (región, servicio, operador)
-- Botón "Generar" → POST `/admin/trains/from-route/:code`
-- Integrada en Admin (`routes` tab)
+- Campos `number2`, `destination2` en `trains` (Admin + PIS + DisplayPage)
+- Hook `useAlternating()` alterna destino cada 5s
+- Componente `AltValue` en `DisplayPage.tsx`
 
-### 3. Debug: WSLogPanel
+### 3. Restricciones Tarifarias
 
-- **Ubicación:** `frontend/src/components/admin/WSLogPanel.tsx`
-- Muestra últimos 50 eventos WebSocket
-- Lista con timestamp, tipo, payload
-- Scroll auto, botón limpiar
-- Integrado en Admin (`routes` tab) bajo RoutesPanel
+- Campo JSON `fare_restrictions` (`commuterTicketsNotAccepted`, `commuterPassesNotAccepted`, `reservationRequired`)
+- Checkboxes en Admin/DisplayConfig, parsing seguro en backend
 
-### 4. E2E Testing
+### 4. Logos Cercanías Automáticos
 
-- **Archivo:** `backend/scripts/ws_e2e_test.mjs`
-- Abre WebSocket → escucha "update"
-- POST a `/admin/trains/from-route/:code`
-- Fallback: si WS falla, usa `curl` para POST + polling HTTP
-- Ejecutable: `node backend/scripts/ws_e2e_test.mjs C-1`
+- `trainGeneratorService.js` asigna `logo_url: /uploads/CERCANIAS.png` a tipos Cercanías/Regional
+- RegEx robusto: `C10`, `C4B`, `MA-C...`, códigos exactos `C`/`R`
+- `typeLogo` solo Cercanías/Regionales; resto usa `operatorLogo` o texto
 
-### 5. UI/UX Mejorada en DisplayConfig
+### 5. Sidebar Admin Colapsable
+
+- Mobile: overlay + hamburger; desktop: fija (`lg:static`)
+
+### 6. UI/UX Mejorada en DisplayConfig
 
 - **Cambio layout:** `grid-cols-1 2xl:grid-cols-[...]`
   - Vertical por defecto (mobile/tablet)
@@ -225,16 +261,20 @@ backend/src/
 
 | Componente                  | Estado      | Notas                                                |
 | --------------------------- | ----------- | ---------------------------------------------------- |
-| **Display (Panel Público)** | ✅ Completo | Renderiza en tiempo real, soporta múltiples displays |
-| **Admin (Dashboard)**       | ✅ Completo | 11 tabs, multitud de funcionalidades                 |
-| **DisplayConfig**           | ✅ Completo | Configuración por display, nuevo layout vertical     |
+| **Display (PIS público)**   | ✅ Completo | Réplica ADIF pixel-perfect, virtualización de filas  |
+| **PIS Components**          | ✅ Completo | `components/pis/` — BoardHeader, DepartureRow, LineBadge, OperatorLogo, PisClock |
+| **Admin (Dashboard)**       | ✅ Completo | 11 tabs, sidebar colapsable, multitud de funcionalidades |
+| **DisplayConfig**           | ✅ Completo | Configuración por display, logo, layout vertical     |
+| **DisplayPage**             | ✅ Completo | 4 modos de screen (platform, clock, train-info, board) con destino alternante |
 | **Generación de Trenes**    | ✅ Completo | Random + Rutas + Panel Completo                      |
 | **WebSocket**               | ✅ Completo | Broadcast, event listeners, fallbacks                |
 | **CRUD Operadores**         | ✅ Completo | Create, read, update (logo), delete                  |
-| **CRUD Tipos de Tren**      | ✅ Completo | Create, read, update, delete                         |
+| **CRUD Tipos de Tren**      | ✅ Completo | Create, read, update, delete, logo Cercanías auto    |
 | **CRUD Lugares**            | ✅ Completo | Create, read, delete                                 |
 | **Multiidioma**             | ✅ Completo | ES, CA, EN, FR, EU, GL                               |
 | **TTS (Text-to-Speech)**    | ✅ Completo | Server-side (macOS say + Edge TTS) + fallback navegador, 6 idiomas |
+| **Doble número/destino**    | ✅ Completo | `number2`, `destination2`, destino alternante 5s     |
+| **Restricciones tarifarias**| ✅ Completo | `fare_restrictions` JSON en Admin/DisplayConfig      |
 | **Drag & Drop (Trains)**    | ✅ Completo | Reordenar trenes entre displays                      |
 
 ---
@@ -405,7 +445,7 @@ npm run preview          # Preview del build
 node backend/scripts/ws_e2e_test.mjs C-1
 
 # Database (si necesario borrar)
-rm backend/railboard.db  # y reiniciar backend para recrear
+rm backend/data/data.db  # y reiniciar backend para recrear
 ```
 
 ---

@@ -110,6 +110,112 @@ Registro de cambios y versiones del proyecto.
 
 ---
 
+## [Sesión 29 julio 2026] — PIS Pixel-Perfect + Logos + Doble Número/Destino
+
+### ✨ Features Nuevas
+
+#### Panel PIS (Passenger Information System) — Réplica ADIF
+
+- **Nueva arquitectura de componentes** (`frontend/src/components/pis/`)
+  - `BoardHeader.tsx` — cabecera con logo ADIF/configurable, reloj y etiqueta Vía
+  - `DepartureRow.tsx` — fila de salidas con marquee, estado cancelado y logos
+  - `LineBadge.tsx` — píldora de línea con colores de configuración
+  - `OperatorLogo.tsx` — placas de logo por operador (Cercanías/AVE con colores de marca)
+  - `PisClock.tsx` — reloj de panel (real/ficticio)
+- **Réplica exacta Gravita/ADIF** (`Display.tsx`)
+  - CSS Grid 2 filas (55%/45%) para alineación exacta
+  - Columnas proporcionales ADIF: `12% 59% 12% 9% 8%`
+  - Colores de fila alternados `#1A3355` / `#0F2441`
+  - Escalado `clamp()` para 16:9, 16:10 y ultrawide
+  - Marquee en destino, paradas y observaciones
+  - Estado cancelado: hora tachada, etiqueta naranja, opacidad 0.45
+  - **Virtualización de filas** — renderiza solo filas visibles (scroll + ResizeObserver), sin scroll horizontal
+- **Logo configurable** — ADIF por defecto (`/adif.svg`) o `logo_url` personalizado por display (`DisplayConfig`)
+
+#### Doble Número y Doble Destino por Tren
+
+- Nuevos campos `number2` y `destination2` en `trains`
+- **Admin:** formularios de tren con "N.º de Tren 1/2" y "Destino 1/2"
+- **PIS (`DepartureRow`):** segundo número bajo el principal (p.ej. `01234` + `05678`)
+- **Destino alternante** (`frontend/src/lib/useAlternating.ts`)
+  - Hook que alterna entre destino primario y secundario cada 5 segundos
+  - Aplicado en PIS, PlatformDisplay, ClockDisplay, TrainInfoDisplay y BoardDisplay
+- **`DisplayPage.tsx`** — componente `AltValue` reutilizable para destino alternante
+
+#### Restricciones Tarifarias (Fare Restrictions)
+
+- Nuevo campo JSON `fare_restrictions` en `trains` con flags:
+  - `commuterTicketsNotAccepted` — no válidos billetes de cercanías
+  - `commuterPassesNotAccepted` — no válidos abonos de cercanías
+  - `reservationRequired` — reserva obligatoria
+- **Admin/DisplayConfig:** checkboxes de restricciones en el formulario de tren
+- **Backend:** parsing robusto en `POST/PUT /trains` (acepta JSON string u objeto), guard en `rowToTrain` contra JSON corrupto
+- **MegaphonyPanel:** presets incluyen restricciones tarifarias realistas
+
+#### Logos Cercanías Automáticos
+
+- **`trainGeneratorService.js`**: los tipos Cercanías/Regionales creados desde rutas reciben `logo_url: /uploads/CERCANIAS.png` automáticamente
+- **RegEx mejorado** para detección Cercanías/Regional:
+  - `C10`, `C4B` (multi-dígito + sufijo), prefijo regional `MA-C...`
+  - Códigos exactos `C` y `R` (sin dígito)
+- **`typeLogo` solo para Cercanías/Regionales** — el resto de tipos usan `operatorLogo` o texto (`OperatorLogo.tsx`)
+- **Fixes de fallback**: logos Cercanías pasan por `fileUrl()` para apuntar al backend (4000)
+
+#### Admin — Sidebar Ocultable
+
+- **Admin.tsx**: sidebar colapsable en mobile con overlay + hamburger; en desktop permanece fija (`lg:static`)
+- Nuevo botón "Toggle sidebar"
+
+### 🔧 Cambios Técnicos
+
+#### Backend
+
+| Archivo                          | Cambios                                                              |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `backend/src/db.js`              | `rowToTrain` guard de JSON, `number2`/`destination2`/`fare_restrictions` en queries |
+| `backend/src/routes.js`          | Parsing JSON en `POST/PUT /trains` (stops, fare_restrictions, except_stations) |
+| `backend/src/services/boardService.js` | Campos `number2`, `destination2`, `iconMode`, `customIcon`, `fareRestrictions` |
+| `backend/src/railRoutesApi.js`   | `buildRowsFromTrains` expone `number2`, `destination2`, `fareRestrictions` |
+| `backend/src/services/trainGeneratorService.js` | Logo Cercanías auto + regEx multi-dígito |
+
+#### Frontend
+
+| Archivo                              | Cambios                                                           |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `frontend/src/components/pis/*`      | **NUEVOS** — arquitectura PIS (BoardHeader, DepartureRow, LineBadge, OperatorLogo, PisClock) |
+| `frontend/src/pages/Display.tsx`     | Virtualización de filas, réplica ADIF, footer marquee, logo configurable |
+| `frontend/src/pages/DisplayPage.tsx` | `AltValue` alternante, segundo número, destino alternante en los 4 modos |
+| `frontend/src/pages/DisplayConfig.tsx` | Config de logo, restricciones tarifarias, icono destino más pequeño |
+| `frontend/src/pages/Admin.tsx`       | Sidebar ocultable, campos N.º 2 / Destino 2, restricciones tarifarias |
+| `frontend/src/lib/api.ts`            | Serialización de objetos en FormData (fare_restrictions JSON)      |
+| `frontend/src/lib/useAlternating.ts` | **NUEVO** — hook de alternancia para destinos                       |
+
+#### Infraestructura
+
+- **DB movida a `backend/data/`** (`data.db` + `-shm` + `-wal`)
+- **Eliminado** `.github/workflows/ci.yml` (workflow GitHub Actions)
+
+### 📊 Métricas
+
+| Aspecto                 | Antes                          | Después                        |
+| ----------------------- | ------------------------------ | ------------------------------ |
+| Arquitectura PIS        | Display.tsx monolítico (841)   | Componentes `components/pis/`  |
+| Réplica ADIF            | Aproximada                     | Pixel-perfect (Gravita)        |
+| Números de tren         | 1 por tren                     | 2 (principal + secundario)     |
+| Destinos                | 1 por tren                     | 2 (alternancia 5s en PIS)      |
+| Logos Cercanías         | Manual                         | Automáticos desde generación   |
+| Sidebar Admin           | Fija                           | Colapsable (mobile overlay)    |
+| DB                       | `backend/railboard.db`          | `backend/data/data.db` (WAL)   |
+
+### 🐛 Fixes
+
+- Parsing seguro de `fare_restrictions` (JSON string/objeto, guard anti-corrupción)
+- RegEx Cercanías acepta `C10`, `C4B`, prefijo `MA-` y códigos exactos `C`/`R`
+- Fallback logo Cercanías pasa por `fileUrl()` → apunta al backend correcto
+- Icono destino más pequeño; paradas sin `reverse`
+
+---
+
 ## [Sesión 31 mayo 2026] — Generación de Trenes desde Rutas + UI Vertical
 
 ### ✨ Features Nuevas
@@ -289,6 +395,6 @@ User Request: "documenta lo obtenido"
 
 ---
 
-**Última actualización:** 31 de mayo 2026  
+**Última actualización:** 29 de julio 2026  
 **Mantenedor:** RailBoard Team  
 **Versión:** 1.0.0

@@ -35,26 +35,49 @@ Lista todos los trenes con datos de operador y tipo.
 
 ### POST /api/trains
 
-Crea un tren.
+Crea un tren. Multipart/form-data (acepta icono custom `custom_icon`).
 
 **Body:**
 
 ```json
 {
   "number": "03104",
+  "number2": "05678",
   "operator_id": 1,
   "train_type_id": 1,
   "origin": "Madrid",
   "destination": "Barcelona",
+  "destination2": "Valencia",
   "stops": "[]",
   "scheduled_time": "08:15",
   "expected_time": "08:15",
   "platform": "1",
   "sector": "A",
   "status": "Scheduled",
-  "observations": ""
+  "observations": "",
+  "custom_icon_url": "/uploads/xxx.png",
+  "icon_mode": "destination",
+  "fare_restrictions": {
+    "commuterTicketsNotAccepted": false,
+    "commuterPassesNotAccepted": true,
+    "reservationRequired": true
+  },
+  "except_stations": []
 }
 ```
+
+Los campos JSON (`stops`, `fare_restrictions`, `except_stations`) se aceptan como string JSON o array/objeto (el backend los normaliza).
+
+**Campos de tren (adicionales):**
+
+| Campo                    | Tipo                          | Descripción                            |
+| ------------------------ | ----------------------------- | -------------------------------------- |
+| `number2`                | string (opcional)             | Segundo número de tren                 |
+| `destination2`           | string (opcional)             | Segundo destino (alterna en el panel)  |
+| `fare_restrictions`      | object (opcional)             | `commuterTicketsNotAccepted`, `commuterPassesNotAccepted`, `reservationRequired` |
+| `except_stations`        | string[]                      | Estaciones excluidas                   |
+| `custom_icon_url`        | string (opcional)             | Icono personalizado (subido o URL)     |
+| `icon_mode`              | `none` / `operator` / `type` / `destination` / `custom` | Modo de icono en el panel |
 
 ### PUT /api/trains/reorder
 
@@ -92,7 +115,55 @@ Elimina un tren.
 
 Elimina todos los trenes.
 
+### POST /api/trains/from-route/:code
+
+Crea un tren a partir de una ruta ferroviaria real (57 rutas españolas). Requiere auth.
+
+**Body:** `{ "platform": "3" }` (opcional, si no se indica se asigna automáticamente)
+
+**Respuesta:** 201 con el tren creado. Triggerea WebSocket broadcast.
+
+### PATCH /api/trains/:id/state
+
+Actualiza el estado y posibles campos extra.
+
+**Body:** `{ "status": "Boarding" }`
+
+### GET /api/trains/states
+
+Lista los estados de tren disponibles.
+
+### GET /api/train-events
+
+Historial de eventos de tren (requiere auth).
+
 ---
+
+## Routes (Rutas Ferroviarias)
+
+| Método | Ruta                       | Descripción                                 |
+| ------ | -------------------------- | ------------------------------------------- |
+| GET    | /api/routes                | Lista todas las rutas (57 españolas)        |
+| GET    | /api/regions               | Regiones disponibles                        |
+| GET    | /api/routes/export         | Exporta dataset de rutas (auth)             |
+| POST   | /api/routes/reload         | Recarga dataset desde archivo (auth)        |
+
+## Train Icons
+
+| Método | Ruta                     | Descripción                          |
+| ------ | ------------------------ | ------------------------------------ |
+| GET    | /api/train-icons         | Lista iconos de tren                 |
+| POST   | /api/train-icons         | Sube icono (multipart con `icon`)    |
+| PUT    | /api/train-icons/:id     | Actualiza icono                      |
+| DELETE | /api/train-icons/:id     | Elimina icono                        |
+
+## Displays (Público)
+
+| Método | Ruta                         | Descripción                                   |
+| ------ | ---------------------------- | --------------------------------------------- |
+| GET    | /api/displays                | Lista displays (auth)                         |
+| GET    | /api/stations/:id/config     | Config pública de una estación                |
+| PUT    | /api/stations/:id/config     | Actualiza config de estación (auth)           |
 
 ## Operators
 
@@ -120,6 +191,14 @@ Elimina todos los trenes.
 | POST   | /api/places     | Crea lugar (multipart con logo) |
 | PUT    | /api/places/:id | Actualiza lugar                 |
 | DELETE | /api/places/:id | Elimina lugar                   |
+
+## Especiales
+
+| Método | Ruta                       | Descripción                           |
+| ------ | -------------------------- | ------------------------------------- |
+| GET    | /health                    | Health check: `{ ok: true }`          |
+| POST   | /api/seed-trains           | Reinicia con 9 trenes de demostración |
+| POST   | /api/generate-random-train | Genera un tren aleatorio realista     |
 
 ## TTS (Text-to-Speech)
 
@@ -194,14 +273,6 @@ Estadísticas del cache de audio.
 ### DELETE /admin/tts/cache
 
 Limpia todo el cache de audio TTS.
-
-## Especiales
-
-| Método | Ruta                       | Descripción                           |
-| ------ | -------------------------- | ------------------------------------- |
-| GET    | /health                    | Health check: `{ ok: true }`          |
-| POST   | /api/seed-trains           | Reinicia con 9 trenes de demostración |
-| POST   | /api/generate-random-train | Genera un tren aleatorio realista     |
 
 ## WebSocket
 

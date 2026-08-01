@@ -13,16 +13,22 @@ backend/
 │   ├── db.js             # Inicialización BD, esquema, CRUD
 │   ├── routes.js         # Rutas API y lógica de negocio
 │   ├── ws.js             # Servidor WebSocket (broadcast)
+│   ├── railRoutesApi.js  # Build de filas de panel desde trenes
 │   ├── services/
 │   │   ├── ttsService.js # Server-side TTS (macOS say + Edge TTS)
+│   │   ├── boardService.js        # Compose de station board (departures/arrivals)
+│   │   ├── trainGeneratorService.js # Generación de trenes + logos Cercanías auto
 │   │   └── ...
 │   ├── data/
 │   │   └── railboard_routes.json  # 57 rutas españolas
+│   ├── scripts/
+│   │   └── ws_e2e_test.mjs        # Test E2E con WS + fallback curl
 │   └── seed.js           # Generador de datos demo (npm run seed)
+├── data/
+│   └── data.db           # Base de datos SQLite (WAL)
 ├── uploads/
 │   ├── tts/              # Cache de audio TTS (MD5 hash)
 │   └── ...               # Imágenes subidas (logos)
-├── data.db               # Base de datos SQLite
 ├── package.json
 ```
 
@@ -41,6 +47,7 @@ backend/
 **train_types** — Tipos de tren (AVE, Cercanías, etc.).
 
 - `id` (INTEGER, PK), `code` (TEXT, UNIQUE), `name` (TEXT), `color` (TEXT), `logo_url` (TEXT)
+- `pre_announce_ogg` (TEXT), `destination_icon_url` (TEXT), `announce_template` (TEXT)
 
 **places** — Estaciones/lugares.
 
@@ -48,10 +55,12 @@ backend/
 
 **trains** — Trenes en el panel.
 
-- `id` (INTEGER, PK), `number` (TEXT), `operator_id` (FK→operators), `train_type_id` (FK→train_types)
-- `origin`, `destination`, `stops` (JSON TEXT)
+- `id` (INTEGER, PK), `number` (TEXT), `number2` (TEXT, opcional), `operator_id` (FK→operators), `train_type_id` (FK→train_types)
+- `origin`, `destination` (TEXT), `destination2` (TEXT, opcional), `stops` (JSON TEXT)
 - `scheduled_time`, `expected_time` (HH:MM)
 - `platform`, `sector`, `status`, `sort_order`, `observations`
+- `custom_icon_url` (TEXT), `icon_mode` (TEXT: `none`/`operator`/`type`/`destination`/`custom`)
+- `stopping_pattern` (TEXT), `fare_restrictions` (JSON TEXT), `except_stations` (JSON TEXT)
 - `created_at`
 
 ### Migraciones
@@ -71,11 +80,13 @@ Ver `api.md` para el detalle completo de endpoints. Principales:
 
 | Grupo      | Endpoints                                        |
 | ---------- | ------------------------------------------------ |
-| Config     | GET, PUT `/api/config`                           |
-| Trains     | GET, POST, PUT, DELETE `/api/trains`             |
-| Operadores | GET, POST, PUT, DELETE `/api/operators`          |
-| Tipos      | GET, POST, PUT, DELETE `/api/train-types`        |
+| Config     | GET, PUT `/api/config`, `/api/stations/:id/config` |
+| Trains     | GET, POST, PUT, DELETE `/api/trains`; PATCH `/api/trains/:id/{status,state,platform,delay}`; POST `/api/trains/from-route/:code`; GET `/api/trains/states`, `/api/train-events`, `/api/trains/export` |
+| Operadores | GET, POST, PUT, DELETE `/api/operators` (+ `/pre-announce`) |
+| Tipos      | GET, POST, PUT, DELETE `/api/train-types` (+ `/pre-announce`) |
 | Lugares    | GET, POST, PUT, DELETE `/api/places`             |
+| Rutas      | GET `/api/routes`, `/api/regions`, `/api/routes/export`, POST `/api/routes/reload` |
+| Iconos     | GET, POST, PUT, DELETE `/api/train-icons`        |
 | Especiales | `/api/seed-trains`, `/api/generate-random-train` |
 | Health     | GET `/health`                                    |
 
@@ -163,6 +174,12 @@ curl -u admin:railboard http://localhost:4000/admin/tts/provider
 - Probabilidad de retraso/cancelación según tipo (AVE 5%, Cercanías 20%)
 - Paradas intermedias con horarios calculados
 - Prevención de números duplicados
+
+### Generación desde rutas + logos Cercanías (`trainGeneratorService.js`)
+
+- `ensureLearnedRailData()` crea tipos de tren a partir de las 57 rutas
+- Detecta Cercanías/Regional con regEx (`C10`, `C4B`, prefijo `MA-`, códigos exactos `C`/`R`, `R2N`) y asigna `logo_url: /uploads/CERCANIAS.png` automáticamente
+- Los tipos existentes sin logo también reciben el logo Cercanías
 
 ### Seed data
 
