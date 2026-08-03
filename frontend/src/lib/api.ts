@@ -1,14 +1,11 @@
 import { fetchRoutes } from "../services/routeApi";
 import type { Language } from "./i18n";
+import { authHeaders, clearCredentials, getAuthToken } from "./auth";
 
 export const API_URL = (import.meta as any).env.VITE_API_URL ?? "http://localhost:4000";
 
-let _auth: string | null = null;
-function authHeaders(): Record<string, string> {
-  if (!_auth) {
-    _auth = btoa("admin:railboard");
-  }
-  return { Authorization: `Basic ${_auth}` };
+function notifyUnauthorized() {
+  window.dispatchEvent(new CustomEvent("railboard:unauthorized"));
 }
 
 export type Train = {
@@ -193,6 +190,10 @@ const json = (path: string, init?: RequestInit) =>
     const message = body && (body.error || body.message) ? body.error || body.message : String(body);
     const err: any = new Error(message);
     err.status = r.status;
+    if (r.status === 401) {
+      clearCredentials();
+      notifyUnauthorized();
+    }
     throw err;
   });
 
@@ -200,6 +201,12 @@ const authFetch = (path: string, init?: RequestInit) =>
   fetch(`${API_URL}/admin${path}`, {
     ...init,
     headers: { ...authHeaders(), ...((init?.headers as Record<string, string>) || {}) },
+  }).then(async (r) => {
+    if (r.status === 401) {
+      clearCredentials();
+      notifyUnauthorized();
+    }
+    return r;
   });
 
 async function downloadBlob(path: string, filename: string, init?: RequestInit) {
@@ -694,7 +701,9 @@ export type Device = {
 };
 
 export function connectWS(onUpdate: () => void) {
-  const url = API_URL.replace(/^http/, "ws") + "/ws";
+  const token = getAuthToken();
+  const base = API_URL.replace(/^http/, "ws") + "/ws";
+  const url = token ? `${base}?auth=${encodeURIComponent(token)}` : base;
   let ws: WebSocket | null = null;
   let stop = false;
   let pendingClose = false;

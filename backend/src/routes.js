@@ -64,6 +64,10 @@ automationService.initialize();
 const r = Router();
 const ping = () => broadcast({ type: "update", at: Date.now() });
 
+// ----- auth -----
+// Lightweight protected probe for the admin login screen to verify credentials.
+r.get("/auth/me", adminAuth, (_req, res) => res.json({ ok: true, user: "admin" }));
+
 // ----- config -----
 r.get("/config", (_req, res) => res.json(getConfig()));
 r.put("/config", adminAuth, (req, res) => {

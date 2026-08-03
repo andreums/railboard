@@ -3,7 +3,8 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 
-const AUTH = { user: "admin", pass: "railboard" };
+const TEST_PASSWORD = "test-pass-123";
+const AUTH = { user: "admin", pass: TEST_PASSWORD };
 const encode = (u, p) => Buffer.from(`${u}:${p}`).toString("base64");
 const authHeader = `Basic ${encode(AUTH.user, AUTH.pass)}`;
 
@@ -12,6 +13,8 @@ let request;
 beforeAll(async () => {
   const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "railboard-test-")), "test.db");
   process.env.DB_PATH = dbPath;
+  process.env.ADMIN_PASSWORD = TEST_PASSWORD;
+  process.env.NODE_ENV = "test";
 
   const express = (await import("express")).default;
   const cors = (await import("cors")).default;
@@ -29,6 +32,8 @@ beforeAll(async () => {
 
 afterAll(() => {
   delete process.env.DB_PATH;
+  delete process.env.ADMIN_PASSWORD;
+  process.env.NODE_ENV = "test";
 });
 
 describe("E2E: Full API workflow", () => {

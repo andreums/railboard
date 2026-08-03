@@ -1,5 +1,6 @@
 import { WebSocketServer } from "ws";
 import logger from "./logger.js";
+import { verifyCredentials, adminClientKey } from "./middleware/auth.js";
 
 let wss = null;
 let db = null;
@@ -7,8 +8,11 @@ let db = null;
 // Per-client subscriptions
 // ws.__subscriptions = { displayIds: Set<string>, stationIds: Set<number> }
 // ws.__deviceInfo = { deviceId, deviceType, displayId, lastHeartbeat }
+// ws.__authenticated = boolean (set when the client proves admin credentials)
 
 const HEARTBEAT_TIMEOUT_MS = 60000; // 60s without heartbeat = offline
+const MAX_MESSAGES_PER_WINDOW = 120; // per 30s, per connection
+const RATE_WINDOW_MS = 30000;
 
 export function attachWebSocket(server, database) {
   db = database;
@@ -18,10 +22,20 @@ export function attachWebSocket(server, database) {
     ws.__subscriptions = { displayIds: new Set(), stationIds: new Set() };
     ws.__deviceInfo = { deviceId: null, deviceType: null, displayId: null, lastHeartbeat: Date.now() };
     ws.__ip = req?.socket?.remoteAddress || "unknown";
+    ws.__authenticated = false;
+    ws.__msgWindowStart = Date.now();
+    ws.__msgCount = 0;
 
-    ws.send(JSON.stringify({ type: "hello" }));
+    // Auth via query token: ?user=admin&token=<base64 user:password> or ?auth=<base64 user:password>
+    ws.__authenticated = authenticateHandshake(req);
+
+    ws.send(JSON.stringify({ type: "hello", authenticated: ws.__authenticated }));
 
     ws.on("message", (raw) => {
+      // Per-connection message rate limit
+      if (!allowMessage(ws)) {
+        return ws.send(JSON.stringify({ type: "error", error: "Demasiados mensajes. Conexión limitada." }));
+      }
       try {
         const msg = JSON.parse(raw.toString());
         handleMessage(ws, msg);
@@ -57,6 +71,46 @@ export function attachWebSocket(server, database) {
   }, 30000);
 }
 
+function allowMessage(ws) {
+  const now = Date.now();
+  if (now - ws.__msgWindowStart > RATE_WINDOW_MS) {
+    ws.__msgWindowStart = now;
+    ws.__msgCount = 0;
+  }
+  ws.__msgCount += 1;
+  return ws.__msgCount <= MAX_MESSAGES_PER_WINDOW;
+}
+
+function authenticateHandshake(req) {
+  const url = req?.url || "";
+  let query;
+  try {
+    query = new URL(url, "http://localhost").searchParams;
+  } catch {
+    return false;
+  }
+  const auth = query.get("auth");
+  if (auth) {
+    const decoded = Buffer.from(String(auth), "base64").toString("utf8");
+    const idx = decoded.indexOf(":");
+    if (idx < 0) return false;
+    const user = decoded.slice(0, idx);
+    const password = decoded.slice(idx + 1);
+    return verifyCredentials(user, password);
+  }
+  const user = query.get("user");
+  const token = query.get("token");
+  if (user && token) {
+    const decoded = Buffer.from(String(token), "base64").toString("utf8");
+    const idx = decoded.indexOf(":");
+    if (idx < 0) return false;
+    const tokUser = decoded.slice(0, idx);
+    const password = decoded.slice(idx + 1);
+    return user === tokUser && verifyCredentials(user, password);
+  }
+  return false;
+}
+
 function handleMessage(ws, msg) {
   switch (msg.type) {
     case "subscribe":
@@ -71,6 +125,11 @@ function handleMessage(ws, msg) {
       break;
 
     case "heartbeat":
+      // Privileged: registering/updating a device requires an authenticated connection.
+      if (!ws.__authenticated) {
+        ws.send(JSON.stringify({ type: "error", error: "No autorizado" }));
+        return;
+      }
       ws.__deviceInfo.lastHeartbeat = Date.now();
       if (msg.deviceId) {
         ws.__deviceInfo.deviceId = msg.deviceId;
@@ -83,6 +142,10 @@ function handleMessage(ws, msg) {
       break;
 
     case "identify":
+      if (!ws.__authenticated) {
+        ws.send(JSON.stringify({ type: "error", error: "No autorizado" }));
+        return;
+      }
       ws.__deviceInfo.deviceId = msg.deviceId;
       ws.__deviceInfo.deviceType = msg.deviceType || "UNKNOWN";
       ws.__deviceInfo.displayId = msg.displayId || null;

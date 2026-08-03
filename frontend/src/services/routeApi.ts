@@ -1,4 +1,5 @@
 import { API_URL } from "../lib/api";
+import { authHeaders } from "../lib/auth";
 import type { RailRoute } from "../types/railRoute";
 
 export type RailwayReloadStats = {
@@ -52,10 +53,9 @@ export async function reloadRailwayRoutes(): Promise<RailwayReloadStats> {
     method: "POST",
   });
   if (response.status === 404) {
-    const auth = btoa("admin:railboard");
     response = await fetch(`${API_URL}/admin/routes/reload`, {
       method: "POST",
-      headers: { Authorization: `Basic ${auth}` },
+      headers: authHeaders(),
     });
   }
   if (!response.ok) {

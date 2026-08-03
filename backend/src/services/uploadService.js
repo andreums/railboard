@@ -17,6 +17,18 @@ const storage = multer.diskStorage({
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]);
 const ALLOWED_AUDIO_TYPES = new Set(["audio/ogg", "audio/opus", "audio/mpeg"]);
 
+// Lightweight SVG sanitizer: strips <script>, event handlers (on*="..."),
+// javascript: URLs and foreignObject, which are the main XSS vectors inside SVG.
+function sanitizeSvg(xml) {
+  return String(xml)
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<script[^>]*\/>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+    .replace(/\shref\s*=\s*(["'])?\s*javascript:[^"'\s>]+/gi, ' href="#"')
+    .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, "")
+    .replace(/<foreignObject[^>]*\/>/gi, "");
+}
+
 function basicFileFilter(allowedMimes, allowedExts, errorMessage) {
   return (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -37,6 +49,11 @@ async function validateFileType(filePath, allowedTypes) {
     if (!type || !allowedTypes.has(type.mime)) {
       await fs.unlink(filePath).catch(() => {});
       return false;
+    }
+    // Sanitize SVG content in place to strip script/handlers/js URLs.
+    if (type.mime === "image/svg+xml") {
+      const sanitized = sanitizeSvg(buffer.toString("utf8"));
+      await fs.writeFile(filePath, sanitized, "utf8");
     }
     return true;
   } catch {

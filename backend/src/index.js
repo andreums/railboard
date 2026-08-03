@@ -17,6 +17,11 @@ import logger, { requestLogger } from "./logger.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Behind nginx reverse proxy: trust X-Forwarded-* for accurate client IPs
+// (used by auth brute-force lockout and rate limiting). Only enable when the
+// proxy is trusted; keep false if exposed directly.
+app.set("trust proxy", process.env.TRUST_PROXY === "1" ? 1 : false);
+
 app.set("etag", false);
 
 app.use((req, _res, next) => {
@@ -54,6 +59,17 @@ const generalLimiter = rateLimit({
 });
 app.use("/admin", generalLimiter);
 
+// Public API rate limit (defends /api/stations/search and /api/stations/:id/board
+// from abuse/DoS). Public read endpoints get a generous but bounded limit.
+const publicLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  max: process.env.PUBLIC_RATE_LIMIT_MAX ? Number(process.env.PUBLIC_RATE_LIMIT_MAX) : 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
+});
+app.use("/api", publicLimiter);
+
 const writeLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
@@ -63,6 +79,17 @@ const writeLimiter = rateLimit({
 });
 
 app.use(express.json({ limit: "1mb" }));
+// Serve uploaded files but force SVG (and HTML-like types) to download instead
+// of rendering inline in the browser, mitigating stored-XSS via injected
+// <script> inside uploaded SVGs. PNG/JPEG/etc. are served normally.
+app.use("/uploads", (req, res, next) => {
+  const ext = path.extname(req.path || "").toLowerCase();
+  if (ext === ".svg" || ext === ".html" || ext === ".htm" || ext === ".xhtml") {
+    res.setHeader("Content-Disposition", "attachment");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+  }
+  next();
+});
 app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 app.use(express.static(path.resolve(__dirname, "../public")));
 app.use("/admin", (req, res, next) => {

@@ -7,25 +7,43 @@ const LOCALES_DIR = path.resolve(__dirname, "../../locales");
 
 const localeCache = {};
 
+// Sanitize a locale key: only short latin language codes. Blocks path traversal
+// (e.g. "../../private", "..%2F.."), separators, extensions and empty values.
+const LOCALE_KEY_RE = /^[a-z]{2,3}$/;
+function safeLocaleKey(language) {
+  const lang = String(language || "").toLowerCase();
+  if (!LOCALE_KEY_RE.test(lang)) return null;
+  // Defensive: resolve and confirm it stays inside LOCALES_DIR
+  const resolved = path.resolve(LOCALES_DIR, `${lang}.json`);
+  if (!resolved.startsWith(path.resolve(LOCALES_DIR) + path.sep)) return null;
+  return lang;
+}
+
 function loadLocale(language) {
-  if (localeCache[language]) return localeCache[language];
-  const filePath = path.join(LOCALES_DIR, `${language}.json`);
+  const lang = safeLocaleKey(language);
+  if (!lang) return null;
+  if (localeCache[lang]) return localeCache[lang];
+  const filePath = path.join(LOCALES_DIR, `${lang}.json`);
   if (!fs.existsSync(filePath)) return null;
   const raw = fs.readFileSync(filePath, "utf8");
-  localeCache[language] = JSON.parse(raw);
-  return localeCache[language];
+  localeCache[lang] = JSON.parse(raw);
+  return localeCache[lang];
 }
 
 export function getLocaleContent(language) {
-  const filePath = path.join(LOCALES_DIR, `${language}.json`);
+  const lang = safeLocaleKey(language);
+  if (!lang) return null;
+  const filePath = path.join(LOCALES_DIR, `${lang}.json`);
   if (!fs.existsSync(filePath)) return null;
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
 export function saveLocaleContent(language, data) {
-  const filePath = path.join(LOCALES_DIR, `${language}.json`);
+  const lang = safeLocaleKey(language);
+  if (!lang) return;
+  const filePath = path.join(LOCALES_DIR, `${lang}.json`);
   fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf8");
-  delete localeCache[language];
+  delete localeCache[lang];
 }
 
 export function getAvailableLocales() {
