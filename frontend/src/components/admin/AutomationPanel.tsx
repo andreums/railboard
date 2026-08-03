@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { api, connectWS, type Train } from "../../lib/api";
-import { Brain, Plus, Trash2, Play, Pause, Settings, Lightbulb } from "lucide-react";
+import { Brain, Plus, Trash2, Lightbulb } from "lucide-react";
 
 const TRIGGER_TYPES = [
   { value: "time_based", label: "Temporal" },

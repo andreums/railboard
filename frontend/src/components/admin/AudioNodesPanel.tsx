@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { api, connectWS, type Device } from "../../lib/api";
-import { Radio, Volume2, Wifi, WifiOff, Play, Settings, X } from "lucide-react";
+import { Radio, Wifi, WifiOff, Play, Settings } from "lucide-react";
 
 const EVENT_TYPE_OPTIONS = [
   "TRAIN_APPROACHING", "TRAIN_ARRIVING", "TRAIN_AT_PLATFORM", "TRAIN_STANDING_BY",

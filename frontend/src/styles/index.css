@@ -50,28 +50,3 @@ body {
     transform: translateX(-50%);
   }
 }
-
-.animate-marquee-pause {
-  animation: marquee-pause 16s linear infinite;
-}
-
-@keyframes blink {
-  50% {
-    opacity: 0.25;
-  }
-}
-
-.animate-blink {
-  animation: blink 1.2s ease-in-out infinite;
-}
-
-@keyframes departure-time-blink {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.18;
-  }
-}

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, connectWS, fileUrl, API_URL, type Operator, type TrainType } from "../lib/api";
+import { api, connectWS, fileUrl, type Operator, type TrainType } from "../lib/api";
 import { handleImgError } from "../lib/svgPlaceholder";
-import { speak } from "../lib/tts";
 
 export default function TrainSettings() {
   const [operators, setOperators] = useState<Operator[]>([]);

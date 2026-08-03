@@ -47,11 +47,6 @@ export default function OperatorLogo({
     const bgColor = isAVE ? "#9B1B7A" : "#FFFFFF";
     const labelColor = isAVE ? "#FFFFFF" : "#071E43";
 
-    console.log(operatorLogo);
-    console.log(operatorName);
-    console.log(typeLogo);
-    console.log(typeCode);
-
     return (
       <div
         style={{

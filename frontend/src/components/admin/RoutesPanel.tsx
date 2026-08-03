@@ -8,7 +8,6 @@ export default function RoutesPanel() {
   const [selectedRoute, setSelectedRoute] = useState<Route | null>(null);
   const [generating, setGenerating] = useState(false);
   const [regionFilter, setRegionFilter] = useState("all");
-  const [serviceFilter, setServiceFilter] = useState("all");
   const [operatorFilter, setOperatorFilter] = useState("all");
   const [lastGenerated, setLastGenerated] = useState<Train | null>(null);
 
@@ -44,7 +43,6 @@ export default function RoutesPanel() {
   };
 
   const regions = Array.from(new Set(routes.map((r) => r.network)));
-  const services = Array.from(new Set(routes.map((r) => r.code.split("-")[0])));
   const operators = Array.from(new Set(routes.map((r) => r.operator)));
 
   const filtered = routes.filter((r) => {

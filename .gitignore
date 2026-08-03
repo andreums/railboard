@@ -9,3 +9,6 @@ backend/uploads/*
 .DS_Store
 *.log
 *.pid
+frontend/tsconfig.tsbuildinfo
+backend/*.aiff
+backend/railboard.db

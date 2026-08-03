@@ -192,17 +192,6 @@ export function broadcast(payload) {
   }
 }
 
-// Broadcast only to clients subscribed to a specific display
-export function broadcastToDisplay(displayId, payload) {
-  if (!wss) return;
-  const data = JSON.stringify(payload);
-  for (const client of wss.clients) {
-    if (client.readyState === 1 && client.__subscriptions?.displayIds?.has(displayId)) {
-      client.send(data);
-    }
-  }
-}
-
 // Broadcast only to clients subscribed to a specific station
 export function broadcastToStation(stationId, payload) {
   if (!wss) return;

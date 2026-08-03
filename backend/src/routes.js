@@ -31,21 +31,21 @@ import {
   devices,
 } from "./db.js";
 import SEED_FIXTURES from "./fixtures/seedTrains.js";
-import { broadcast, broadcastToDisplay, broadcastToStation, getConnectedDevices } from "./ws.js";
+import { broadcast, getConnectedDevices } from "./ws.js";
 import { getAllRoutes, getAvailableRegions, reloadRoutesDataset } from "./services/routeService.js";
 import { adminAuth } from "./middleware/auth.js";
 import { upload, uploadAudio, uploadTrainTypeFields, validateImageContent, validateAudioContent } from "./services/uploadService.js";
 import { generateRandomTrain, generateTrainFromRoute } from "./services/trainGeneratorService.js";
 import { buildStationBoard } from "./services/boardService.js";
 import AnnouncementService from "./services/announcementService.js";
-import EventEngine, { getValidTransitions, getAllStates, getStateDisplayName } from "./services/eventEngine.js";
+import EventEngine, { getValidTransitions, getAllStates } from "./services/eventEngine.js";
 import SimulationService from "./services/simulationService.js";
 import HardwareService from "./services/hardwareService.js";
 import AutomationService from "./services/automationService.js";
 import ttsService from "./services/ttsService.js";
 import path from "path";
 import { resolveAnnouncementSound } from "./services/announcementSoundResolver.js";
-import { composeAnnouncements, testCompose, formatTimeForSpeech, formatLocalizedList, getAvailableLocales, getLocaleContent, saveLocaleContent } from "./services/announcementComposer.js";
+import { testCompose, formatTimeForSpeech, formatLocalizedList, getLocaleContent, saveLocaleContent } from "./services/announcementComposer.js";
 
 const announcementService = new AnnouncementService(db);
 announcementService.initialize();
@@ -1214,14 +1214,5 @@ r.delete("/tts/cache", adminAuth, (_req, res) => {
   ttsService.clearCache();
   res.json({ status: "ok" });
 });
-
-// ============ ANNOUNCEMENT TRIGGER FROM DATA CHANGES ============
-
-// When a train is created, updated, status changed, etc. - trigger announcement
-const originalPatchStatus = r.patch;
-const originalPostTrain = r.post;
-
-// Hook into train updates for auto-announcements
-// We listen for updates and process them through the announcement service
 
 export default r;
