@@ -105,7 +105,7 @@ export default function DisplayPage() {
   const rows = board.slice(0, screen.max_rows || 10);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white overflow-hidden" style={{ fontSize: `${0.85 * (screen.font_scale || 1)}rem` }}>
+    <div className="min-h-screen bg-slate-900 text-white overflow-hidden" style={{ zoom: 0.85 * (screen.font_scale || 1) }}>
       {type === "PLATFORM" ? (
         <PlatformDisplay screen={screen} rows={rows} lang={lang} clock={clock} />
       ) : type === "CLOCK" ? (
