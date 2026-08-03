@@ -125,6 +125,15 @@ app.get("/health", (_req, res) => {
     detail.uploads = { status: "error", message: err.message };
   }
 
+  const isProd = process.env.NODE_ENV === "production";
+  const ok = Object.values(checks).every(Boolean);
+  const status = ok ? 200 : 503;
+
+  if (isProd) {
+    // In production, avoid leaking node version, env names and file counts.
+    return res.status(status).json({ ok, checks });
+  }
+
   const mem = process.memoryUsage();
   detail.memory = {
     rss: Math.round(mem.rss / 1024 / 1024) + "MB",
@@ -136,8 +145,6 @@ app.get("/health", (_req, res) => {
   detail.node = process.version;
   detail.env = process.env.NODE_ENV || "development";
 
-  const ok = Object.values(checks).every(Boolean);
-  const status = ok ? 200 : 503;
   res.status(status).json({ ok, checks, detail });
 });
 
