@@ -661,7 +661,7 @@ export type DisplayScreen = {
   name: string;
   slug: string;
   station_id: number | null;
-  display_type: "DEPARTURES" | "ARRIVALS" | "PLATFORM" | "TRAIN_INFO" | "CLOCK" | "DISRUPTIONS" | "CUSTOM";
+  display_type: "DEPARTURES" | "ARRIVALS" | "PLATFORM" | "TRAIN_INFO" | "CLOCK" | "DISRUPTIONS" | "CUSTOM" | "BUS";
   platform: string | null;
   sector: string | null;
   orientation: "LANDSCAPE" | "PORTRAIT";

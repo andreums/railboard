@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api, type DisplayScreen, type Station } from "../../lib/api";
 import { Monitor, Plus, Trash2, QrCode, Copy, ExternalLink, Settings, Eye, EyeOff } from "lucide-react";
 
-const SCREEN_TYPES = ["DEPARTURES", "ARRIVALS", "PLATFORM", "TRAIN_INFO", "CLOCK", "DISRUPTIONS", "CUSTOM"] as const;
+const SCREEN_TYPES = ["DEPARTURES", "ARRIVALS", "PLATFORM", "TRAIN_INFO", "CLOCK", "DISRUPTIONS", "CUSTOM", "BUS"] as const;
 
 const LABELS: Record<string, string> = {
   DEPARTURES: "Salidas",
@@ -12,6 +12,7 @@ const LABELS: Record<string, string> = {
   CLOCK: "Reloj",
   DISRUPTIONS: "Incidències",
   CUSTOM: "Personalizado",
+  BUS: "Bus / Ferri",
   LANDSCAPE: "Apaisado",
   PORTRAIT: "Vertical",
 };

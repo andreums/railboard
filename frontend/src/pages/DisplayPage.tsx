@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { api, fileUrl, connectWS, type DisplayScreen } from "../lib/api";
 import { useParams, Navigate } from "react-router-dom";
 import { useAlternating } from "../lib/useAlternating";
+import { t } from "../lib/i18n";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
 
 function AltValue({ primary, secondary, className, containerClass }: { primary: string; secondary?: string | null; className?: string; containerClass?: string }) {
@@ -114,6 +115,8 @@ export default function DisplayPage() {
         <TrainInfoDisplay screen={screen} rows={rows} lang={lang} clock={clock} />
       ) : type === "DISRUPTIONS" ? (
         <DisruptionsDisplay screen={screen} rows={rows} lang={lang} clock={clock} />
+      ) : type === "BUS" ? (
+        <BUSTERMDisplay screen={screen} rows={rows} lang={lang} type={type} clock={clock} />
       ) : (
         <BoardDisplay screen={screen} rows={rows} lang={lang} type={type} clock={clock} />
       )}
@@ -483,6 +486,93 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
               </div>
               <AltValue primary={row.destination || ""} secondary={row.destination2} className="truncate font-medium text-white" />
               <div className="tabular-nums text-slate-400">{row.platform ? `V${row.platform}` : ""}</div>
+              <div className="text-right">
+                <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
+                  row.status === "Cancelled" ? "bg-red-900 text-red-200" :
+                  row.status === "Delayed" ? "bg-orange-900 text-orange-200" :
+                  row.status === "Boarding" ? "bg-green-900 text-green-200" :
+                  row.status === "Departed" ? "bg-slate-700 text-slate-300" :
+                  row.status === "Arrived" ? "bg-blue-900 text-blue-200" :
+                  "bg-blue-900/50 text-blue-200"
+                }`}>
+                  {row.status === "Scheduled" ? "" :
+                   row.status === "Delayed" ? (lang === "ca" ? "R" : lang === "es" ? "R" : "DEL") :
+                   row.status === "Cancelled" ? (lang === "ca" ? "C" : lang === "es" ? "C" : "CAN") :
+                   row.status === "Boarding" ? (lang === "ca" ? "E" : lang === "es" ? "E" : "BRD") :
+                   row.status === "Departed" ? (lang === "ca" ? "S" : lang === "es" ? "S" : "DEP") :
+                   row.status === "Arrived" ? (lang === "ca" ? "A" : lang === "es" ? "A" : "ARR") :
+                   ""}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="pt-2 border-t border-slate-800 text-xs text-slate-600 flex items-center justify-between">
+        <span>{screen.name || "RailBoard"}</span>
+        <span>RailBoard · {screen.station_name || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+function BUSTERMDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScreen; rows: any[]; lang: string; type: string; clock: Date }) {
+  const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
+  const title = type === "ARRIVALS"
+    ? (lang === "ca" ? "LLEGADES" : lang === "es" ? "LLEGADAS" : "ARRIVALS")
+    : (lang === "ca" ? "SORTIDES" : lang === "es" ? "SALIDAS" : "DEPARTURES");
+  const gt = (key: string) => t(key, lang as any);
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-white p-3 md:p-6 flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3 md:mb-6 pb-2 border-b border-slate-700">
+        <div className="flex items-center gap-2 md:gap-4">
+          <h1 className="text-xl md:text-3xl font-bold tracking-wider text-yellow-300">{title}</h1>
+          {screen.station_name && (
+            <span className="text-sm md:text-lg text-slate-400 hidden sm:inline">{screen.station_name}</span>
+          )}
+        </div>
+        <div className="text-xl md:text-3xl font-bold tabular-nums text-slate-300">{now}</div>
+      </div>
+
+      {/* Table header */}
+      <div className="grid grid-cols-[0.7fr_1.1fr_1.4fr_0.6fr_0.6fr_0.5fr] md:grid-cols-[0.5fr_0.7fr_1.8fr_0.6fr_0.6fr_0.5fr] gap-2 md:gap-4 px-2 py-1.5 text-xs md:text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-700">
+        <span>{gt("time") || "Hora"}</span>
+        <span>{gt("line") || "Línea"}</span>
+        <span>{gt("destination") || "Destino"}</span>
+        <span>{gt("floor") || "Planta"}</span>
+        <span>{gt("dock") || "Dársena"}</span>
+        <span className="text-right">{gt("status") || "Estado"}</span>
+      </div>
+
+      {/* Rows */}
+      <div className="flex-1 overflow-y-auto">
+        {rows.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-slate-600 text-lg">
+            {lang === "ca" ? "No hi ha serveis" : lang === "es" ? "No hay servicios" : "No services"}
+          </div>
+        ) : (
+          rows.map((row: any, i: number) => (
+            <div key={row.id || i}
+              className={`grid grid-cols-[0.7fr_1.1fr_1.4fr_0.6fr_0.6fr_0.5fr] md:grid-cols-[0.5fr_0.7fr_1.8fr_0.6fr_0.6fr_0.5fr] gap-2 md:gap-4 px-2 py-2 md:py-3 items-center border-b border-slate-800 text-sm md:text-base ${
+                isDepartedOrCancelled(row) ? "opacity-40" : ""
+              } ${isDelayed(row) ? "bg-red-900/10" : ""}`}
+            >
+              <div className="tabular-nums">
+                <span className={isDelayed(row) ? "text-red-400" : "text-white"}>
+                  {formatDisplayTime(row.expected_time || row.scheduled_time)}
+                </span>
+                {isDelayed(row) && row.expected_time !== row.scheduled_time && (
+                  <span className="text-xs text-red-500 line-through ml-1 hidden md:inline">{formatDisplayTime(row.scheduled_time)}</span>
+                )}
+              </div>
+              <div className="truncate text-slate-300">{row.number || "—"}</div>
+              <AltValue primary={row.destination || ""} secondary={row.destination2} className="truncate font-medium text-white" />
+              <div className="tabular-nums text-slate-400">{row.platform && row.platform !== "-" ? row.platform : ""}</div>
+              <div className="tabular-nums text-slate-400">{row.sector && row.sector !== "-" ? row.sector : ""}</div>
               <div className="text-right">
                 <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
                   row.status === "Cancelled" ? "bg-red-900 text-red-200" :
