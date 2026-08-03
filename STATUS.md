@@ -1,6 +1,6 @@
-# 📊 RailBoard — Estado Actual (29 de julio 2026)
+# 📊 RailBoard — Estado Actual (2 de agosto 2026)
 
-## ✅ Completado (Última Sesión)
+## ✅ Completado
 
 ### Feature: PIS Pixel-Perfect (Réplica ADIF)
 
@@ -32,6 +32,25 @@
 - RegEx robusto (`C10`, `C4B`, `MA-C...`, códigos exactos `C`/`R`)
 - `typeLogo` solo Cercanías/Regionales; resto de tipos usan `operatorLogo` o texto
 
+### Feature: Event Engine + Megafonía
+
+- **Event Engine** (`eventEngine.js`) — máquina de estados con transiciones validadas, `train_events`
+- **Megafonía** (`announcementService.js`) — cola, historial, deduplicación, composición multilingüe, WebSocket push
+- **Perfiles y reglas de sonido** — selección automática de chimes/tonos
+- **Audio assets** — subida y gestión de audio
+
+### Feature: Simulación + Automatización
+
+- **Simulación** (`simulationService.js`) — reloj con multiplicador/pausa, secuencias de viaje
+- **Automatización** (`automationService.js`) — reglas time/state/delay-based + sugerencias
+
+### Feature: Hardware + Dispositivos + Pantallas
+
+- **Hardware** — endpoint público `POST /hardware/events` (ESP32/Arduino)
+- **Dispositivos** — registro vía WebSocket, heartbeat, ONLINE/OFFLINE
+- **Display screens** — pantallas individuales con board propio
+- **Vista de operador** (`/operator`)
+
 ### UX: Sidebar Admin Colapsable
 
 - Mobile: overlay + hamburger; desktop: fija (`lg:static`)
@@ -43,18 +62,25 @@
 | Función                            | Estado | Detalles                                            |
 | ---------------------------------- | ------ | --------------------------------------------------- |
 | Display PIS (ADIF pixel-perfect)   | ✅     | Grid 55%/45%, columnas ADIF, virtualización filas   |
-| Admin panel (11 tabs)              | ✅     | Estación, Displays, Trenes, Rutas, Operadores, etc. |
+| Admin panel (11+ tabs)             | ✅     | Estación, Displays, Trenes, Rutas, Operadores, etc. |
 | CRUD Operadores                    | ✅     | Create/read/edit/delete con logo                    |
 | CRUD Tipos de tren                 | ✅     | Create/read/edit/delete, logo Cercanías auto        |
 | Generación aleatoria               | ✅     | 1 tren, panel (8), automática (intervalo)           |
 | Generación desde rutas             | ✅     | Desde metadatos de 57 rutas españolas               |
-| Doble número / destino             | ✅     | NEW — `number2`, `destination2`, destino alternante |
-| Restricciones tarifarias           | ✅     | NEW — `fare_restrictions` JSON                      |
-| WebSocket real-time                | ✅     | Broadcast de cambios, event listeners               |
+| Doble número / destino             | ✅     | `number2`, `destination2`, destino alternante       |
+| Restricciones tarifarias           | ✅     | `fare_restrictions` JSON                            |
+| Event Engine (máquina de estados)  | ✅     | Transiciones validadas, `train_events`              |
+| Megafonía                          | ✅     | Cola, composición multilingüe, perfiles/reglas      |
+| WebSocket real-time                | ✅     | Broadcast, suscripciones, dispositivos              |
 | WebSocket debug                    | ✅     | WSLogPanel para ver eventos                         |
 | Multiidioma (6 idiomas)            | ✅     | ES, CA, EN, FR, EU, GL                              |
 | TTS Anuncio                        | ✅     | Server-side (macOS say + Edge TTS) + navegador      |
-| Megafonía                          | ✅     | 15 presets, composición, cola, WebSocket push       |
+| Simulación                         | ✅     | Reloj simulado, secuencias, log de eventos          |
+| Automatización                     | ✅     | Reglas + sugerencias por tren/estación              |
+| Hardware events                    | ✅     | Endpoint público para ESP32/Arduino                 |
+| Dispositivos                       | ✅     | Registro WS, heartbeat, ONLINE/OFFLINE              |
+| Display screens                    | ✅     | Pantallas individuales con board                    |
+| Vista operador                     | ✅     | `/operator`                                         |
 | Drag & Drop trenes                 | ✅     | Reordenar entre displays                            |
 | Configuración por display          | ✅     | Colores, idioma, reloj, pie, logo                   |
 
@@ -66,7 +92,7 @@
 - **Backend:** Node.js + Express + SQLite (better-sqlite3) + WebSocket (ws)
 - **Auth:** Basic Auth (`admin:railboard`)
 - **Real-time:** WebSocket para broadcast de cambios
-- **Database:** SQLite con migraciones automáticas en `backend/data/data.db` (WAL)
+- **Database:** SQLite con migraciones SQL en `backend/migrations/` (`backend/data/data.db`, WAL)
 
 ---
 
@@ -81,9 +107,9 @@ cd backend && node src/index.js
 # Frontend
 cd frontend && npm run dev
 
-# En Admin (http://localhost:5174/admin):
+# En Admin (http://localhost:5173/admin):
 # → Tab "Trenes" → Editar tren → añadir N.º 2 y Destino 2
-# → Ver en http://localhost:5174/ — el destino alterna cada 5s
+# → Ver en http://localhost:5173/ — el destino alterna cada 5s
 ```
 
 ### 2. Restricciones tarifarias
@@ -99,7 +125,14 @@ cd frontend && npm run dev
 # DisplayConfig → campo "Logo URL" (vacío = ADIF por defecto)
 ```
 
-### 4. E2E Automático
+### 4. Megafonía
+
+```bash
+# Admin → Tab "Megafonía" → selecciona tipo/preset → reproduce
+# El anuncio se compone y envía por WebSocket a los displays
+```
+
+### 5. E2E Automático
 
 ```bash
 cd backend
@@ -129,6 +162,6 @@ node scripts/ws_e2e_test.mjs C-1
 
 ---
 
-**Generado:** 29 de julio 2026  
-**Versión:** 1.0 (Fase C completa, PIS pixel-perfect)  
+**Generado:** 2 de agosto 2026  
+**Versión:** 1.0 (PIS pixel-perfect + megafonía + simulación + automatización)  
 **Siguiente revisión:** Después de implementar tests o integración RENFE

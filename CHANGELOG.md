@@ -4,6 +4,36 @@ Registro de cambios y versiones del proyecto.
 
 ---
 
+## [Sesión 3 agosto 2026] — Dead code + lint
+
+### 🧹 Limpieza
+
+- Borrados archivos huérfanos: `useAnnouncementPlayer.ts`, `StatusPill.tsx` (+ su test), `audioAssetService.js`, `Admin.tsx.bak`
+- Eliminada dependencia `react-beautiful-dnd` (migrado a `@dnd-kit`)
+- Corregidos 9 errores de lint del backend (`no-empty`, `no-undef` de `logger` en `routes.js`)
+- Actualizados los docs para quitar referencias al dead code
+
+## [Sesión 2 agosto 2026] — Docs actualizados + características recientes
+
+### 📚 Documentación
+
+- Reescritos `docs/api.md`, `docs/backend.md`, `docs/frontend.md` y `docs/architecture.md` para reflejar el estado real del código
+- `README.md`, `docs/index.md`, `docs/PROGRESS.md` y `STATUS.md` actualizados (estructura, puertos, componentes, fases)
+- Documentados todos los endpoints reales de `/api` y `/admin` (megafonía, simulación, automatización, hardware, dispositivos, display screens, TTS, servicios)
+
+### ✨ Características recientes ya documentadas
+
+- **Event Engine** (`eventEngine.js`) — máquina de estados de tren con transiciones validadas
+- **Megafonía completa** — cola de anuncios, composición multilingüe, perfiles/reglas de sonido, audio assets, WebSocket push
+- **Simulación** — reloj simulado con multiplicador/pausa, secuencias de viaje
+- **Automatización** — reglas time/state/delay-based y sugerencias
+- **Hardware** — endpoint público para ESP32/Arduino
+- **Dispositivos** — registro vía WebSocket con heartbeat y estado ONLINE/OFFLINE
+- **Display screens** — pantallas individuales con board propio
+- **Vista de operador** (`/operator`)
+
+---
+
 ## [Sesión 27 julio 2026] — Server-Side TTS + Megafonía Mejorada
 
 ### ✨ Features Nuevas
@@ -395,6 +425,6 @@ User Request: "documenta lo obtenido"
 
 ---
 
-**Última actualización:** 29 de julio 2026  
+**Última actualización:** 2 de agosto 2026  
 **Mantenedor:** RailBoard Team  
 **Versión:** 1.0.0

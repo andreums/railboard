@@ -68,7 +68,7 @@ class TTSService {
       const proc = execFile("say", args, { maxBuffer: 10 * 1024 * 1024 }, (err) => {
         if (err || !fs.existsSync(tmpFile)) {
           logger.warn({ err: err?.message, language }, "macOS say failed");
-          try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch {}
+          try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch { /* ignore */ }
           resolve(null);
           return;
         }

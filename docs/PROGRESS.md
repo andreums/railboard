@@ -1,6 +1,6 @@
 # Progreso del Proyecto RailBoard
 
-**Última actualización:** 29 de julio de 2026
+**Última actualización:** 2 de agosto de 2026
 
 ---
 
@@ -9,9 +9,12 @@
 RailBoard es una aplicación web de paneles informativos para estaciones de tren con:
 
 - **Display público PIS** en tiempo real, réplica pixel-perfect del panel ADIF/Gravita
-- **Panel de administración** completo con control en vivo
+- **Panel de administración** completo con control en vivo (11+ tabs)
 - **Generación inteligente de trenes** desde rutas ferroviarias reales (57 rutas españolas)
+- **Sistema de megafonía** con composición multilingüe, cola y TTS server-side
 - **WebSocket real-time** para actualizaciones instantáneas
+- **Simulación** (reloj acelerado, secuencias de viaje) y **automatización** (reglas)
+- **Gestión de dispositivos** (ESP32/Arduino) y pantallas individuales
 - **Soporte multiidioma** (español, catalán, inglés, francés, vasco, gallego)
 
 **Estado general:** ✅ **Fase de desarrollo avanzada** — Funcionalidades core completadas, refinamientos en UI/UX en progreso.
@@ -111,6 +114,28 @@ RailBoard es una aplicación web de paneles informativos para estaciones de tren
 - ✅ **Sidebar Admin colapsable** — overlay + hamburger en mobile, fija en desktop
 - ✅ **DB movida a `backend/data/data.db`** (WAL), eliminado workflow GitHub Actions
 
+### Fase C.6: Event Engine + Megafonía Completa ✅
+
+- ✅ **Máquina de estados de tren** (`eventEngine.js`) — transiciones validadas, `PATCH /trains/:id/state`, historial en `train_events`
+- ✅ **Servicio de anuncios** (`announcementService.js`) — cola (`announcement_queue`), historial, deduplicación, eventos por WebSocket
+- ✅ **Composición multilingüe** (`announcementComposer.js`) — locales, formatos de hora/listas, templates
+- ✅ **Resolución de sonidos** — perfiles y reglas de sonido (`announcement-sound-profiles`, `announcement-sound-rules`)
+- ✅ **Audio assets** (`audio_assets`) — subida, metadatos, conversiones
+
+### Fase C.7: Simulación + Automatización ✅
+
+- ✅ **Reloj simulado** (`simulationService.js`) — multiplicador, pausa, reset
+- ✅ **Secuencias de viaje** (`journey_sequences`) — pasos, loop, start/pause/reset
+- ✅ **Reglas de automatización** (`automationService.js`) — `time_based`, `state_change`, `delay_detected`, `schedule_match`, `periodic`
+- ✅ **Sugerencias** de automatización por tren/estación
+
+### Fase C.8: Hardware + Dispositivos + Pantallas ✅
+
+- ✅ **Eventos de hardware** (`hardwareService.js`) — endpoint público para ESP32/Arduino
+- ✅ **Gestión de dispositivos** (`devices`) — registro por WebSocket, heartbeat 60s, ONLINE/OFFLINE
+- ✅ **Display screens** (`display_screens`) — pantallas individuales con board propio
+- ✅ **Panel de operador** (`/operator`) — vista de operador
+
 ---
 
 ## 🏗️ Arquitectura Técnica
@@ -123,7 +148,6 @@ RailBoard es una aplicación web de paneles informativos para estaciones de tren
 frontend/src/
 ├── components/
 │   ├── Clock.tsx                    # Reloj digital (real/ficticio)
-│   ├── StatusPill.tsx               # Indicador de estado del tren
 │   ├── SteamTrain.tsx               # Animación SVG del tren
 │   ├── pis/                         # Panel PIS (réplica ADIF)
 │   │   ├── BoardHeader.tsx          # Cabecera con logo + reloj + Vía
@@ -134,13 +158,21 @@ frontend/src/
 │   ├── admin/
 │   │   ├── GenerationPanel.tsx      # Acciones de generación rápida
 │   │   ├── RoutesPanel.tsx          # Selector de rutas para generación
-│   │   ├── ServicesPanel.tsx        # (Placeholder)
-│   │   └── WSLogPanel.tsx           # Debug de mensajes WebSocket
+│   │   ├── ServicesPanel.tsx        # Servicios multiestación
+│   │   ├── WSLogPanel.tsx           # Debug de mensajes WebSocket
+│   │   ├── MegaphonyPanel.tsx       # Megafonía
+│   │   ├── SimulationPanel.tsx      # Reloj simulado, secuencias
+│   │   ├── AutomationPanel.tsx      # Reglas de automatización
+│   │   ├── HardwarePanel.tsx        # Eventos de hardware
+│   │   ├── DevicesPanel.tsx         # Dispositivos conectados
+│   │   ├── AudioNodesPanel.tsx      # Audio nodes
+│   │   └── DisplayScreensPanel.tsx  # Pantallas individuales
 │   └── ...
 ├── pages/
 │   ├── Display.tsx                  # Panel público PIS (ADIF)
 │   ├── DisplayPage.tsx              # Displays por screen (platform, clock, train-info, board)
 │   ├── Admin.tsx                    # Dashboard principal
+│   ├── Operator.tsx                 # Vista operador
 │   ├── Trains.tsx                   # Gestión drag & drop
 │   ├── TrainSettings.tsx            # Operadores y tipos
 │   └── DisplayConfig.tsx            # Config de display individual
@@ -148,7 +180,13 @@ frontend/src/
 │   ├── api.ts                       # API client con autenticación
 │   ├── i18n.ts                      # Sistema multiidioma
 │   ├── tts.ts                       # TTS con fallback (server → navegador)
+│   ├── trainOptions.ts              # Opciones y presets
+│   ├── svgPlaceholder.ts            # Placeholders SVG
 │   └── useAlternating.ts            # Hook de alternancia (destinos)
+├── services/
+│   └── routeApi.ts                  # Cliente de rutas
+├── types/
+│   └── railRoute.ts                 # Tipos de rutas
 └── styles/
     └── index.css                    # Tailwind + estilos custom
 ```
@@ -169,24 +207,43 @@ backend/
 ├── src/
 │   ├── index.js                         # Servidor Express, start
 │   ├── db.js                            # Esquema, migraciones, acceso
-│   ├── routes.js                        # Rutas REST + WebSocket ping
+│   ├── routes.js                        # API administrativa (/admin)
+│   ├── railRoutesApi.js                 # API pública (/api)
 │   ├── ws.js                            # Servidor WebSocket, broadcast
-│   ├── railRoutesApi.js                 # Build de filas de panel desde trenes
+│   ├── migrations.js                    # Runner de migraciones SQL
+│   ├── logger.js                        # Logger pino
+│   ├── middleware/
+│   │   └── auth.js                      # Basic Auth
 │   ├── services/
 │   │   ├── ttsService.js                # TTS server-side (macOS say + Edge TTS)
 │   │   ├── boardService.js              # Compose de station board (modo dep/arr)
 │   │   ├── trainGeneratorService.js     # Generación de trenes + logos Cercanías auto
-│   │   └── ...
-│   ├── seed.js                          # Datos iniciales
+│   │   ├── routeService.js              # Dataset de rutas (57)
+│   │   ├── eventEngine.js               # Máquina de estados de tren
+│   │   ├── announcementService.js       # Megafonía (cola, historial)
+│   │   ├── announcementComposer.js      # Composición multilingüe
+│   │   ├── announcementSoundResolver.js # Resolución de sonidos
+│   │   ├── simulationService.js         # Reloj simulado, secuencias
+│   │   ├── automationService.js         # Reglas de automatización
+│   │   ├── hardwareService.js           # Eventos hardware
+│   │   ├── uploadService.js             # Multer + validación
 │   ├── data/
-│   │   └── railboard_routes.json        # 57 rutas españolas
-│   └── scripts/
-│       └── ws_e2e_test.mjs              # Test E2E con WS + fallback curl
+│   │   └── observationBank.js           # Banco de observaciones
+│   ├── fixtures/
+│   │   ├── routes.js                    # Fixtures de rutas
+│   │   └── seedTrains.js                # Fixtures de trenes
+│   ├── scripts/
+│   │   └── ws_e2e_test.mjs              # Test E2E con WS + fallback curl
+│   └── seed.js                          # Datos iniciales
+├── migrations/
+│   └── *.sql                            # Migraciones (000-025)
 ├── data/
-│   └── data.db                          # SQLite (WAL) — antes backend/railboard.db
+│   └── data.db                          # SQLite (WAL)
 ├── uploads/
 │   ├── tts/                             # Cache de audio TTS (MD5 hash)
 │   └── ...                              # Imágenes subidas (logos)
+├── public/
+│   └── ...                              # Estáticos (adif.svg, etc.)
 └── package.json
 ```
 
@@ -201,8 +258,10 @@ backend/
 - `GET /admin/trains` — lista trenes (auth requerida: `admin:railboard`)
 - `POST /admin/trains` — crea tren
 - `POST /admin/trains/from-route/:code` — crea desde ruta (NUEVO)
-- `GET /displays` — lista displays
-- `POST /displays/:id/config` — actualiza config de display
+- `GET /admin/displays` — lista displays
+- `PUT /admin/stations/:id/config` — actualiza config de display
+- `GET /api/stations/:id/board` — panel público de estación
+- `POST /admin/tts/synthesize` — síntesis de voz server-side
 - **WebSocket `/ws`** — broadcast en tiempo real
 
 ### WebSocket
@@ -211,6 +270,8 @@ backend/
 
 - `{type: "hello"}` — enviado al conectar cliente
 - `{type: "update", at: timestamp}` — broadcast al cambiar trenes
+- `subscribe`/`unsubscribe` — suscripción por display/estación
+- `heartbeat`/`identify` — registro de dispositivos (devices)
 - Cliente escucha: `ws.on("update", handler)`, `ws.on("hello", handler)`
 
 ---
@@ -255,6 +316,26 @@ backend/
 - **Tabla sin min-width forzado** — se adapta sin scroll horizontal
 - Mejorada legibilidad en pantallas pequeñas
 
+### 7. Event Engine + Megafonía
+
+- **Event Engine** (`backend/src/services/eventEngine.js`) — máquina de estados con transiciones validadas; `PATCH /trains/:id/state`; eventos en `train_events`
+- **AnnouncementService** (`backend/src/services/announcementService.js`) — cola, historial, deduplicación, disparo automático
+- **Composición multilingüe** (`announcementComposer.js`) — locales, formatos de hora/listas
+- **Perfiles/reglas de sonido** — `announcement-sound-profiles` y `announcement-sound-rules`
+- **Audio assets** — subida y gestión en `audio_assets`
+
+### 8. Simulación + Automatización
+
+- **SimulationService** (`simulationService.js`) — reloj simulado (`simulation_clock`), secuencias (`journey_sequences`), log
+- **AutomationService** (`automationService.js`) — reglas (`automation_rules`) y sugerencias
+- **Paneles admin**: `SimulationPanel`, `AutomationPanel`, `HardwarePanel`, `DevicesPanel`, `AudioNodesPanel`, `DisplayScreensPanel`
+
+### 9. Hardware + Dispositivos + Pantallas
+
+- **HardwareService** (`hardwareService.js`) — endpoint público `POST /hardware/events`
+- **Dispositivos** (`devices`) — registro vía WS (`heartbeat`/`identify`), timeout 60s offline
+- **Display screens** (`display_screens`) — pantallas individuales con board propio
+
 ---
 
 ## 📊 Estado de Componentes Principales
@@ -263,16 +344,24 @@ backend/
 | --------------------------- | ----------- | ---------------------------------------------------- |
 | **Display (PIS público)**   | ✅ Completo | Réplica ADIF pixel-perfect, virtualización de filas  |
 | **PIS Components**          | ✅ Completo | `components/pis/` — BoardHeader, DepartureRow, LineBadge, OperatorLogo, PisClock |
-| **Admin (Dashboard)**       | ✅ Completo | 11 tabs, sidebar colapsable, multitud de funcionalidades |
+| **Admin (Dashboard)**       | ✅ Completo | 11+ tabs, sidebar colapsable, multitud de funcionalidades |
 | **DisplayConfig**           | ✅ Completo | Configuración por display, logo, layout vertical     |
 | **DisplayPage**             | ✅ Completo | 4 modos de screen (platform, clock, train-info, board) con destino alternante |
+| **Operator**                | ✅ Completo | Vista de operador (`/operator`)                      |
 | **Generación de Trenes**    | ✅ Completo | Random + Rutas + Panel Completo                      |
-| **WebSocket**               | ✅ Completo | Broadcast, event listeners, fallbacks                |
+| **WebSocket**               | ✅ Completo | Broadcast, suscripciones, dispositivos, fallbacks    |
+| **Event Engine**            | ✅ Completo | Máquina de estados, transiciones validadas, `train_events` |
+| **Megafonía**               | ✅ Completo | Cola, composición multilingüe, perfiles/reglas de sonido, WebSocket push |
+| **TTS (Text-to-Speech)**    | ✅ Completo | Server-side (macOS say + Edge TTS) + fallback navegador, 6 idiomas |
+| **Simulación**              | ✅ Completo | Reloj simulado, secuencias de viaje, log de eventos  |
+| **Automatización**          | ✅ Completo | Reglas (tiempo/estado/retraso), sugerencias          |
+| **Hardware**                | ✅ Completo | Eventos ESP32/Arduino                                |
+| **Dispositivos**            | ✅ Completo | Registro WS, heartbeat, ONLINE/OFFLINE               |
+| **Display Screens**         | ✅ Completo | Pantallas individuales con board                     |
 | **CRUD Operadores**         | ✅ Completo | Create, read, update (logo), delete                  |
 | **CRUD Tipos de Tren**      | ✅ Completo | Create, read, update, delete, logo Cercanías auto    |
 | **CRUD Lugares**            | ✅ Completo | Create, read, delete                                 |
 | **Multiidioma**             | ✅ Completo | ES, CA, EN, FR, EU, GL                               |
-| **TTS (Text-to-Speech)**    | ✅ Completo | Server-side (macOS say + Edge TTS) + fallback navegador, 6 idiomas |
 | **Doble número/destino**    | ✅ Completo | `number2`, `destination2`, destino alternante 5s     |
 | **Restricciones tarifarias**| ✅ Completo | `fare_restrictions` JSON en Admin/DisplayConfig      |
 | **Drag & Drop (Trains)**    | ✅ Completo | Reordenar trenes entre displays                      |
@@ -301,7 +390,7 @@ npm install
 npm run dev
 ```
 
-✅ Frontend serve en `http://localhost:5174` (o puerto sugerido)
+✅ Frontend serve en `http://localhost:5173` (o puerto sugerido)
 
 ### 3. **Acceder a la Aplicación**
 

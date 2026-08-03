@@ -1,43 +1,149 @@
 # API Reference
 
-**Base URL:** `http://localhost:4000/api`
+**Base URL:** `http://localhost:4000`
 
-## Config
+La API se expone en dos montajes:
 
-### GET /api/config
+- **`/api`** — API pública (paneles, rutas, redes, estaciones). No requiere autenticación.
+- **`/admin`** — API administrativa (CRUD completo, megafonía, simulación, automatización, TTS, etc.). Requiere Basic Auth (`admin:railboard`) salvo los endpoints marcados como públicos.
 
-Obtiene todas las claves de configuración.
+`/health` está en la raíz.
+
+---
+
+## Health
+
+### GET /health
+
+Health check con estado de BD, uploads, memoria y uptime.
 
 **Respuesta:**
 
 ```json
 {
-  "station_name": "MADRID PUERTA DE ATOCHA",
-  "mode": "departures",
-  "clockMode": "fake",
-  "clockFakeTime": "14:30"
+  "ok": true,
+  "checks": { "db": true, "uploads": true },
+  "detail": { "db": { "status": "ok" }, "uploads": { "status": "ok", "fileCount": 12 }, "memory": { "rss": "95MB", "heapUsed": "40MB", "heapTotal": "80MB" }, "uptime": "360s", "node": "v20.x", "env": "development" }
 }
 ```
 
-### PUT /api/config
+---
 
-Actualiza configuración. Hace broadcast vía WS.
+## API Pública (`/api`)
 
-**Body:** `{ "station_name": "...", "mode": "arrivals", ... }`
+### Config de estación
+
+| Método | Ruta                    | Descripción                                      |
+| ------ | ----------------------- | ------------------------------------------------ |
+| GET    | `/api/stations/:id/config` | Config pública de un display de estación       |
+
+### Board (panel)
+
+| Método | Ruta                     | Descripción                                          |
+| ------ | ------------------------ | ---------------------------------------------------- |
+| GET    | `/api/stations/:stationId/board?mode=` | Panel de la estación. `mode`: `departures` \| `arrivals` \| `all`. Fuente: `trains` o `services` (fallback). Ordenado por hora esperada + número. |
+
+**Respuesta:**
+
+```json
+{
+  "station": { "id": 1, "name": "Madrid Puerta de Atocha", "displayName": "MADRID PUERTA DE ATOCHA" },
+  "mode": "departures",
+  "source": "trains",
+  "rows": [
+    {
+      "movement": "departure",
+      "time": "08:15",
+      "expectedTime": "08:15",
+      "number": "03104",
+      "number2": "05678",
+      "operatorName": "Renfe",
+      "operatorLogo": "/uploads/renfe.png",
+      "trainTypeCode": "AVE",
+      "trainTypeName": "Alta Velocidad",
+      "trainTypeLogo": "/uploads/ave.png",
+      "destination": "Barcelona",
+      "destination2": "Valencia",
+      "platform": "1",
+      "sector": "A",
+      "status": "Scheduled",
+      "stopsText": "Zaragoza · Lleida · Camp de Tarragona",
+      "observations": "",
+      "fareRestrictions": { "reservationRequired": true }
+    }
+  ],
+  "generatedAt": "2026-07-29T10:00:00.000Z"
+}
+```
+
+### Rutas, redes, estaciones
+
+| Método | Ruta                          | Descripción                                    |
+| ------ | ----------------------------- | ---------------------------------------------- |
+| GET    | `/api/routes`                 | Lista todas las rutas (57 españolas)          |
+| GET    | `/api/routes/:code`           | Detalle de una ruta                            |
+| GET    | `/api/routes/network/:network`| Rutas de una red (p. ej. `CERCANIAS`)         |
+| GET    | `/api/routes/:code/stations`  | Estaciones de una ruta                         |
+| GET    | `/api/regions`                | Regiones disponibles                           |
+| GET    | `/api/networks`               | Redes disponibles                              |
+| GET    | `/api/operators`              | Operadores presentes en el dataset de rutas    |
+| GET    | `/api/stations`               | Todas las estaciones del dataset               |
+| GET    | `/api/stations/search?q=`     | Búsqueda de estaciones                         |
 
 ---
 
-## Trains
+## API Administrativa (`/admin`)
 
-### GET /api/trains
+Todos los endpoints de esta sección requieren Basic Auth salvo indicación expresa. Todas las mutaciones emiten un broadcast WebSocket `{ type: "update" }`.
 
-Lista todos los trenes con datos de operador y tipo.
+### Config
 
-### POST /api/trains
+| Método | Ruta                 | Descripción                              |
+| ------ | -------------------- | ---------------------------------------- |
+| GET    | `/admin/config`      | Obtiene la configuración global          |
+| PUT    | `/admin/config`      | Actualiza configuración (broadcast WS)   |
 
-Crea un tren. Multipart/form-data (acepta icono custom `custom_icon`).
+**Respuesta GET:**
 
-**Body:**
+```json
+{
+  "station_name": "MADRID PUERTA DE ATOCHA",
+  "mode": "departures",
+  "displayMode": "multiple",
+  "clockMode": "fake",
+  "tts_rate": "0.95",
+  "announce_presets": "[...]"
+}
+```
+
+### Displays / Estaciones
+
+| Método | Ruta                       | Descripción                                   |
+| ------ | -------------------------- | --------------------------------------------- |
+| GET    | `/admin/displays`          | Lista displays con su config y trenes         |
+| GET    | `/admin/stations/:id/config` | Config pública de una estación              |
+| PUT    | `/admin/stations/:id/config` | Actualiza config de estación (broadcast)    |
+
+### Trains
+
+| Método | Ruta                            | Descripción                                        |
+| ------ | ------------------------------- | -------------------------------------------------- |
+| GET    | `/admin/trains`                 | Lista trenes (`?station_id=` opcional)             |
+| POST   | `/admin/trains`                 | Crea tren (multipart si hay `custom_icon`)         |
+| GET    | `/admin/trains/export`          | Exporta trenes en JSON (`?station_id=` opcional)   |
+| PUT    | `/admin/trains/reorder`         | Reordena trenes (`{ "ids": [3,1,2] }`)             |
+| PUT    | `/admin/trains/:id`             | Actualiza un tren                                  |
+| PATCH  | `/admin/trains/:id/status`      | Cambia estado (`{ "status": "Delayed" }`)          |
+| PATCH  | `/admin/trains/:id/state`       | Cambio de estado validado por máquina de estados   |
+| PATCH  | `/admin/trains/:id/platform`    | Cambia plataforma/sector                           |
+| PATCH  | `/admin/trains/:id/delay`       | Añade retraso (`{ "minutes": 5 }`)                 |
+| DELETE | `/admin/trains/:id`             | Elimina un tren                                    |
+| DELETE | `/admin/trains`                 | Elimina todos (`X-Confirm: yes` obligatorio)       |
+| POST   | `/admin/trains/from-route/:code`| Crea tren desde una ruta real (57 rutas)           |
+| GET    | `/admin/trains/states`          | Estados válidos + transiciones                     |
+| GET    | `/admin/train-events?trainId=&limit=` | Historial de eventos de tren                 |
+
+**POST `/admin/trains` body:**
 
 ```json
 {
@@ -68,145 +174,190 @@ Crea un tren. Multipart/form-data (acepta icono custom `custom_icon`).
 
 Los campos JSON (`stops`, `fare_restrictions`, `except_stations`) se aceptan como string JSON o array/objeto (el backend los normaliza).
 
-**Campos de tren (adicionales):**
+### Operadores
 
-| Campo                    | Tipo                          | Descripción                            |
-| ------------------------ | ----------------------------- | -------------------------------------- |
-| `number2`                | string (opcional)             | Segundo número de tren                 |
-| `destination2`           | string (opcional)             | Segundo destino (alterna en el panel)  |
-| `fare_restrictions`      | object (opcional)             | `commuterTicketsNotAccepted`, `commuterPassesNotAccepted`, `reservationRequired` |
-| `except_stations`        | string[]                      | Estaciones excluidas                   |
-| `custom_icon_url`        | string (opcional)             | Icono personalizado (subido o URL)     |
-| `icon_mode`              | `none` / `operator` / `type` / `destination` / `custom` | Modo de icono en el panel |
+| Método | Ruta                            | Descripción                                   |
+| ------ | ------------------------------- | --------------------------------------------- |
+| GET    | `/admin/operators`              | Lista operadores                              |
+| POST   | `/admin/operators`              | Crea operador (multipart con `logo`)          |
+| PUT    | `/admin/operators/:id`          | Actualiza operador                            |
+| DELETE | `/admin/operators/:id`          | Elimina operador                              |
+| POST   | `/admin/operators/:id/pre-announce` | Sube audio de pre-anuncio (multipart `file`) |
+| DELETE | `/admin/operators/:id/pre-announce` | Elimina pre-anuncio                        |
 
-### PUT /api/trains/reorder
+### Tipos de tren
 
-Reordena trenes.
+| Método | Ruta                                 | Descripción                                             |
+| ------ | ------------------------------------ | ------------------------------------------------------- |
+| GET    | `/admin/train-types`                 | Lista tipos                                            |
+| POST   | `/admin/train-types`                 | Upsert por `code` (multipart `logo` + `destination_icon`) |
+| PUT    | `/admin/train-types/:id`             | Actualiza tipo                                         |
+| DELETE | `/admin/train-types/:id`             | Elimina tipo                                           |
+| POST   | `/admin/train-types/:id/pre-announce`| Sube audio de pre-anuncio                              |
+| DELETE | `/admin/train-types/:id/pre-announce`| Elimina pre-anuncio                                    |
 
-**Body:** `{ "ids": [3, 1, 2] }`
+### Lugares
 
-### PUT /api/trains/:id
+| Método | Ruta                | Descripción                          |
+| ------ | ------------------- | ------------------------------------ |
+| GET    | `/admin/places`     | Lista lugares                        |
+| POST   | `/admin/places`     | Crea lugar (multipart con `logo`)    |
+| PUT    | `/admin/places/:id` | Actualiza lugar                      |
+| DELETE | `/admin/places/:id` | Elimina lugar                        |
 
-Actualiza todos los campos de un tren.
+### Estaciones
 
-### PATCH /api/trains/:id/status
+| Método | Ruta                           | Descripción                       |
+| ------ | ------------------------------ | --------------------------------- |
+| GET    | `/admin/stations`              | Lista estaciones                  |
+| POST   | `/admin/stations`              | Crea estación                     |
+| PUT    | `/admin/stations/:id`          | Actualiza estación                |
+| DELETE | `/admin/stations/:id`          | Elimina (impide eliminar la última) |
+| POST   | `/admin/stations/:id/pre-announce` | Sube audio de pre-anuncio     |
+| DELETE | `/admin/stations/:id/pre-announce` | Elimina pre-anuncio           |
 
-Actualiza solo el estado.
+### Train Icons
 
-**Body:** `{ "status": "Delayed" }`
+| Método | Ruta                      | Descripción                          |
+| ------ | ------------------------- | ------------------------------------ |
+| GET    | `/admin/train-icons`      | Lista iconos de tren                 |
+| POST   | `/admin/train-icons`      | Sube icono (multipart con `icon`)    |
+| PUT    | `/admin/train-icons/:id`  | Actualiza icono                      |
+| DELETE | `/admin/train-icons/:id`  | Elimina icono                        |
 
-### PATCH /api/trains/:id/delay
+### Rutas (dataset)
 
-Añade minutos de retraso a `expected_time`.
+| Método | Ruta                    | Descripción                           |
+| ------ | ----------------------- | ------------------------------------- |
+| GET    | `/admin/routes`         | Lista todas las rutas (57)            |
+| GET    | `/admin/regions`        | Regiones disponibles                  |
+| GET    | `/admin/routes/export`  | Descarga `railboard_routes.json`      |
+| POST   | `/admin/routes/reload`  | Recarga dataset desde archivo         |
 
-**Body:** `{ "minutes": 5 }`
+### Servicios (multiestación)
 
-### PATCH /api/trains/:id/platform
+| Método | Ruta                               | Descripción                       |
+| ------ | ---------------------------------- | --------------------------------- |
+| GET    | `/admin/services`                  | Lista servicios (`?status=&operator_id=`) |
+| POST   | `/admin/services`                  | Crea servicio                     |
+| GET    | `/admin/services/:id`              | Detalle con stops y eventos       |
+| PATCH  | `/admin/services/:id`              | Actualiza estado/notas            |
+| DELETE | `/admin/services/:id`              | Elimina servicio                  |
+| POST   | `/admin/services/:id/cancel`       | Cancela servicio y sus stops      |
 
-Actualiza plataforma y sector.
+### Paradas de servicio
 
-**Body:** `{ "platform": "2", "sector": "B" }`
+| Método | Ruta                                       | Descripción                     |
+| ------ | ------------------------------------------ | ------------------------------- |
+| GET    | `/admin/services/:serviceId/stops`         | Lista paradas                   |
+| POST   | `/admin/services/:serviceId/stops`         | Crea parada                     |
+| PATCH  | `/admin/services/:serviceId/stops/:stopId` | Actualiza parada                |
+| DELETE | `/admin/services/:serviceId/stops/:stopId` | Elimina parada (renumera)       |
+| POST   | `/admin/services/:serviceId/stops/reorder` | Reordena paradas (`{ order: [] }`) |
+| POST   | `/admin/stops/:stopId/arrival`             | Marca llegada (`actual_time` obligatorio) |
+| POST   | `/admin/stops/:stopId/departure`           | Marca salida (propaga retraso)  |
+| POST   | `/admin/stops/:stopId/pass`                | Marca paso                      |
+| POST   | `/admin/stops/:stopId/delay`               | Añade retraso (`{ minutes, reason }`) |
 
-### DELETE /api/trains/:id
+### Especiales
 
-Elimina un tren.
-
-### DELETE /api/trains
-
-Elimina todos los trenes.
-
-### POST /api/trains/from-route/:code
-
-Crea un tren a partir de una ruta ferroviaria real (57 rutas españolas). Requiere auth.
-
-**Body:** `{ "platform": "3" }` (opcional, si no se indica se asigna automáticamente)
-
-**Respuesta:** 201 con el tren creado. Triggerea WebSocket broadcast.
-
-### PATCH /api/trains/:id/state
-
-Actualiza el estado y posibles campos extra.
-
-**Body:** `{ "status": "Boarding" }`
-
-### GET /api/trains/states
-
-Lista los estados de tren disponibles.
-
-### GET /api/train-events
-
-Historial de eventos de tren (requiere auth).
+| Método | Ruta                             | Descripción                           |
+| ------ | -------------------------------- | ------------------------------------- |
+| POST   | `/admin/seed-trains`             | Reinicia con 9 trenes de demostración |
+| POST   | `/admin/generate-random-train`   | Genera un tren aleatorio realista     |
 
 ---
 
-## Routes (Rutas Ferroviarias)
+## Megafonía / Anuncios
 
-| Método | Ruta                       | Descripción                                 |
-| ------ | -------------------------- | ------------------------------------------- |
-| GET    | /api/routes                | Lista todas las rutas (57 españolas)        |
-| GET    | /api/regions               | Regiones disponibles                        |
-| GET    | /api/routes/export         | Exporta dataset de rutas (auth)             |
-| POST   | /api/routes/reload         | Recarga dataset desde archivo (auth)        |
+### Configuración
 
-## Train Icons
+| Método | Ruta                            | Descripción                                        |
+| ------ | ------------------------------- | -------------------------------------------------- |
+| GET    | `/admin/announcements/config`   | Locales, tipos de evento y estadísticas del servicio |
+| PUT    | `/admin/announcements/config`   | Actualiza config de anuncios de una estación (`station_id` requerido) |
+| GET    | `/admin/announcements/config/:stationId` | Config de anuncios de una estación (público) |
 
-| Método | Ruta                     | Descripción                          |
-| ------ | ------------------------ | ------------------------------------ |
-| GET    | /api/train-icons         | Lista iconos de tren                 |
-| POST   | /api/train-icons         | Sube icono (multipart con `icon`)    |
-| PUT    | /api/train-icons/:id     | Actualiza icono                      |
-| DELETE | /api/train-icons/:id     | Elimina icono                        |
+Campos de config (`station_announcement_config`): `languages`, `sound_mode` (`SINGLE`/`PER_LANGUAGE`), `delay_after_sound_ms`, `delay_between_languages_ms`, `sound_volume`, `speech_volume`, `auto_announce_enabled`, `tts_provider`, `tts_voice_map`, `tts_rate`, `tts_pitch`.
 
-## Displays (Público)
+### Cola e historial
 
-| Método | Ruta                         | Descripción                                   |
-| ------ | ---------------------------- | --------------------------------------------- |
-| GET    | /api/displays                | Lista displays (auth)                         |
-| GET    | /api/stations/:id/config     | Config pública de una estación                |
-| PUT    | /api/stations/:id/config     | Actualiza config de estación (auth)           |
+| Método | Ruta                        | Descripción                             |
+| ------ | --------------------------- | --------------------------------------- |
+| GET    | `/admin/announcements/queue`| Cola de anuncios pendientes/reproduciéndose |
+| GET    | `/admin/announcements/history` | Historial de anuncios                 |
+| GET    | `/admin/announcements/events` | Log de eventos de anuncios            |
 
-## Operators
+### Pruebas y disparo manual
 
-| Método | Ruta               | Descripción                        |
-| ------ | ------------------ | ---------------------------------- |
-| GET    | /api/operators     | Lista operadores                   |
-| POST   | /api/operators     | Crea operador (multipart con logo) |
-| PUT    | /api/operators/:id | Actualiza operador                 |
-| DELETE | /api/operators/:id | Elimina operador                   |
+| Método | Ruta                          | Descripción                                  |
+| ------ | ----------------------------- | -------------------------------------------- |
+| POST   | `/admin/announcements/test`   | Compone anuncio sin reproducir (`train`, `eventType`, `languages`, `sound_id`) |
+| POST   | `/admin/announcements/event`  | Dispara anuncio manual (`train`, `eventType`, `stationId`, `languages`) |
 
-## Train Types
+### Locales
 
-| Método | Ruta                 | Descripción                                               |
-| ------ | -------------------- | --------------------------------------------------------- |
-| GET    | /api/train-types     | Lista tipos de tren                                       |
-| POST   | /api/train-types     | Crea/actualiza tipo (upsert por code, multipart con logo) |
-| PUT    | /api/train-types/:id | Actualiza tipo                                            |
-| DELETE | /api/train-types/:id | Elimina tipo                                              |
+| Método | Ruta                            | Descripción                    |
+| ------ | ------------------------------- | ------------------------------ |
+| GET    | `/admin/announcements/locales`  | Lista locales disponibles      |
+| GET    | `/admin/announcements/locale/:lang` | Contenido de un locale     |
+| PUT    | `/admin/announcements/locale/:lang` | Actualiza un locale        |
 
-## Places
+### Helpers de formato
 
-| Método | Ruta            | Descripción                     |
-| ------ | --------------- | ------------------------------- |
-| GET    | /api/places     | Lista lugares                   |
-| POST   | /api/places     | Crea lugar (multipart con logo) |
-| PUT    | /api/places/:id | Actualiza lugar                 |
-| DELETE | /api/places/:id | Elimina lugar                   |
+| Método | Ruta                        | Descripción                            |
+| ------ | --------------------------- | -------------------------------------- |
+| POST   | `/admin/announcements/format-time` | Hora → texto hablado (`{ time, language }`) |
+| POST   | `/admin/announcements/format-list` | Lista → texto enumerado (`{ items, language }`) |
 
-## Especiales
+---
 
-| Método | Ruta                       | Descripción                           |
-| ------ | -------------------------- | ------------------------------------- |
-| GET    | /health                    | Health check: `{ ok: true }`          |
-| POST   | /api/seed-trains           | Reinicia con 9 trenes de demostración |
-| POST   | /api/generate-random-train | Genera un tren aleatorio realista     |
+## Audio Assets
 
-## TTS (Text-to-Speech)
+| Método | Ruta                              | Descripción                          |
+| ------ | --------------------------------- | ------------------------------------ |
+| GET    | `/admin/announcement-audio`       | Lista assets de audio (`?asset_type=&format=&enabled=`) |
+| GET    | `/admin/announcement-audio/:id`   | Detalle de asset                     |
+| POST   | `/admin/announcement-audio/upload`| Sube audio (multipart `file`)        |
+| PUT    | `/admin/announcement-audio/:id`   | Actualiza metadata                   |
+| DELETE | `/admin/announcement-audio/:id`   | Elimina asset (+ archivo)            |
 
-Endpoints de síntesis de voz server-side. Requiere auth: Basic Auth `admin:railboard`.
+## Perfiles y reglas de sonido
+
+| Método | Ruta                                     | Descripción                          |
+| ------ | ---------------------------------------- | ------------------------------------ |
+| GET    | `/admin/announcement-sound-profiles`     | Lista perfiles de sonido             |
+| POST   | `/admin/announcement-sound-profiles`     | Crea perfil                          |
+| PUT    | `/admin/announcement-sound-profiles/:id` | Actualiza perfil                     |
+| DELETE | `/admin/announcement-sound-profiles/:id` | Elimina perfil                       |
+| GET    | `/admin/announcement-sound-rules`        | Lista reglas de sonido (por prioridad) |
+| POST   | `/admin/announcement-sound-rules`        | Crea regla                           |
+| PUT    | `/admin/announcement-sound-rules/:id`    | Actualiza regla                      |
+| DELETE | `/admin/announcement-sound-rules/:id`    | Elimina regla                        |
+
+## Pronunciaciones TTS de lugares
+
+| Método | Ruta                                  | Descripción                             |
+| ------ | ------------------------------------- | --------------------------------------- |
+| GET    | `/admin/place-tts-pronunciations`     | Lista pronunciaciones                   |
+| POST   | `/admin/place-tts-pronunciations`     | Guarda pronunciación (`display_name`, `language`, `pronunciation`) |
+| DELETE | `/admin/place-tts-pronunciations/:id` | Elimina pronunciación                   |
+
+---
+
+## TTS (Text-to-Speech) — Server-Side
+
+Requiere auth: Basic Auth `admin:railboard`.
+
+| Método | Ruta                  | Descripción                     |
+| ------ | --------------------- | ------------------------------- |
+| POST   | `/admin/tts/synthesize` | Sintetiza texto → audio        |
+| GET    | `/admin/tts/voices`   | Lista voces (`?language=`)      |
+| GET    | `/admin/tts/provider` | Proveedor activo                |
+| GET    | `/admin/tts/cache`    | Estadísticas del cache          |
+| DELETE | `/admin/tts/cache`    | Limpia el cache                 |
 
 ### POST /admin/tts/synthesize
-
-Sintetiza texto en audio.
 
 **Body:**
 
@@ -220,13 +371,9 @@ Sintetiza texto en audio.
 }
 ```
 
-**Respuesta:** Audio binario (AIFF format) con Content-Type: `audio/aiff`.
+**Respuesta:** Audio binario (MP3/OGG/WAV/AIFF según proveedor).
 
 ### GET /admin/tts/voices
-
-Lista voces disponibles (server + edge-tts).
-
-**Query params:** `?language=es` (opcional, filtra por idioma)
 
 **Respuesta:**
 
@@ -240,54 +387,78 @@ Lista voces disponibles (server + edge-tts).
 }
 ```
 
-### GET /admin/tts/provider
+---
 
-Información del proveedor TTS activo.
+## Simulación
 
-**Respuesta:**
+| Método | Ruta                              | Descripción                                |
+| ------ | --------------------------------- | ------------------------------------------ |
+| GET    | `/admin/simulation/clock`         | Reloj simulado (tiempo real + simulado)    |
+| PATCH  | `/admin/simulation/clock`         | Ajusta `multiplier` o `paused`             |
+| POST   | `/admin/simulation/clock/reset`   | Reinicia el reloj                          |
+| GET    | `/admin/simulation/events`        | Log de eventos de simulación (`?limit=`)   |
+| GET    | `/admin/simulation/sequences`     | Lista secuencias de viaje                  |
+| GET    | `/admin/simulation/sequences/:id` | Detalle de secuencia                       |
+| POST   | `/admin/simulation/sequences`     | Crea secuencia                             |
+| DELETE | `/admin/simulation/sequences/:id` | Elimina secuencia                          |
+| POST   | `/admin/simulation/sequences/:id/start` | Inicia secuencia                     |
+| POST   | `/admin/simulation/sequences/:id/pause` | Pausa secuencia                      |
+| POST   | `/admin/simulation/sequences/:id/reset` | Reinicia secuencia                    |
 
-```json
-{
-  "status": "ok",
-  "data": {
-    "available": true,
-    "provider": "macos",
-    "detail": "macOS say command"
-  }
-}
-```
+## Automatización
 
-### GET /admin/tts/cache
+| Método | Ruta                                     | Descripción                    |
+| ------ | ---------------------------------------- | ------------------------------ |
+| GET    | `/admin/automation/rules`                | Lista reglas                   |
+| GET    | `/admin/automation/rules/:id`            | Detalle de regla               |
+| POST   | `/admin/automation/rules`                | Crea regla                     |
+| PATCH  | `/admin/automation/rules/:id`            | Actualiza regla                |
+| DELETE | `/admin/automation/rules/:id`            | Elimina regla                  |
+| GET    | `/admin/automation/suggestions/:trainId` | Sugerencias para un tren       |
+| GET    | `/admin/automation/suggestions/station/:stationId` | Sugerencias para una estación |
 
-Estadísticas del cache de audio.
+## Hardware
 
-**Respuesta:**
+| Método | Ruta                   | Descripción                              |
+| ------ | ---------------------- | ---------------------------------------- |
+| POST   | `/admin/hardware/events` | Endpoint público para ESP32/Arduino   |
+| GET    | `/admin/hardware/events` | Vista admin del log de eventos        |
 
-```json
-{
-  "status": "ok",
-  "data": { "count": 12, "totalSize": 245760 }
-}
-```
+## Displays Screens
 
-### DELETE /admin/tts/cache
+| Método | Ruta                          | Descripción                 |
+| ------ | ----------------------------- | --------------------------- |
+| GET    | `/admin/display-screens`      | Lista pantallas             |
+| GET    | `/admin/display-screens/:id`  | Detalle                     |
+| POST   | `/admin/display-screens`      | Crea pantalla               |
+| PATCH  | `/admin/display-screens/:id`  | Actualiza pantalla          |
+| DELETE | `/admin/display-screens/:id`  | Elimina pantalla            |
+| GET    | `/admin/display-screens/:id/board` | Board de la pantalla    |
 
-Limpia todo el cache de audio TTS.
+## Devices
+
+| Método | Ruta                       | Descripción                       |
+| ------ | -------------------------- | --------------------------------- |
+| GET    | `/admin/devices`           | Lista dispositivos registrados    |
+| GET    | `/admin/devices/connected` | Dispositivos conectados por WS    |
+| GET    | `/admin/devices/:id`       | Detalle de dispositivo            |
+| PATCH  | `/admin/devices/:id`       | Actualiza dispositivo             |
+| DELETE | `/admin/devices/:id`       | Elimina dispositivo               |
+
+---
 
 ## WebSocket
 
 **URL:** `ws://localhost:4000/ws`
 
-Al conectar, el servidor envía `{"type":"hello"}`. Ante cualquier cambio de datos, envía `{"type":"update","at":"<timestamp>"}`.
+- Al conectar, el servidor envía `{"type":"hello"}`.
+- Tras cualquier cambio de datos, emite `{"type":"update","at":"<timestamp>"}`.
+- Clientes pueden **suscribirse** por display/estación (`subscribe`/`unsubscribe`) para recibir broadcasts dirigidos (`broadcastToDisplay`, `broadcastToStation`).
+- Los **dispositivos** envían `heartbeat` / `identify` con `deviceId` para registrarse en la tabla `devices` y mantenerse ONLINE (timeout de 60s).
+- Mensajes de eventos: `device_disconnected`, `service_created`, `service_updated`, `service_stop_state_changed`, etc.
 
 ## Estados de tren
 
-- `Scheduled`
-- `On Time`
-- `Delayed`
-- `Cancelled`
-- `Departed`
-- `Arrived`
-- `Boarding`
-- `Now Boarding`
-- `Last Call`
+Estados disponibles y sus transiciones los expone `GET /admin/trains/states`:
+
+- `Scheduled`, `On Time`, `Delayed`, `Cancelled`, `Departed`, `Arrived`, `Boarding`, `Now Boarding`, `Last Call`

@@ -13,15 +13,14 @@ RailBoard es un sistema monorepo para la visualización de paneles informativos 
 
 **Archivos clave:**
 
-- `backend/src/index.js` (89 líneas) — punto de entrada del backend
-- `backend/src/routes.js` (1676 líneas) — rutas administrativas
-- `backend/src/railRoutesApi.js` (209 líneas) — API pública
-- `backend/src/db.js` (882 líneas) — capa de base de datos
-- `backend/src/ws.js` (18 líneas) — servidor WebSocket
-- `frontend/src/pages/Admin.tsx` (3128 líneas) — panel de administración
-- `frontend/src/pages/Display.tsx` (841 líneas) — pantalla de visualización
-- `docker-compose.yml` (47 líneas) — orquestación de servicios
-- `docker/nginx.conf` (89 líneas) — configuración del proxy inverso
+- `backend/src/index.js` (134 líneas) — punto de entrada del backend
+- `backend/src/routes.js` (1222 líneas) — API administrativa (/admin)
+- `backend/src/railRoutesApi.js` (213 líneas) — API pública (/api)
+- `backend/src/db.js` (1210 líneas) — capa de base de datos
+- `backend/src/ws.js` (171 líneas) — servidor WebSocket (broadcast, dispositivos)
+- `frontend/src/pages/Admin.tsx` (3636 líneas) — panel de administración
+- `frontend/src/pages/Display.tsx` (376 líneas) — pantalla de visualización
+- `frontend/src/pages/DisplayConfig.tsx` (1612 líneas) — configuración de display
 
 ---
 
@@ -123,20 +122,30 @@ graph TD
         pages --> Admin.tsx
         pages --> Display.tsx
         pages --> DisplayConfig.tsx
+        pages --> DisplayPage.tsx
+        pages --> Operator.tsx
         pages --> Trains.tsx
         pages --> TrainSettings.tsx
 
         comp --> Clock.tsx
-        comp --> StatusPill.tsx
         comp --> SteamTrain.tsx
+        comp --> pis[components/pis/]
+        pis --> BoardHeader.tsx
+        pis --> DepartureRow.tsx
+        pis --> LineBadge.tsx
+        pis --> OperatorLogo.tsx
+        pis --> PisClock.tsx
         comp --> admin[admin/]
         admin --> GenerationPanel.tsx
-        admin --> LocutionsPanel.tsx
-        admin --> PlacesPanel.tsx
         admin --> RoutesPanel.tsx
         admin --> ServicesPanel.tsx
-        admin --> StationPanel.tsx
-        admin --> StylesPanel.tsx
+        admin --> MegaphonyPanel.tsx
+        admin --> SimulationPanel.tsx
+        admin --> AutomationPanel.tsx
+        admin --> HardwarePanel.tsx
+        admin --> DevicesPanel.tsx
+        admin --> AudioNodesPanel.tsx
+        admin --> DisplayScreensPanel.tsx
         admin --> WSLogPanel.tsx
 
         lib --> api.ts
@@ -144,6 +153,7 @@ graph TD
         lib --> tts.ts
         lib --> svgPlaceholder.ts
         lib --> trainOptions.ts
+        lib --> useAlternating.ts
 
         services --> routeApi.ts
     end
@@ -151,7 +161,9 @@ graph TD
 
 ### 4.3 Base de datos
 
-**Tablas principales** (creadas automáticamente en `db.js:12-80`):
+**Esquema:** se crea/aplica mediante migraciones SQL en `backend/migrations/` (`000-initial-schema.sql` … `025-trains-two-numbers.sql`), ejecutadas por `migrations.js` al arrancar y registradas en `schema_migrations`.
+
+**Tablas principales:**
 
 | Tabla                     | Finalidad                                 | Clave foránea                                                             |
 | ------------------------- | ----------------------------------------- | ------------------------------------------------------------------------- |
@@ -163,18 +175,31 @@ graph TD
 | `station_display_configs` | Configuración por estación                | `station_id` → `stations(id)`                                             |
 | `trains`                  | Trenes individuales (modo simple)         | `operator_id`, `train_type_id`, `station_id`                              |
 | `train_icons`             | Iconos personalizados                     | —                                                                         |
+| `train_events`            | Eventos de máquina de estados             | `train_id` → `trains(id)`                                                 |
 | `services`                | Servicios/expediciones (modo multiciudad) | `operator_id`, `train_type_id`, `origin_place_id`, `destination_place_id` |
 | `service_stops`           | Paradas de un servicio                    | `service_id`, `station_id`                                                |
 | `service_events`          | Registro de eventos                       | `service_id`, `stop_id`                                                   |
+| `display_screens`         | Pantallas individuales                    | `station_id` → `stations(id)`                                             |
+| `devices`                 | Dispositivos conectados (WS)              | —                                                                         |
+| `audio_assets` / `audio_asset_conversions` | Assets de audio                | —                                                                         |
+| `announcement_sound_profiles` / `announcement_sound_rules` | Perfiles y reglas de sonido | `operator_id`, `train_type_id`, `sound_id`            |
+| `announcement_queue` / `announcement_history` | Cola e historial de anuncios | `train_id`, `service_id`, `station_id`                     |
+| `station_announcement_config` | Config de megafonía por estación      | `station_id` → `stations(id)`                                             |
+| `simulation_clock` / `simulation_events` / `journey_sequences` | Simulación | `train_id`, `service_id`, `station_id`                    |
+| `automation_rules` / `train_state_timings` | Automatización                | `train_id`                                                                 |
 | `schema_migrations`       | Control de migraciones                    | —                                                                         |
 
 **Migraciones SQL** (directorio `backend/migrations/`):
 
-1. `001-services.sql` — tablas `services` y `service_stops`
-2. `002-service-events.sql` — tabla `service_events`
-3. `003-trains-compatibility.sql` — compatibilidad con trenes
+- `000-initial-schema.sql` — tablas base (config, operadores, tipos, lugares, estaciones, trenes, iconos)
+- `001-services.sql` a `003-trains-compatibility.sql` — servicios y paradas
+- `004`–`011` — columnas de compatibilidad (sort_order, observations, logo_url, station_id, pre_announce_ogg, destination_icon, custom_icon, announce_template)
+- `012`–`018` — sistema de megafonía (audio_assets, perfiles/reglas de sonido, cola/historial, config de anuncios)
+- `019`–`020` — display_screens y devices
+- `021`–`023` — eventos de tren, simulación y automatización
+- `024`–`025` — stopping_pattern, fare_restrictions, except_stations, number2, destination2
 
-**Datos de demo:** `backend/src/seed.js` (206 líneas) crea operadores (Renfe, Avlo, Iryo, Ouigo), tipos de tren (AVE, Alvia, IC, MD, Avant, Cercanías), lugares y trenes de demostración con logotipos SVG generados inline.
+**Datos de demo:** `backend/src/seed.js` crea operadores (Renfe, Avlo, Iryo, Ouigo), tipos de tren (AVE, Alvia, IC, MD, Avant, Cercanías), lugares y trenes de demostración. Los fixtures de trenes están en `backend/src/fixtures/seedTrains.js`.
 
 ---
 
@@ -211,7 +236,7 @@ sequenceDiagram
     FE->>FE: refresca
 ```
 
-**Detalles de la consulta** (`railRoutesApi.js:166-196`):
+**Detalles de la consulta** (`railRoutesApi.js:171-200`):
 
 1. Se lee la configuración de la estación (`getStationDisplayConfig`)
 2. Primero se intenta obtener datos de la tabla `trains` (`buildRowsFromTrains`)
@@ -221,10 +246,10 @@ sequenceDiagram
 
 **Columnas renderizadas** (`Display.tsx`):
 
-- **TIME** — 11.17% ancho, hora prevista
-- **DESTINATION** — 56.33% ancho, destino + paradas intermedias
-- **PRODUCT** — 18% ancho, logotipo del tipo + número
-- **PLATFORM** — 7.5% ancho, vía
+- **TIME** — hora prevista
+- **DESTINATION** — destino (alternante primario/secundario) + paradas intermedias (marquee)
+- **PRODUCT** — logotipo del tipo + número (doble número)
+- **PLATFORM** — vía
 - **STATUS** — fila inferior bajo TIME
 - **STOPS** — fila inferior bajo DESTINATION
 
@@ -268,17 +293,18 @@ sequenceDiagram
 | Síncrono (REST)      | HTTP      | Frontend → Backend | CRUD, consultas de panel                          |
 | Síncrono (REST)      | HTTP      | Admin → Backend    | Operaciones de escritura                          |
 | Asíncrono (pub/sub)  | WebSocket | Backend → Frontend | Notificaciones de cambios (`{ type: "update" }`)  |
-| Polling              | HTTP      | Frontend → Backend | Refresco periódico cada 5s (Display.tsx:280)      |
+| Polling              | HTTP      | Frontend → Backend | Refresco periódico cada 5s (Display.tsx:186)     |
 | Servicio de archivos | HTTP      | Nginx → Backend    | Archivos estáticos en `/uploads/`                 |
 | Proxy inverso        | HTTP      | Nginx → Backend    | `/api/`, `/admin/`, `/ws`, `/health`, `/uploads/` |
 
-**WebSocket** (`ws.js:5-9`):
+**WebSocket** (`ws.js:13-58`):
 
 - Servidor montado en el mismo puerto HTTP con `path: "/ws"`
 - Envía un mensaje `{ type: "hello" }` al conectarse
 - `broadcast(data)` envía a todos los clientes conectados
+- Suscripciones por display/estación (`subscribe`/`unsubscribe`) y registro de dispositivos (`heartbeat`/`identify`)
 
-**Conexión del frontend** (`api.ts:430-462`):
+**Conexión del frontend** (`api.ts:696-748`):
 
 - Convierte `http://` a `ws://` automáticamente
 - Reconexión automática con 1.5s de retardo
@@ -290,7 +316,7 @@ sequenceDiagram
 
 ### 7.1 Autenticación
 
-- **HTTP Basic Auth** para todas las rutas `/admin` (`routes.js:23-27`)
+- **HTTP Basic Auth** para todas las rutas `/admin` (`middleware/auth.js`)
 - Usuario fijo: `admin`
 - Contraseña: variable de entorno `ADMIN_PASSWORD`, valor por defecto `"railboard"`
 - Implementado con `express-basic-auth` con `challenge: true`
@@ -375,27 +401,27 @@ sequenceDiagram
 
 ### 9.3 WebSocket en el mismo puerto HTTP
 
-**Evidencia:** `index.js:78-79`: el WebSocket se conecta al mismo servidor HTTP (`http.createServer` + `attachWebSocket`).
+**Evidencia:** `index.js:126-127`: el WebSocket se conecta al mismo servidor HTTP (`http.createServer` + `attachWebSocket`).
 **Razón:** Evita configuraciones complejas de puertos adicionales y simplifica el despliegue detrás de Nginx (que gestiona el upgrade de protocolo).
 
 ### 9.4 Polling + WebSocket
 
-**Evidencia:** `Display.tsx:280` establece un `setInterval(refresh, 5000)` y `Display.tsx:294` conecta WebSocket.
+**Evidencia:** `Display.tsx:186` establece un `setInterval(refresh, 5000)` y `Display.tsx:184` conecta WebSocket.
 **Razón:** El polling garantiza actualizaciones incluso si el WebSocket se pierde; el WebSocket proporciona actualizaciones inmediatas cuando hay cambios. Patrón híbrido de robustez y baja latencia.
 
 ### 9.5 `station_id` opcional en la tabla `trains`
 
-**Evidencia:** `db.js:109-112`: columna añadida posteriormente mediante migración.
+**Evidencia:** `db.js:109-112` (listTrains) y migraciones `004`–`007` y `024`: la columna se añadió mediante migración.
 **Razón:** Soporte para múltiples estaciones se añadió después del diseño inicial. La columna es opcional (`SET NULL` en cascada) para compatibilidad hacia atrás.
 
 ### 9.6 Sistema dual: `trains` y `services`
 
-**Evidencia:** `railRoutesApi.js:174-176`: primero prueba `buildRowsFromTrains`, si no hay resultados recurre a `buildRowsFromServices`.
+**Evidencia:** `railRoutesApi.js:179-180`: primero prueba `buildRowsFromTrains`, si no hay resultados recurre a `buildRowsFromServices`.
 **Razón:** El modo `trains` (tabla plana) es más sencillo y fue el primero en implementarse. El modo `services` (con paradas múltiples y gestión de retrasos en cadena) es más completo y se añadió posteriormente para el soporte multiciudad. Ambos conviven para compatibilidad.
 
 ### 9.7 Configuración por estación heredada de la global
 
-**Evidencia:** `db.js:468-478`: `getStationDisplayConfig` combina `getConfig()` global, valores por defecto de la estación y `config_json` de `station_display_configs`.
+**Evidencia:** `db.js:397-407`: `getStationDisplayConfig` combina `getConfig()` global, valores por defecto de la estación y `config_json` de `station_display_configs`.
 **Razón:** Patrón de configuración por capas (global → estación → override JSON), similar a CSS.
 
 ### 9.8 Nginx como proxy inverso y servidor web
@@ -416,5 +442,5 @@ sequenceDiagram
 | **Falta de CSRF**                   | No hay protección contra CSRF en las rutas de admin   | Ataques de falsificación de peticiones                       | La autenticación Basic Auth mitiga parcialmente (el navegador no envía credenciales cruzadas automáticamente) |
 | **Dependencia de `better-sqlite3`** | Es una dependencia nativa compilada para Node 20      | Errores al actualizar Node o plataforma no compatible        | `package-lock.json` fija la versión; Alpine Linux compatible                                                  |
 | **Retardo en WebSocket**            | El WebSocket se reconecta cada 1.5s al caer           | Pequeña ventana de desactualización en el panel              | Polling cada 5s como fallback garantiza actualización ≤5s                                                     |
-| **Tamaño de `routes.js`**           | 1676 líneas en un solo archivo                        | Mantenibilidad reducida, dificultad de testing               | Refactorización en módulos más pequeños (`routes/` directorios)                                               |
-| **Tamaño de `Admin.tsx`**           | 3128 líneas en un solo componente                     | Mantenibilidad reducida, renderizado lento                   | Dividir en subcomponentes (ya existen 8 paneles en `components/admin/`)                                       |
+| **Tamaño de `routes.js`**           | 1222 líneas en un solo archivo                        | Mantenibilidad reducida, dificultad de testing               | Refactorización en módulos más pequeños (`routes/` directorios)                                               |
+| **Tamaño de `Admin.tsx`**           | 3636 líneas en un solo componente                     | Mantenibilidad reducida, renderizado lento                   | Dividir en subcomponentes (ya existen 11 paneles en `components/admin/`)                                      |

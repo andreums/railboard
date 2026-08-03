@@ -964,7 +964,7 @@ export const audioAssets = {
     if (!asset) return;
     if (asset.file_path) {
       const fullPath = path.resolve(path.dirname(path.resolve(fileURLToPath(import.meta.url), "../uploads")), path.basename(asset.file_path.replace("/uploads/", "")));
-      try { fs.unlinkSync(fullPath); } catch {}
+      try { fs.unlinkSync(fullPath); } catch { /* file already gone */ }
     }
     db.prepare("DELETE FROM audio_assets WHERE id = ?").run(id);
   },

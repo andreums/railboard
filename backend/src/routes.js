@@ -1,4 +1,5 @@
 import { Router } from "express";
+import logger from "./logger.js";
 import {
   db,
   getConfig,
@@ -129,13 +130,13 @@ r.put("/trains/reorder", adminAuth, (req, res) => {
 r.post("/trains", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
   if (typeof body.fare_restrictions === "string") {
-    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch {}
+    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch { /* invalid JSON, keep original */ }
   }
   if (typeof body.except_stations === "string") {
-    try { body.except_stations = JSON.parse(body.except_stations); } catch {}
+    try { body.except_stations = JSON.parse(body.except_stations); } catch { /* invalid JSON, keep original */ }
   }
   if (typeof body.stops === "string") {
-    try { body.stops = JSON.parse(body.stops); } catch {}
+    try { body.stops = JSON.parse(body.stops); } catch { /* invalid JSON, keep original */ }
   }
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
@@ -147,13 +148,13 @@ r.post("/trains", adminAuth, upload.single("custom_icon"), validateImageContent,
 r.put("/trains/:id", adminAuth, upload.single("custom_icon"), validateImageContent, (req, res) => {
   const body = req.body;
   if (typeof body.fare_restrictions === "string") {
-    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch {}
+    try { body.fare_restrictions = JSON.parse(body.fare_restrictions); } catch { /* invalid JSON, keep original */ }
   }
   if (typeof body.except_stations === "string") {
-    try { body.except_stations = JSON.parse(body.except_stations); } catch {}
+    try { body.except_stations = JSON.parse(body.except_stations); } catch { /* invalid JSON, keep original */ }
   }
   if (typeof body.stops === "string") {
-    try { body.stops = JSON.parse(body.stops); } catch {}
+    try { body.stops = JSON.parse(body.stops); } catch { /* invalid JSON, keep original */ }
   }
   if (req.file) {
     body.custom_icon_url = `/uploads/${req.file.filename}`;
