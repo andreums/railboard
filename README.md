@@ -64,7 +64,13 @@ npm run seed
 npm run dev
 ```
 
-Backend en `http://localhost:4000`. API administrativa en `/admin` (Basic Auth `admin:railboard`), API pública en `/api`, WebSocket en `ws://localhost:4000/ws`, salud en `/health`.
+Backend en `http://localhost:4000`. API administrativa en `/admin` (requiere login), API pública en `/api`, WebSocket en `ws://localhost:4000/ws`, salud en `/health`.
+
+> **Autenticación admin:** el frontend pide usuario y contraseña en una pantalla de login
+> (`frontend/src/lib/auth.ts` guarda las credenciales en `sessionStorage`). En **producción**
+> `ADMIN_PASSWORD` es **obligatoria** (el backend no arranca sin ella); en desarrollo, si no se
+> define, se genera una contraseña aleatoria por arranque que se muestra en la consola.
+> El admin también puede configurarse con `ADMIN_USER` (por defecto `admin`).
 
 ### Frontend
 
@@ -105,6 +111,7 @@ docker compose up -d --build
 - Documentación completa de la API: [docs/api.md](docs/api.md)
 - Arquitectura: [docs/architecture.md](docs/architecture.md)
 - Implementación del servidor WebSocket: [backend/src/ws.js](backend/src/ws.js)
+- Revisión de seguridad y hallazgos: [docs/SECURITY.md](docs/SECURITY.md)
 
 ## Archivos clave
 
@@ -113,6 +120,8 @@ docker compose up -d --build
 - API pública: [backend/src/railRoutesApi.js](backend/src/railRoutesApi.js)
 - Esquema y acceso a datos: [backend/src/db.js](backend/src/db.js) (+ migraciones en `backend/migrations/`)
 - WebSocket: [backend/src/ws.js](backend/src/ws.js)
+- Autenticación admin (backend): [backend/src/middleware/auth.js](backend/src/middleware/auth.js)
+- Autenticación admin (frontend): [frontend/src/lib/auth.ts](frontend/src/lib/auth.ts)
 - Seed de ejemplo: [backend/src/seed.js](backend/src/seed.js)
 - SPA: [frontend/src/main.tsx](frontend/src/main.tsx)
 

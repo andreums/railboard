@@ -93,7 +93,7 @@ graph TD
         idx --> ws[ws.js]
         idx --> mig[migrations.js]
 
-        r --> auth[basic-auth]
+        r --> auth[auth.js: Basic + timing-safe + fuerza-bruta]
         r --> multer[multer]
         r --> db[db.js]
         r --> ws
@@ -263,9 +263,9 @@ sequenceDiagram
     participant DB as SQLite
     participant WS as WebSocket
 
-    A->>N: GET /admin
+    A->>N: GET /admin (login: /admin/auth/me)
     N->>BE: /admin (con Basic Auth)
-    BE->>BE: basicAuth (admin:ADMIN_PASSWORD)
+    BE->>BE: auth (timing-safe, anti fuerza-bruta)
     BE-->>A: Admin SPA
 
     A->>BE: POST /admin/trains
@@ -317,35 +317,43 @@ sequenceDiagram
 ### 7.1 Autenticación
 
 - **HTTP Basic Auth** para todas las rutas `/admin` (`middleware/auth.js`)
-- Usuario fijo: `admin`
-- Contraseña: variable de entorno `ADMIN_PASSWORD`, valor por defecto `"railboard"`
-- Implementado con `express-basic-auth` con `challenge: true`
+- Usuario: variable `ADMIN_USER` (por defecto `admin`)
+- Contraseña: variable `ADMIN_PASSWORD`. En **producción es obligatoria** (el proceso no arranca sin
+  ella); en desarrollo se genera una aleatoria por arranque si no se define.
+- Comparación en **tiempo constante** (SHA-256 + `timingSafeEqual`) y **anti fuerza-bruta**: 8 fallos
+  consecutivos por IP ⇒ bloqueo de 5 min (`429`).
+- Endpoint de verificación de sesión: `GET /admin/auth/me`.
+- WebSocket: `heartbeat`/`identify` exigen token `?auth=` en el handshake; `subscribe`/`unsubscribe`
+  son públicos y de solo lectura.
 
 ### 7.2 Capas de seguridad HTTP
 
 - **Helmet** con `crossOriginResourcePolicy: "cross-origin"` (necesario para imágenes de terceros)
 - **CORS** configurado dinámicamente: origin exacto `CORS_ORIGIN` o cualquier `localhost:*` en desarrollo
 - **Rate limiting**:
-  - `/admin` general: 120 req/min en producción, 1000 en desarrollo
+  - `/admin` general: 120 req/min en producción, 1000 en desarrollo (configurable `RATE_LIMIT_MAX`)
   - Operaciones de escritura (POST/PUT/PATCH/DELETE): 30 req/min
+  - `/api` público: 300 req/min (configurable `PUBLIC_RATE_LIMIT_MAX`)
 - **Headers de seguridad Nginx** (`nginx.conf:85-88`):
   - `X-Frame-Options: SAMEORIGIN`
   - `X-Content-Type-Options: nosniff`
   - `X-XSS-Protection: 1; mode=block`
   - `Referrer-Policy: strict-origin-when-cross-origin`
+- **Health**: en producción `/health` devuelve solo `{ ok, checks }` (sin detalle de `env`/memoria)
 
 ### 7.3 Validación de archivos
 
 - Imágenes (multer): 10MB máximo, solo PNG/JPG/GIF/WebP/SVG
+- Los SVG se **sanitizan** (elimina `<script>`, handlers `on*`, `javascript:` y `foreignObject`) y se
+  sirven como `Content-Disposition: attachment`
 - Audio: 5MB máximo, solo OGG/Opus/MP3
 - Tamaño máximo del body JSON: 1MB
 
 ### 7.4 Carencias de seguridad
 
-- **Sin HTTPS** (el cifrado se delega al proxy externo o load balancer)
-- **Sin CSRF** (no hay tokens anti-CSRF)
+- **Sin HTTPS** (el cifrado se delega al proxy externo / TLS pendiente "para el despliegue")
+- **Sin CSRF** (no hay tokens anti-CSRF; mitigado porque el navegador no envía credenciales Basic cruzadas a terceros)
 - **Sin MFA** (la autenticación es solo Basic Auth)
-- Contraseña por defecto débil (`"railboard"`)
 
 ---
 

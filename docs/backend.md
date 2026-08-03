@@ -17,7 +17,7 @@ backend/
 │   ├── migrations.js        # Runner de migraciones SQL (directorio migrations/)
 │   ├── logger.js            # Logger pino + request logger
 │   ├── middleware/
-│   │   └── auth.js          # Basic Auth (admin)
+│   │   └── auth.js          # Autenticación admin (Basic, timing-safe, anti fuerza-bruta, /admin/auth/me)
 │   ├── services/
 │   │   ├── routeService.js          # Dataset de rutas ferroviarias (57 rutas)
 │   │   ├── boardService.js          # Compose de station board (departures/arrivals)
@@ -115,11 +115,13 @@ Servidor WebSocket en la misma conexión HTTP (`ws://localhost:4000/ws`).
 
 ## Seguridad
 
-- **Basic Auth:** todas las rutas `/admin` (`admin:railboard`, configurable con `ADMIN_PASSWORD`)
-- **Rate limiting:** general `/admin` (120/min prod, 1000 dev) + write limiter (30 req/min) para POST/PUT/PATCH/DELETE
-- **Helmet** con `crossOriginResourcePolicy: "cross-origin"`
+- **Autenticación admin** (`middleware/auth.js`): usuario `ADMIN_USER` (por defecto `admin`) y contraseña `ADMIN_PASSWORD`. En **producción** `ADMIN_PASSWORD` es **obligatoria** (el proceso no arranca sin ella); en desarrollo se genera una aleatoria por arranque si no se define. Comparación en **tiempo constante** (SHA-256 + `timingSafeEqual`). **Anti fuerza-bruta:** 8 fallos consecutivos por IP ⇒ bloqueo 5 min (`429`). Endpoint de verificación `GET /admin/auth/me`.
+- **Rate limiting:** `/admin` general (120/min prod, 1000 dev, configurable `RATE_LIMIT_MAX`) + write limiter (30 req/min) para POST/PUT/PATCH/DELETE + `/api` público (300/min, configurable `PUBLIC_RATE_LIMIT_MAX`).
+- **Helmet** con `crossOriginResourcePolicy: "cross-origin"` (CSP por defecto)
 - **CORS:** `CORS_ORIGIN` o cualquier `localhost:*` en desarrollo
-- **Uploads:** validación de tipo de contenido (imagen PNG/JPG/GIF/WebP/SVG 10MB; audio OGG/Opus/MP3 5MB)
+- **Uploads:** validación de tipo de contenido (imagen PNG/JPG/GIF/WebP/SVG 10MB; audio OGG/Opus/MP3 5MB) con `file-type` + **sanitización de SVG** (elimina `<script>`, handlers `on*`, `javascript:` y `foreignObject`). Los SVG se sirven como `Content-Disposition: attachment`.
+- **WebSocket:** `heartbeat`/`identify` (escritura en `devices`) requieren autenticación por token `?auth=` en el handshake; `subscribe`/`unsubscribe` son públicos. Rate limit de mensajes por conexión (120/30s).
+- **Health:** en producción `/health` devuelve solo `{ ok, checks }` (sin `env`/`node`/memoria).
 - **Body JSON:** límite 1MB
 
 ## Uploads (multer)
@@ -169,16 +171,16 @@ Cadena de síntesis de voz:
 ### Ejemplo de uso
 
 ```bash
-# Sintetizar en euskera
-curl -u admin:railboard -X POST http://localhost:4000/admin/tts/synthesize \
+# Sintetizar en euskera (usa las credenciales de entorno)
+curl -u "$ADMIN_USER:$ADMIN_PASSWORD" -X POST http://localhost:4000/admin/tts/synthesize \
   -H "Content-Type: application/json" \
   -d '{"text":"Kaixo mundua","language":"eu"}' -o output.mp3
 
 # Listar voces
-curl -u admin:railboard http://localhost:4000/admin/tts/voices
+curl -u "$ADMIN_USER:$ADMIN_PASSWORD" http://localhost:4000/admin/tts/voices
 
 # Ver proveedor
-curl -u admin:railboard http://localhost:4000/admin/tts/provider
+curl -u "$ADMIN_USER:$ADMIN_PASSWORD" http://localhost:4000/admin/tts/provider
 ```
 
 ## Lógica de negocio

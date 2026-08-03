@@ -37,8 +37,11 @@ src/
 │   │   ├── AudioNodesPanel.tsx
 │   │   └── DisplayScreensPanel.tsx
 │   ├── Clock.tsx             # Reloj (real o fake)
-│   └── SteamTrain.tsx        # Loading screen con tren animado SVG
+│   ├── SteamTrain.tsx        # Loading screen con tren animado SVG
+│   ├── LoginScreen.tsx       # Pantalla de login (usuario/contraseña)
+│   └── AuthGate.tsx          # Protege rutas admin; verifica sesión con /admin/auth/me
 ├── lib/
+│   ├── auth.ts               # Gestión de credenciales admin (sessionStorage, sin hardcode)
 │   ├── api.ts                # Cliente REST + WebSocket + tipos
 │   ├── i18n.ts               # Internacionalización (6 idiomas)
 │   ├── tts.ts                # TTS con fallback (server → navegador)
@@ -55,20 +58,24 @@ src/
 
 ## Rutas
 
-| Ruta                      | Página              | Descripción                         |
-| ------------------------- | ------------------- | ----------------------------------- |
-| `/`                       | Display             | Panel público a pantalla completa   |
-| `/display/:stationId`     | Display             | Panel PIS de una estación           |
-| `/display/station/:stationId` | Display         | Alias de panel por estación         |
-| `/s/:displayId`           | DisplayPage         | Pantalla individual de un display   |
-| `/admin/displays`         | DisplayConfigPage   | Configuración de displays           |
-| `/admin/displays/:stationId` | DisplayConfigPage | Config de un display específico     |
-| `/admin`                  | Admin               | Dashboard de administración         |
-| `/admin/:tab`             | Admin               | Dashboard con tab específico        |
-| `/operator`               | Operator            | Vista de operador                   |
-| `/trains`                 | Trains              | Gestión de trenes                   |
-| `/train-settings`         | TrainSettings       | Operadores y tipos                  |
-| `*`                       | → `/`               | Catch-all redirect                  |
+| Ruta                      | Página              | Descripción                         | Auth  |
+| ------------------------- | ------------------- | ----------------------------------- | ----- |
+| `/`                       | Display             | Panel público a pantalla completa   | —     |
+| `/display/:stationId`     | Display               | Panel PIS de una estación           | —     |
+| `/display/station/:stationId` | Display           | Alias de panel por estación         | —     |
+| `/s/:displayId`           | DisplayPage           | Pantalla individual de un display   | —     |
+| `/admin/displays`         | DisplayConfigPage     | Configuración de displays           | ✅    |
+| `/admin/displays/:stationId` | DisplayConfigPage   | Config de un display específico     | ✅    |
+| `/admin`                  | Admin               | Dashboard de administración         | ✅    |
+| `/admin/:tab`             | Admin               | Dashboard con tab específico        | ✅ Admin
+| `/operator`               | Operator            | Vista de operador                   | —     |
+| `/trains`                 | Trains              | Gestión de trenes                   | ✅    |
+| `/train-settings`         | TrainSettings       | Operadores y tipos                  | ✅    |
+| `*`                       | → `/`               | Catch-all redirect                  | —     |
+
+> **Auth:** las rutas con `✅` están envueltas en `AuthGate`, que muestra `LoginScreen` si no hay
+> sesión (credenciales en `sessionStorage` vía `lib/auth.ts`) y verifica contra `GET /admin/auth/me`.
+> Ante un `401` en cualquier petición, la sesión se borra y se vuelve al login.
 
 ## Componentes
 
@@ -91,6 +98,19 @@ Reloj configurable: tiempo real o hora fija administrable desde Admin.
 ### SteamTrain
 
 Animación SVG de locomotora a vapor usada como pantalla de carga.
+
+## Autenticación (`src/lib/auth.ts`, `AuthGate.tsx`, `LoginScreen.tsx`)
+
+- `auth.ts` gestiona las credenciales admin: `setCredentials(user, pass)`, `authHeaders()`,
+  `clearCredentials()`, `hasCredentials()`. No hay secretos hardcodeados; las credenciales se
+  guardan en `sessionStorage` (se borran al cerrar el navegador o pestaña).
+- `AuthGate.tsx` envuelve las rutas protegidas (ver tabla de Rutas). Comprueba la sesión contra
+  `GET /admin/auth/me`; si no hay sesión o es inválida, muestra `LoginScreen.tsx`.
+- `LoginScreen.tsx` pide usuario y contraseña; al enviar, guarda las credenciales y valida contra el backend.
+- `api.ts` adjunta `authHeaders()` a cada petición y, ante un `401`, borra la sesión y dispara el
+  evento `railboard:unauthorized` para devolver al login.
+- `connectWS()` añade `?auth=<token>` a la URL del WebSocket cuando hay credenciales (permite
+  `heartbeat`/`identify`).
 
 ## API Client (`src/lib/api.ts`)
 

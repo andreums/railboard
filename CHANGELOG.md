@@ -4,6 +4,41 @@ Registro de cambios y versiones del proyecto.
 
 ---
 
+## [Sesión 3 agosto 2026] — Seguridad
+
+### 🔐 Autenticación (backend)
+
+- Reescrito `backend/src/middleware/auth.js`: arranque con **`ADMIN_PASSWORD` obligatoria en producción** (throw si falta); en desarrollo se genera una aleatoria y se loguea.
+- Comparación de contraseña en **tiempo constante** (SHA-256 + `timingSafeEqual`).
+- **Anti fuerza-bruta:** 8 fallos consecutivos por IP ⇒ bloqueo 5 min (`429`).
+- Nuevo endpoint de verificación `GET /admin/auth/me`.
+- WebSocket: `heartbeat`/`identify` requieren token `?auth=`; `subscribe`/`unsubscribe` públicos.
+
+### 🔐 Autenticación (frontend)
+
+- Nuevo `frontend/src/lib/auth.ts` (credentiales en `sessionStorage`, sin secretos hardcodeados).
+- Nuevos `AuthGate.tsx` y `LoginScreen.tsx`; las rutas admin quedan protegidas.
+- `api.ts` adjunta `authHeaders()` y vuelve al login ante un `401`; `connectWS()` añade `?auth=`.
+
+### 🛡️ Endurecimiento HTTP y archivos
+
+- Rate limit añadido a `/api` público (300/min).
+- Uploads SVG **sanitizados** (`sanitizeSvg`) y servidos como `Content-Disposition: attachment`.
+- `/health` en producción devuelve solo `{ ok, checks }` (sin `env`/memoria).
+- `Content-Security-Policy` estricta en `nginx.conf` (HSTS comentado, pendiente TLS para despliegue).
+- `TRUST_PROXY` para rate limiting correcto tras proxy.
+
+### 🧪 Tests
+
+- Añadido `backend/src/__tests__/auth.test.js` (4 casos). Los 3 fallos de `routes.integration`/e2e son pre-existentes del baseline.
+
+### 📦 Despliegue
+
+- `.env.docker` actualizado: `ADMIN_PASSWORD` (placeholder), `ADMIN_USER`, `TRUST_PROXY`.
+- **Pendiente (deferido a despliegue):** TLS/HTTPS en nginx.
+
+---
+
 ## [Sesión 3 agosto 2026] — Dead code + lint
 
 ### 🧹 Limpieza

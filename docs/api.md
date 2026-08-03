@@ -4,8 +4,13 @@
 
 La API se expone en dos montajes:
 
-- **`/api`** — API pública (paneles, rutas, redes, estaciones). No requiere autenticación.
-- **`/admin`** — API administrativa (CRUD completo, megafonía, simulación, automatización, TTS, etc.). Requiere Basic Auth (`admin:railboard`) salvo los endpoints marcados como públicos.
+- **`/api`** — API pública (paneles, rutas, redes, estaciones). No requiere autenticación. Con rate limit (300 req/min por IP, configurable con `PUBLIC_RATE_LIMIT_MAX`).
+- **`/admin`** — API administrativa (CRUD completo, megafonía, simulación, automatización, TTS, etc.). Requiere autenticación Basic salvo los endpoints marcados como públicos.
+
+> **Autenticación admin:** usuario `ADMIN_USER` (por defecto `admin`) y contraseña `ADMIN_PASSWORD`
+> (obligatoria en producción). La comparación es en tiempo constante y hay bloqueo anti fuerza-bruta
+> (8 fallos consecutivos por IP ⇒ `429` durante 5 min). El frontend pide las credenciales en un login
+> y las guarda en `sessionStorage`; `GET /admin/auth/me` verifica la sesión.
 
 `/health` está en la raíz.
 
@@ -17,7 +22,10 @@ La API se expone en dos montajes:
 
 Health check con estado de BD, uploads, memoria y uptime.
 
-**Respuesta:**
+> En **producción** solo se devuelve `{ ok, checks }` (sin `detail`) para no filtrar
+> versión de node, entorno ni conteo de ficheros. El detalle completo solo se muestra en desarrollo.
+
+**Respuesta (desarrollo):**
 
 ```json
 {
@@ -94,7 +102,16 @@ Health check con estado de BD, uploads, memoria y uptime.
 
 ## API Administrativa (`/admin`)
 
-Todos los endpoints de esta sección requieren Basic Auth salvo indicación expresa. Todas las mutaciones emiten un broadcast WebSocket `{ type: "update" }`.
+Todos los endpoints de esta sección requieren autenticación Basic salvo indicación expresa. Todas las mutaciones emiten un broadcast WebSocket `{ type: "update" }`.
+
+> **Rate limit:** `/admin` tiene un limitador general (por defecto 1000/min en dev, 120/min en prod,
+> configurable con `RATE_LIMIT_MAX`) y las escrituras un límite de 30/min.
+
+### Auth
+
+| Método | Ruta               | Descripción                                                        |
+| ------ | ------------------ | ------------------------------------------------------------------ |
+| GET    | `/admin/auth/me`   | Verifica credenciales. Devuelve `{ ok: true, user: "admin" }` si el Basic Auth es válido. Usado por la pantalla de login del frontend. |
 
 ### Config
 
@@ -347,7 +364,7 @@ Campos de config (`station_announcement_config`): `languages`, `sound_mode` (`SI
 
 ## TTS (Text-to-Speech) — Server-Side
 
-Requiere auth: Basic Auth `admin:railboard`.
+Requiere auth: Basic Auth (`ADMIN_USER`/`ADMIN_PASSWORD`, slash móvil).
 
 | Método | Ruta                  | Descripción                     |
 | ------ | --------------------- | ------------------------------- |
@@ -451,11 +468,17 @@ Requiere auth: Basic Auth `admin:railboard`.
 
 **URL:** `ws://localhost:4000/ws`
 
-- Al conectar, el servidor envía `{"type":"hello"}`.
+- Al conectar, el servidor envía `{"type":"hello","authenticated":<bool>}`.
 - Tras cualquier cambio de datos, emite `{"type":"update","at":"<timestamp>"}`.
-- Clientes pueden **suscribirse** por display/estación (`subscribe`/`unsubscribe`) para recibir broadcasts dirigidos (`broadcastToDisplay`, `broadcastToStation`).
-- Los **dispositivos** envían `heartbeat` / `identify` con `deviceId` para registrarse en la tabla `devices` y mantenerse ONLINE (timeout de 60s).
+- Clientes pueden **suscribirse** por display/estación (`subscribe`/`unsubscribe`) para recibir broadcasts dirigidos (`broadcastToDisplay`, `broadcastToStation`). Esto es **solo lectura** y no requiere autenticación (lo usan las pantallas públicas).
+- Los **dispositivos** envían `heartbeat` / `identify` con `deviceId` para registrarse en la tabla `devices` y mantenerse ONLINE (timeout de 60s). **Requieren autenticación** (ver abajo).
 - Mensajes de eventos: `device_disconnected`, `service_created`, `service_updated`, `service_stop_state_changed`, etc.
+
+> **Autenticación WebSocket:** los mensajes privilegiados (`heartbeat`/`identify`, que escriben en
+> `devices`) solo se aceptan en conexiones autenticadas. El frontend autentica la conexión añadiendo
+> `?auth=<base64 user:password>` a la URL del WS cuando hay credenciales. Las conexiones no autenticadas
+> pueden `subscribe`/`unsubscribe` pero no registrar dispositivos. Hay rate limit de mensajes por
+> conexión (120 mensajes / 30s); excederlo devuelve `{ type: "error", error: "..." }`.
 
 ## Estados de tren
 

@@ -213,7 +213,7 @@ backend/
 │   ├── migrations.js                    # Runner de migraciones SQL
 │   ├── logger.js                        # Logger pino
 │   ├── middleware/
-│   │   └── auth.js                      # Basic Auth
+│   │   └── auth.js                      # Auth admin (Basic, timing-safe, anti fuerza-bruta)
 │   ├── services/
 │   │   ├── ttsService.js                # TTS server-side (macOS say + Edge TTS)
 │   │   ├── boardService.js              # Compose de station board (modo dep/arr)
@@ -255,7 +255,7 @@ backend/
 
 **Rutas Principales:**
 
-- `GET /admin/trains` — lista trenes (auth requerida: `admin:railboard`)
+- `GET /admin/trains` — lista trenes (auth requerida: Basic `ADMIN_USER`/`ADMIN_PASSWORD`)
 - `POST /admin/trains` — crea tren
 - `POST /admin/trains/from-route/:code` — crea desde ruta (NUEVO)
 - `GET /admin/displays` — lista displays
@@ -402,7 +402,7 @@ npm run dev
 **Admin Panel:**
 
 - http://localhost:5174/admin
-- Auth: Basic Auth con usuario `admin` y contraseña `railboard`
+- Auth: usuario `ADMIN_USER` (por defecto `admin`) y contraseña `ADMIN_PASSWORD` (en dev, si no se define, se genera aleatoria y se loguea al arrancar el backend)
 
 ### 4. **Generar Trenes Desde Rutas**
 
@@ -542,7 +542,7 @@ rm backend/data/data.db  # y reiniciar backend para recrear
 ## 🎓 Notas Técnicas
 
 1. **Migraciones SQL:** Definidas como strings en `db.js`, ejecutadas con `better-sqlite3.exec()`
-2. **Auth:** Header `Authorization: Basic admin:railboard` (base64 `YWRtaW46cmFpbGJvYXJk`)
+2. **Auth:** Header `Authorization: Basic <base64(ADMIN_USER:ADMIN_PASSWORD)>` enrutado por `middleware/auth.js` (timing-safe + anti fuerza-bruta). Endpoint de verificación `GET /admin/auth/me`. Autenticación del WebSocket vía `?auth=` para acciones privilegiadas.
 3. **CORS:** Habilitado con `cors()` middleware en Express
 4. **Multiidioma:** Clave de idioma en `config.language`, archivos i18n en `frontend/src/lib/i18n.ts`
 5. **Estilos:** Tailwind CSS + CSS custom properties, dark theme por defecto
