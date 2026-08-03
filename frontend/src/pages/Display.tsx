@@ -68,9 +68,7 @@ function parseStopsText(stopsText?: string | null) {
     .filter(Boolean);
 }
 
-const MAX_VISIBLE_ROWS = 7;
-
-const ROW_HEIGHT_PX = 134; // approximate px for scroll height calculation
+const ROW_HEIGHT_FALLBACK = 134; // px provisional hasta medir la altura real de la primera fila
 
 export default function Display() {
   const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
@@ -85,8 +83,10 @@ export default function Display() {
   const [, setTick] = useState(0);
   const [langIndex, setLangIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const firstRowRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [containerHeight, setContainerHeight] = useState(600);
+  const [rowHeight, setRowHeight] = useState(ROW_HEIGHT_FALLBACK);
 
   const refresh = async () => {
     try {
@@ -239,11 +239,33 @@ export default function Display() {
   }, []);
 
   const VISIBLE_BUFFER = 3;
-  const startIdx = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT_PX) - VISIBLE_BUFFER);
-  const endIdx = Math.min(rows.length, Math.ceil((scrollTop + containerHeight) / ROW_HEIGHT_PX) + VISIBLE_BUFFER);
+  const startIdx = Math.max(0, Math.floor(scrollTop / rowHeight) - VISIBLE_BUFFER);
+  const endIdx = Math.min(rows.length, Math.ceil((scrollTop + containerHeight) / rowHeight) + VISIBLE_BUFFER);
   const visibleRows = rows.slice(startIdx, endIdx);
-  const totalHeight = rows.length * ROW_HEIGHT_PX;
-  const offsetY = startIdx * ROW_HEIGHT_PX;
+  const totalHeight = rows.length * rowHeight;
+  const offsetY = startIdx * rowHeight;
+
+  useEffect(() => {
+    const el = firstRowRef.current;
+    if (!el) return;
+    const measure = () => {
+      const h = el.getBoundingClientRect().height;
+      if (h > 0) setRowHeight(h);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.contentRect.height;
+        if (h > 0) setRowHeight(h);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [visibleRows[0]?.id]);
 
   if (error) {
     return (
@@ -264,7 +286,7 @@ export default function Display() {
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: "4rem", marginBottom: "1rem" }}>&#9888;&#65039;</div>
           <h1 style={{ fontSize: "1.5rem", margin: "0 0 0.5rem 0" }}>{error}</h1>
-          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>Reintentando en 5 segundos...</p>
+          <p style={{ fontSize: "0.9rem", opacity: 0.7, margin: 0 }}>{t("retrying-in", lang)}</p>
         </div>
         <button
           onClick={() => refresh()}
@@ -279,7 +301,7 @@ export default function Display() {
             fontWeight: "bold",
           }}
         >
-          Reintentar ahora
+          {t("retry-now", lang)}
         </button>
       </div>
     );
@@ -334,9 +356,11 @@ export default function Display() {
             {visibleRows.map((train, i) => (
               <DepartureRow
                 key={train.id}
+                ref={i === 0 ? firstRowRef : null}
                 train={train}
                 index={startIdx + i}
                 mode={mode as "departures" | "arrivals"}
+                lang={lang}
                 showDestinationIcon={config?.showDestinationIcon !== false}
               />
             ))}

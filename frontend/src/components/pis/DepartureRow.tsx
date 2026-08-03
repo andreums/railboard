@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import LineBadge from "./LineBadge";
 import OperatorLogo from "./OperatorLogo";
 import type { Train } from "../../lib/api";
 import { fileUrl } from "../../lib/api";
 import { handleImgError } from "../../lib/svgPlaceholder";
 import { useAlternating } from "../../lib/useAlternating";
+import { t, type Language } from "../../lib/i18n";
 
 function ScrollText({
   text,
@@ -66,17 +67,18 @@ function ScrollText({
   );
 }
 
-export default function DepartureRow({
-  train,
-  index,
-  mode,
-  showDestinationIcon,
-}: {
+type DepartureRowProps = {
   train: Train;
   index: number;
   mode: "departures" | "arrivals";
   showDestinationIcon?: boolean;
-}) {
+  lang?: Language;
+};
+
+const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function DepartureRow(
+  { train, index, mode, showDestinationIcon, lang = "ca" },
+  ref,
+) {
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
   const place2 = mode === "departures" ? train.destination2 : null;
@@ -107,6 +109,7 @@ export default function DepartureRow({
 
   return (
     <div
+      ref={ref}
       style={{
         width: "100%",
         height: "clamp(100px, 12.4vh, 150px)",
@@ -283,7 +286,7 @@ export default function DepartureRow({
               lineHeight: 1,
             }}
           >
-            Cancelado
+            {t("cancelled", lang)}
           </span>
         )}
       </div>
@@ -338,4 +341,6 @@ export default function DepartureRow({
       </div>
     </div>
   );
-}
+});
+
+export default DepartureRow;

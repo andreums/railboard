@@ -11,7 +11,7 @@ describe("i18n", () => {
   });
 
   it("returns Catalan translation for 'departures'", () => {
-    expect(t("departures", "ca")).toBe("EIXIDES");
+    expect(t("departures", "ca")).toBe("Sortides");
   });
 
   it("returns French translation for 'departures'", () => {
