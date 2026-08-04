@@ -1,9 +1,11 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { api, fileUrl, connectWS, type DisplayScreen } from "../lib/api";
 import { useParams, Navigate } from "react-router-dom";
 import { useAlternating } from "../lib/useAlternating";
-import { t } from "../lib/i18n";
+import { t, type Language } from "../lib/i18n";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
+
+type BoardProps = { screen: DisplayScreen; rows: any[]; lang: Language; clock: Date };
 
 function AltValue({ primary, secondary, className, containerClass }: { primary: string; secondary?: string | null; className?: string; containerClass?: string }) {
   const showSecond = useAlternating(!!secondary);
@@ -23,6 +25,63 @@ function isDepartedOrCancelled(row: any) {
 function formatDisplayTime(time: string) {
   if (!time) return "--:--";
   return time.length >= 5 ? time.slice(0, 5) : time;
+}
+
+const fullStatusText = (status: string | undefined, lang: Language) => {
+  switch (status) {
+    case "Scheduled": return t("scheduled", lang);
+    case "Approaching": return t("approaching", lang);
+    case "Arriving": return t("arriving", lang);
+    case "Boarding": return t("boarding", lang);
+    case "Delayed": return t("delayed", lang);
+    case "Cancelled": return t("cancelled", lang);
+    case "Departed": return t("departed", lang);
+    default: return status || "";
+  }
+};
+
+const statusAbbr = (status: string | undefined, lang: Language) => {
+  if (!status || status === "Scheduled") return "";
+  const letters = { Delayed: "R", Cancelled: "C", Boarding: "E", Departed: "S", Arrived: "A" } as Record<string, string>;
+  const english = { Delayed: "DEL", Cancelled: "CAN", Boarding: "BRD", Departed: "DEP", Arrived: "ARR" } as Record<string, string>;
+  return (lang === "ca" || lang === "es" ? letters : english)[status] || "";
+};
+
+function StatusBadge({ status, lang, variant, delayMinutes }: { status?: string; lang: Language; variant: "lg" | "sm" | "mini"; delayMinutes?: string }) {
+  const delayed = status === "Delayed";
+  const color =
+    status === "Departed" ? "bg-slate-700 text-slate-300" :
+    status === "Cancelled" ? "bg-red-900 text-red-200" :
+    status === "Delayed" ? "bg-orange-900 text-orange-200" :
+    status === "Boarding" ? "bg-green-900 text-green-200" :
+    status === "Arrived" ? "bg-blue-900 text-blue-200" :
+    status === "Scheduled" ? "bg-blue-900/50 text-blue-200" :
+    "bg-blue-900 text-blue-200";
+
+  if (variant === "lg") {
+    return (
+      <span className={`inline-flex px-4 md:px-6 py-2 rounded-full text-lg md:text-xl font-bold ${color}`}>
+        {delayed ? t("delayed-min", lang).replace("{min}", delayMinutes || "") : fullStatusText(status, lang)}
+      </span>
+    );
+  }
+  if (variant === "mini") {
+    const mini = status === "Cancelled" ? "bg-red-900 text-red-200" : "bg-orange-900 text-orange-200";
+    return (
+      <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${mini}`}>
+        {delayed ? t("delayed", lang) : fullStatusText(status, lang)}
+      </span>
+    );
+  }
+  return (
+    <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${color}`}>
+      {statusAbbr(status, lang)}
+    </span>
+  );
+}
+
+function platText(row: any, lang: Language) {
+  return row.platform ? `${t("platform-abbr", lang)} ${row.platform}` : "";
 }
 
 export default function DisplayPage() {
@@ -102,7 +161,7 @@ export default function DisplayPage() {
   );
 
   const type = screen.display_type;
-  const lang = screen.language || "ca";
+  const lang = (screen.language || "ca") as Language;
   const rows = board.slice(0, screen.max_rows || 10);
 
   return (
@@ -124,32 +183,34 @@ export default function DisplayPage() {
   );
 }
 
-function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; rows: any[]; lang: string; clock: Date }) {
+function TopBar({ screen, now, title }: { screen: DisplayScreen; now: string; title?: string }) {
+  return (
+    <div className="flex items-center justify-between mb-4 md:mb-8">
+      <div className="flex items-center gap-3">
+        <span className="text-2xl md:text-3xl font-bold text-slate-300 tabular-nums">{now}</span>
+        {screen.station_name && (
+          <span className="text-lg md:text-xl text-slate-400">{screen.station_name}</span>
+        )}
+      </div>
+      <div className="text-right">
+        <div className="text-lg md:text-xl text-slate-400">{title ?? screen.name}</div>
+      </div>
+    </div>
+  );
+}
+
+function TrainHero({ screen, rows, lang, clock }: BoardProps) {
   const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
   const train = rows[0];
   const upcoming = rows.slice(1, 4);
-  const isLandscape = screen.orientation === "LANDSCAPE";
 
   return (
-    <div className={`min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col ${isLandscape ? "" : ""}`}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between mb-4 md:mb-8">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl md:text-3xl font-bold text-slate-300 tabular-nums">{now}</span>
-          {screen.station_name && (
-            <span className="text-lg md:text-xl text-slate-400 hidden sm:inline">{screen.station_name}</span>
-          )}
-        </div>
-        <div className="text-right">
-          <div className="text-lg md:text-xl text-slate-400">{screen.name}</div>
-        </div>
-      </div>
-
-      {/* Train info */}
+    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col">
+      <TopBar screen={screen} now={now} />
       {train ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center">
           <div className="flex items-center gap-3 md:gap-6 mb-4">
-              {train.type_logo && (
+            {train.type_logo && (
               <img src={fileUrl(train.type_logo) || ""} alt="" className="h-8 md:h-12 opacity-80" onError={onImgError} />
             )}
             {train.operator_logo && (
@@ -167,7 +228,7 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
 
           {isDelayed(train) && train.expected_time && (
             <div className="text-xl md:text-3xl text-red-400 mb-4">
-              {lang === "ca" ? "Nova hora:" : lang === "es" ? "Nueva hora:" : "New time:"} {formatDisplayTime(train.expected_time)}
+              {t("new-time", lang)} {formatDisplayTime(train.expected_time)}
             </div>
           )}
 
@@ -175,38 +236,16 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
 
           {train.platform && (
             <div className="flex items-center gap-4 md:gap-6 text-2xl md:text-4xl font-bold mb-4">
-              <span className="text-blue-300">
-                {lang === "ca" ? "VIA" : lang === "es" ? "VÍA" : "PLATFORM"} {train.platform}
-              </span>
+              <span className="text-blue-300">{platText(train, lang)}</span>
               {train.sector && <span className="text-slate-400">· {train.sector}</span>}
             </div>
           )}
 
-          {/* Status badge */}
-          <div className={`inline-flex px-4 md:px-6 py-2 rounded-full text-lg md:text-xl font-bold ${
-            train.status === "Departed" ? "bg-slate-700 text-slate-300" :
-            train.status === "Cancelled" ? "bg-red-900 text-red-200" :
-            train.status === "Delayed" ? "bg-orange-900 text-orange-200" :
-            train.status === "Boarding" ? "bg-green-900 text-green-200" :
-            train.status === "Arrived" ? "bg-blue-900 text-blue-200" :
-            "bg-blue-900 text-blue-200"
-          }`}>
-            {train.status === "Scheduled" ? (lang === "ca" ? "Programat" : lang === "es" ? "Programado" : "Scheduled") :
-             train.status === "Approaching" ? (lang === "ca" ? "Aproximant-se" : lang === "es" ? "Aproximándose" : "Approaching") :
-             train.status === "Arriving" ? (lang === "ca" ? "Entrant" : lang === "es" ? "Entrando" : "Arriving") :
-             train.status === "Boarding" ? (lang === "ca" ? "Embarque" : lang === "es" ? "Embarque" : "Boarding") :
-             train.status === "Delayed" ? (lang === "ca" ? `Retard ${train.delay_minutes || ""} min` : lang === "es" ? `Retraso ${train.delay_minutes || ""} min` : `Delayed ${train.delay_minutes || ""} min`) :
-             train.status === "Cancelled" ? (lang === "ca" ? "Cancel·lat" : lang === "es" ? "Cancelado" : "Cancelled") :
-             train.status === "Departed" ? (lang === "ca" ? "Sortit" : lang === "es" ? "Salido" : "Departed") :
-             train.status}
-          </div>
+          <StatusBadge status={train.status} lang={lang} variant="lg" delayMinutes={train.delay_minutes} />
 
-          {/* Stops */}
           {train.stops && train.stops.length > 0 && (
             <div className="mt-6 md:mt-8 text-sm md:text-base text-slate-400 max-w-lg">
-              <div className="font-semibold text-slate-300 mb-1">
-                {lang === "ca" ? "Parades:" : lang === "es" ? "Paradas:" : "Stops:"}
-              </div>
+              <div className="font-semibold text-slate-300 mb-1">{t("stops-label", lang)}</div>
               <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
                 {(typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean) : train.stops).map((stop: string, i: number) => (
                   <span key={i} className="text-slate-400">{stop}{i < (typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean).length : train.stops).length - 1 ? " ·" : ""}</span>
@@ -221,16 +260,13 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
         </div>
       ) : (
         <div className="flex-1 flex items-center justify-center text-2xl md:text-4xl text-slate-600">
-          {lang === "ca" ? "Sense informació de tren" : lang === "es" ? "Sin información de tren" : "No train information"}
+          {t("no-train-info", lang)}
         </div>
       )}
 
-      {/* Upcoming trains */}
       {upcoming.length > 0 && (
         <div className="mt-auto pt-4 border-t border-slate-700">
-          <div className="text-xs md:text-sm text-slate-400 mb-2">
-            {lang === "ca" ? "Pròxims trens" : lang === "es" ? "Próximos trenes" : "Upcoming trains"}
-          </div>
+          <div className="text-xs md:text-sm text-slate-400 mb-2">{t("upcoming-trains", lang)}</div>
           <div className="space-y-1">
             {upcoming.map((row: any, i: number) => (
               <div key={i} className="flex items-center justify-between text-xs md:text-sm">
@@ -238,7 +274,7 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
                   <span className="font-mono tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</span>
                   <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate" />
                 </div>
-                <span className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</span>
+                <span className="text-slate-500">{platText(row, lang)}</span>
               </div>
             ))}
           </div>
@@ -248,9 +284,18 @@ function PlatformDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen;
   );
 }
 
-function ClockDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; rows: any[]; lang: string; clock: Date }) {
+function PlatformDisplay(props: BoardProps) {
+  return <TrainHero {...props} />;
+}
+
+function TrainInfoDisplay(props: BoardProps) {
+  return <TrainHero {...props} />;
+}
+
+function ClockDisplay({ screen, rows, lang, clock }: BoardProps) {
   const time = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
-  const date = clock.toLocaleDateString(lang === "ca" ? "ca-ES" : lang === "es" ? "es-ES" : "en-US", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateLocale = lang === "ca" ? "ca-ES" : lang === "es" ? "es-ES" : lang === "fr" ? "fr-FR" : lang === "eu" ? "eu-ES" : lang === "gl" ? "gl-ES" : "en-US";
+  const date = clock.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const nextTrains = rows.slice(0, 5);
   return (
     <div className="min-h-screen bg-slate-900 text-white p-6 md:p-12 flex flex-col items-center justify-center">
@@ -261,14 +306,12 @@ function ClockDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; ro
       )}
       {nextTrains.length > 0 && (
         <div className="mt-8 md:mt-12 w-full max-w-lg">
-          <div className="text-sm text-slate-500 uppercase tracking-wider mb-3 text-center">
-            {lang === "ca" ? "Pròxims trens" : lang === "es" ? "Próximos trenes" : "Next trains"}
-          </div>
+          <div className="text-sm text-slate-500 uppercase tracking-wider mb-3 text-center">{t("upcoming-trains", lang)}</div>
           {nextTrains.map((row: any, i: number) => (
             <div key={row.id || i} className="flex items-center justify-between py-2 border-b border-slate-800 text-lg">
               <div className="tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</div>
               <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate mx-4 flex-1 text-center" containerClass="mx-4 flex-1 text-center" />
-              <div className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</div>
+              <div className="text-slate-500">{platText(row, lang)}</div>
             </div>
           ))}
         </div>
@@ -277,145 +320,37 @@ function ClockDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; ro
   );
 }
 
-function TrainInfoDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; rows: any[]; lang: string; clock: Date }) {
-  const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
-  const train = rows[0];
-  const upcoming = rows.slice(1, 4);
-  return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col">
-      <div className="flex items-center justify-between mb-4 md:mb-8">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl md:text-3xl font-bold text-slate-300 tabular-nums">{now}</span>
-          {screen.station_name && <span className="text-lg md:text-xl text-slate-400">{screen.station_name}</span>}
-        </div>
-        <div className="text-right text-lg md:text-xl text-slate-400">{screen.name}</div>
-      </div>
-      {train ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <div className="flex items-center gap-3 md:gap-6 mb-4">
-            {train.type_logo && <img src={fileUrl(train.type_logo) || ""} alt="" className="h-8 md:h-12 opacity-80" onError={onImgError} />}
-            {train.operator_logo && <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-6 md:h-10 opacity-60" onError={onImgError} />}
-            <div className="flex flex-col items-center leading-tight">
-              <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
-              {train.number2 && <span className="text-sm md:text-base font-bold text-slate-500">{train.number2}</span>}
-            </div>
-          </div>
-          <div className="text-5xl md:text-8xl font-bold text-white mb-2 tabular-nums tracking-tight">
-            {formatDisplayTime(train.scheduled_time)}
-          </div>
-          {isDelayed(train) && train.expected_time && (
-            <div className="text-xl md:text-3xl text-red-400 mb-4">
-              {lang === "ca" ? "Nova hora:" : lang === "es" ? "Nueva hora:" : "New time:"} {formatDisplayTime(train.expected_time)}
-            </div>
-          )}
-          <AltValue primary={train.destination} secondary={train.destination2} className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6" containerClass="mb-4 md:mb-6" />
-          <div className="flex items-center gap-4 md:gap-6 text-2xl md:text-4xl font-bold mb-4">
-            <span className="text-blue-300">
-              {lang === "ca" ? "VIA" : lang === "es" ? "VÍA" : "PLATFORM"} {train.platform}
-            </span>
-            {train.sector && <span className="text-slate-400">· {train.sector}</span>}
-          </div>
-          <div className={`inline-flex px-4 md:px-6 py-2 rounded-full text-lg md:text-xl font-bold ${
-            train.status === "Departed" ? "bg-slate-700 text-slate-300" :
-            train.status === "Cancelled" ? "bg-red-900 text-red-200" :
-            train.status === "Delayed" ? "bg-orange-900 text-orange-200" :
-            train.status === "Boarding" ? "bg-green-900 text-green-200" :
-            train.status === "Arrived" ? "bg-blue-900 text-blue-200" :
-            "bg-blue-900 text-blue-200"
-          }`}>
-            {train.status === "Scheduled" ? (lang === "ca" ? "Programat" : lang === "es" ? "Programado" : "Scheduled") :
-             train.status === "Approaching" ? (lang === "ca" ? "Aproximant-se" : lang === "es" ? "Aproximándose" : "Approaching") :
-             train.status === "Arriving" ? (lang === "ca" ? "Entrant" : lang === "es" ? "Entrando" : "Arriving") :
-             train.status === "Boarding" ? (lang === "ca" ? "Embarque" : lang === "es" ? "Embarque" : "Boarding") :
-             train.status === "Delayed" ? (lang === "ca" ? `Retard ${train.delay_minutes || ""} min` : lang === "es" ? `Retraso ${train.delay_minutes || ""} min` : `Delayed ${train.delay_minutes || ""} min`) :
-             train.status === "Cancelled" ? (lang === "ca" ? "Cancel·lat" : lang === "es" ? "Cancelado" : "Cancelled") :
-             train.status === "Departed" ? (lang === "ca" ? "Sortit" : lang === "es" ? "Salido" : "Departed") :
-             train.status}
-          </div>
-          {train.stops && train.stops.length > 0 && (
-            <div className="mt-6 md:mt-8 text-sm md:text-base text-slate-400 max-w-lg">
-              <div className="font-semibold text-slate-300 mb-1">
-                {lang === "ca" ? "Parades:" : lang === "es" ? "Paradas:" : "Stops:"}
-              </div>
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
-                {(typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean) : train.stops).map((stop: string, i: number) => (
-                  <span key={i} className="text-slate-400">{stop}{i < (typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean).length : train.stops).length - 1 ? " ·" : ""}</span>
-                ))}
-              </div>
-            </div>
-          )}
-          {train.observations && <div className="mt-4 text-sm md:text-base text-yellow-400">{train.observations}</div>}
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-2xl md:text-4xl text-slate-600">
-          {lang === "ca" ? "Sense informació de tren" : lang === "es" ? "Sin información de tren" : "No train information"}
-        </div>
-      )}
-      {upcoming.length > 0 && (
-        <div className="mt-auto pt-4 border-t border-slate-700">
-          <div className="text-xs md:text-sm text-slate-400 mb-2">
-            {lang === "ca" ? "Pròxims trens" : lang === "es" ? "Próximos trenes" : "Upcoming trains"}
-          </div>
-          <div className="space-y-1">
-            {upcoming.map((row: any, i: number) => (
-              <div key={i} className="flex items-center justify-between text-xs md:text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</span>
-                  <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate" />
-                </div>
-                <span className="text-slate-500">{row.platform ? `V${row.platform}` : ""}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DisruptionsDisplay({ screen, rows, lang, clock }: { screen: DisplayScreen; rows: any[]; lang: string; clock: Date }) {
+function DisruptionsDisplay({ screen, rows, lang, clock }: BoardProps) {
   const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
   const disruptedRows = rows.filter((r: any) => r.status === "Cancelled" || r.status === "Delayed" || (r.observations && r.observations.length > 0));
   return (
     <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col">
       <div className="flex items-center justify-between mb-4 md:mb-8 pb-2 border-b border-slate-700">
         <div className="flex items-center gap-2 md:gap-4">
-          <h1 className="text-xl md:text-3xl font-bold tracking-wider text-red-400">
-            {lang === "ca" ? "INCIDÈNCIES" : lang === "es" ? "INCIDENCIAS" : "DISRUPTIONS"}
-          </h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-wider text-red-400">{t("disruptions", lang)}</h1>
           {screen.station_name && <span className="text-sm md:text-lg text-slate-400">{screen.station_name}</span>}
         </div>
         <div className="text-xl md:text-3xl font-bold tabular-nums text-slate-300">{now}</div>
       </div>
       <div className="flex-1 overflow-y-auto">
         {disruptedRows.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-600 text-lg">
-            {lang === "ca" ? "No hi ha incidències" : lang === "es" ? "No hay incidencias" : "No disruptions"}
-          </div>
+          <div className="flex items-center justify-center h-full text-slate-600 text-lg">{t("no-disruptions", lang)}</div>
         ) : (
           disruptedRows.map((row: any, i: number) => (
             <div key={row.id || i} className={`py-3 md:py-4 border-b border-slate-800 ${row.status === "Cancelled" ? "opacity-60" : ""}`}>
               <div className="flex items-center gap-3 mb-1">
-                <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold ${
-                  row.status === "Cancelled" ? "bg-red-900 text-red-200" : "bg-orange-900 text-orange-200"
-                }`}>
-                  {row.status === "Cancelled"
-                    ? (lang === "ca" ? "Cancel·lat" : lang === "es" ? "Cancelado" : "Cancelled")
-                    : (lang === "ca" ? "Retard" : lang === "es" ? "Retraso" : "Delayed")}
-                </span>
+                <StatusBadge status={row.status} lang={lang} variant="mini" />
                 <span className="font-bold text-slate-200">{row.number}</span>
                 <span className="text-slate-400">{row.destination}</span>
               </div>
               <div className="text-sm text-slate-500">
-                {lang === "ca" ? "Programat:" : lang === "es" ? "Programado:" : "Scheduled:"} {formatDisplayTime(row.scheduled_time)}
+                {t("scheduled", lang)}: {formatDisplayTime(row.scheduled_time)}
                 {row.expected_time && row.expected_time !== row.scheduled_time && (
-                  <span className="text-orange-400 ml-2">
-                    {lang === "ca" ? "Nova hora:" : lang === "es" ? "Nueva hora:" : "New time:"} {formatDisplayTime(row.expected_time)}
-                  </span>
+                  <span className="text-orange-400 ml-2">{t("new-time", lang)} {formatDisplayTime(row.expected_time)}</span>
                 )}
               </div>
               {row.observations && <div className="text-sm text-yellow-400 mt-1">{row.observations}</div>}
-              {row.platform && <div className="text-sm text-slate-500 mt-1">{lang === "ca" ? "VIA" : lang === "es" ? "VÍA" : "Platform"} {row.platform}</div>}
+              {row.platform && <div className="text-sm text-slate-500 mt-1">{platText(row, lang)}</div>}
             </div>
           ))
         )}
@@ -424,20 +359,20 @@ function DisruptionsDisplay({ screen, rows, lang, clock }: { screen: DisplayScre
   );
 }
 
-function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScreen; rows: any[]; lang: string; type: string; clock: Date }) {
+function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScreen; rows: any[]; lang: Language; type: string; clock: Date }) {
   const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
   const title = type === "ARRIVALS"
-    ? (lang === "ca" ? "LLEGADES" : lang === "es" ? "LLEGADAS" : "ARRIVALS")
+    ? t("arrivals", lang)
     : type === "CUSTOM"
-    ? (screen.name || "INFORMACIÓ")
-    : (lang === "ca" ? "SORTIDES" : lang === "es" ? "SALIDAS" : "DEPARTURES");
+    ? (screen.name || t("departures", lang))
+    : t("departures", lang);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-3 md:p-6 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 md:mb-6 pb-2 border-b border-slate-700">
         <div className="flex items-center gap-2 md:gap-4">
-          <h1 className="text-xl md:text-3xl font-bold tracking-wider text-yellow-300">{title}</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-wider uppercase text-yellow-300">{title}</h1>
           {screen.station_name && (
             <span className="text-sm md:text-lg text-slate-400 hidden sm:inline">{screen.station_name}</span>
           )}
@@ -447,19 +382,17 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
 
       {/* Table header */}
       <div className="grid grid-cols-[0.7fr_1.2fr_0.8fr_0.5fr] md:grid-cols-[0.5fr_0.8fr_2fr_0.6fr_0.5fr] gap-2 md:gap-4 px-2 py-1.5 text-xs md:text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-700">
-        <span>{lang === "ca" ? "Hora" : lang === "es" ? "Hora" : "Time"}</span>
-        <span className="hidden md:inline">{lang === "ca" ? "Tren" : lang === "es" ? "Tren" : "Train"}</span>
-        <span>{lang === "ca" ? "Destí" : lang === "es" ? "Destino" : "Destination"}</span>
-        <span>{lang === "ca" ? "VIA" : lang === "es" ? "VÍA" : "PLATFORM"}</span>
-        <span className="text-right">{lang === "ca" ? "Estat" : lang === "es" ? "Estado" : "Status"}</span>
+        <span>{t("time", lang)}</span>
+        <span className="hidden md:inline">{t("train", lang)}</span>
+        <span>{t("destination", lang)}</span>
+        <span>{t("platform-abbr", lang)}</span>
+        <span className="text-right">{t("status", lang)}</span>
       </div>
 
       {/* Rows */}
       <div className="flex-1 overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-600 text-lg">
-            {lang === "ca" ? "No hi ha trens" : lang === "es" ? "No hay trenes" : "No trains"}
-          </div>
+          <div className="flex items-center justify-center h-full text-slate-600 text-lg">{t("no-trains", lang)}</div>
         ) : (
           rows.map((row: any, i: number) => (
             <div key={row.id || i}
@@ -476,7 +409,7 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
                 )}
               </div>
               <div className="hidden md:flex items-center gap-1.5 min-w-0">
-                  {row.type_logo && (
+                {row.type_logo && (
                   <img src={fileUrl(row.type_logo) || ""} alt="" className="h-4 opacity-60 shrink-0" onError={onImgError} />
                 )}
                 <div className="flex flex-col leading-tight min-w-0">
@@ -485,24 +418,9 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
                 </div>
               </div>
               <AltValue primary={row.destination || ""} secondary={row.destination2} className="truncate font-medium text-white" />
-              <div className="tabular-nums text-slate-400">{row.platform ? `V${row.platform}` : ""}</div>
+              <div className="tabular-nums text-slate-400">{platText(row, lang)}</div>
               <div className="text-right">
-                <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
-                  row.status === "Cancelled" ? "bg-red-900 text-red-200" :
-                  row.status === "Delayed" ? "bg-orange-900 text-orange-200" :
-                  row.status === "Boarding" ? "bg-green-900 text-green-200" :
-                  row.status === "Departed" ? "bg-slate-700 text-slate-300" :
-                  row.status === "Arrived" ? "bg-blue-900 text-blue-200" :
-                  "bg-blue-900/50 text-blue-200"
-                }`}>
-                  {row.status === "Scheduled" ? "" :
-                   row.status === "Delayed" ? (lang === "ca" ? "R" : lang === "es" ? "R" : "DEL") :
-                   row.status === "Cancelled" ? (lang === "ca" ? "C" : lang === "es" ? "C" : "CAN") :
-                   row.status === "Boarding" ? (lang === "ca" ? "E" : lang === "es" ? "E" : "BRD") :
-                   row.status === "Departed" ? (lang === "ca" ? "S" : lang === "es" ? "S" : "DEP") :
-                   row.status === "Arrived" ? (lang === "ca" ? "A" : lang === "es" ? "A" : "ARR") :
-                   ""}
-                </span>
+                <StatusBadge status={row.status} lang={lang} variant="sm" />
               </div>
             </div>
           ))
@@ -518,19 +436,16 @@ function BoardDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScre
   );
 }
 
-function BUSTERMDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScreen; rows: any[]; lang: string; type: string; clock: Date }) {
+function BUSTERMDisplay({ screen, rows, lang, type, clock }: { screen: DisplayScreen; rows: any[]; lang: Language; type: string; clock: Date }) {
   const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
-  const title = type === "ARRIVALS"
-    ? (lang === "ca" ? "LLEGADES" : lang === "es" ? "LLEGADAS" : "ARRIVALS")
-    : (lang === "ca" ? "SORTIDES" : lang === "es" ? "SALIDAS" : "DEPARTURES");
-  const gt = (key: string) => t(key, lang as any);
+  const title = type === "ARRIVALS" ? t("arrivals", lang) : t("departures", lang);
 
   return (
     <div className="min-h-screen bg-slate-900 text-white p-3 md:p-6 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 md:mb-6 pb-2 border-b border-slate-700">
         <div className="flex items-center gap-2 md:gap-4">
-          <h1 className="text-xl md:text-3xl font-bold tracking-wider text-yellow-300">{title}</h1>
+          <h1 className="text-xl md:text-3xl font-bold tracking-wider uppercase text-yellow-300">{title}</h1>
           {screen.station_name && (
             <span className="text-sm md:text-lg text-slate-400 hidden sm:inline">{screen.station_name}</span>
           )}
@@ -540,20 +455,18 @@ function BUSTERMDisplay({ screen, rows, lang, type, clock }: { screen: DisplaySc
 
       {/* Table header */}
       <div className="grid grid-cols-[0.7fr_1.1fr_1.4fr_0.6fr_0.6fr_0.5fr] md:grid-cols-[0.5fr_0.7fr_1.8fr_0.6fr_0.6fr_0.5fr] gap-2 md:gap-4 px-2 py-1.5 text-xs md:text-sm font-semibold text-slate-500 uppercase tracking-wider border-b border-slate-700">
-        <span>{gt("time") || "Hora"}</span>
-        <span>{gt("line") || "Línea"}</span>
-        <span>{gt("destination") || "Destino"}</span>
-        <span>{gt("floor") || "Planta"}</span>
-        <span>{gt("dock") || "Dársena"}</span>
-        <span className="text-right">{gt("status") || "Estado"}</span>
+        <span>{t("time", lang)}</span>
+        <span>{t("line", lang)}</span>
+        <span>{t("destination", lang)}</span>
+        <span>{t("floor", lang)}</span>
+        <span>{t("dock", lang)}</span>
+        <span className="text-right">{t("status", lang)}</span>
       </div>
 
       {/* Rows */}
       <div className="flex-1 overflow-y-auto">
         {rows.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-slate-600 text-lg">
-            {lang === "ca" ? "No hi ha serveis" : lang === "es" ? "No hay servicios" : "No services"}
-          </div>
+          <div className="flex items-center justify-center h-full text-slate-600 text-lg">{t("no-services", lang)}</div>
         ) : (
           rows.map((row: any, i: number) => (
             <div key={row.id || i}
@@ -574,22 +487,7 @@ function BUSTERMDisplay({ screen, rows, lang, type, clock }: { screen: DisplaySc
               <div className="tabular-nums text-slate-400">{row.platform && row.platform !== "-" ? row.platform : ""}</div>
               <div className="tabular-nums text-slate-400">{row.sector && row.sector !== "-" ? row.sector : ""}</div>
               <div className="text-right">
-                <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${
-                  row.status === "Cancelled" ? "bg-red-900 text-red-200" :
-                  row.status === "Delayed" ? "bg-orange-900 text-orange-200" :
-                  row.status === "Boarding" ? "bg-green-900 text-green-200" :
-                  row.status === "Departed" ? "bg-slate-700 text-slate-300" :
-                  row.status === "Arrived" ? "bg-blue-900 text-blue-200" :
-                  "bg-blue-900/50 text-blue-200"
-                }`}>
-                  {row.status === "Scheduled" ? "" :
-                   row.status === "Delayed" ? (lang === "ca" ? "R" : lang === "es" ? "R" : "DEL") :
-                   row.status === "Cancelled" ? (lang === "ca" ? "C" : lang === "es" ? "C" : "CAN") :
-                   row.status === "Boarding" ? (lang === "ca" ? "E" : lang === "es" ? "E" : "BRD") :
-                   row.status === "Departed" ? (lang === "ca" ? "S" : lang === "es" ? "S" : "DEP") :
-                   row.status === "Arrived" ? (lang === "ca" ? "A" : lang === "es" ? "A" : "ARR") :
-                   ""}
-                </span>
+                <StatusBadge status={row.status} lang={lang} variant="sm" />
               </div>
             </div>
           ))

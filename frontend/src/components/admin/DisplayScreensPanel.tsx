@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, type DisplayScreen, type Station } from "../../lib/api";
+import { LANGUAGES } from "../../lib/i18n";
 import { Monitor, Plus, Trash2, QrCode, Copy, ExternalLink, Settings, Eye, EyeOff } from "lucide-react";
 
 const SCREEN_TYPES = ["DEPARTURES", "ARRIVALS", "PLATFORM", "TRAIN_INFO", "CLOCK", "DISRUPTIONS", "CUSTOM", "BUS"] as const;
@@ -151,12 +152,9 @@ export default function DisplayScreensPanel({ stations }: { stations: Station[] 
                 <label className="block text-xs font-medium text-slate-500 mb-1">Idioma</label>
                 <select value={editing.language || "ca"} onChange={(e) => setEditing({ ...editing, language: e.target.value })}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
-                  <option value="ca">Català</option>
-                  <option value="es">Español</option>
-                  <option value="en">English</option>
-                  <option value="va">Valencià</option>
-                  <option value="eu">Euskera</option>
-                  <option value="gl">Galego</option>
+                  {Object.entries(LANGUAGES).map(([code, label]) => (
+                    <option key={code} value={code}>{label}</option>
+                  ))}
                 </select>
               </div>
             </div>

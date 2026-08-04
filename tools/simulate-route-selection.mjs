@@ -1,16 +1,14 @@
 import { fileURLToPath } from "url";
 import path from "path";
+import { getAllRoutes } from "../backend/src/services/routeService.js";
 
-// Load the fixtures module relative to this file
-const fixturesPath = new URL("../backend/src/fixtures/routes.js", import.meta.url).href;
-const mod = await import(fixturesPath);
-const RODALIA_ROUTES = mod.RODALIA_ROUTES ?? mod.default ?? mod;
+const routes = getAllRoutes();
 
 function simulate(n = 50000) {
   const counts = Object.create(null);
   for (let i = 0; i < n; i++) {
     // replicate the weighted selection used in backend (counts=0)
-    const pool = RODALIA_ROUTES.map((r) => ({ route: r, count: 0 }));
+    const pool = routes.map((r) => ({ route: r, count: 0 }));
     const weights = pool.map((p) => 1 / (1 + p.count));
     const total = weights.reduce((a, b) => a + b, 0);
     let pick = Math.random() * total;
@@ -35,7 +33,7 @@ function sortCounts(counts) {
 }
 
 const n = process.argv[2] ? Number(process.argv[2]) : 50000;
-console.log(`Simulating ${n} picks across ${RODALIA_ROUTES.length} routes...`);
+console.log(`Simulating ${n} picks across ${routes.length} routes...`);
 const res = simulate(n);
 const sorted = sortCounts(res);
 console.log(sorted.slice(0, 40));

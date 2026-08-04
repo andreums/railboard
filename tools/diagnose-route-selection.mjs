@@ -1,7 +1,8 @@
 import { fileURLToPath } from "url";
 import path from "path";
 import { getConfig, listTrains } from "../backend/src/db.js";
-import RODALIA_ROUTES from "../backend/src/fixtures/routes.js";
+import { getAllRoutes } from "../backend/src/services/routeService.js";
+const RODALIA_ROUTES = getAllRoutes();
 
 function normalizeStation(value) {
   return String(value || "")

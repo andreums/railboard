@@ -161,7 +161,7 @@ graph TD
 
 ### 4.3 Base de datos
 
-**Esquema:** se crea/aplica mediante migraciones SQL en `backend/migrations/` (`000-initial-schema.sql` … `025-trains-two-numbers.sql`), ejecutadas por `migrations.js` al arrancar y registradas en `schema_migrations`.
+**Esquema:** se crea/aplica mediante migraciones SQL en `backend/migrations/` (`000-initial-schema.sql` … `027-displays-busferry.sql`), ejecutadas por `migrations.js` al arrancar y registradas en `schema_migrations`.
 
 **Tablas principales:**
 

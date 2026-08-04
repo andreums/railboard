@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { api, fileUrl, connectWS, type Train, type Operator, type TrainType, type Station, type AudioAsset, type SoundRule, type SoundProfile } from "../../lib/api";
 import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear, FileText, Save } from "lucide-react";
 import { speak, speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
+import { LANGUAGES as I18N_LANGUAGES } from "../../lib/i18n";
 
 type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales" | "templates";
 
@@ -41,11 +42,9 @@ const EVENT_LABELS: Record<string, string> = {
   LONG_DISTANCE_IMMINENT_DEPARTURE: "Eixida imminent LL.DD.",
 };
 
-const LANGUAGES = ["ca", "es", "en", "va", "eu", "gl"];
+const LANGUAGES = Object.keys(I18N_LANGUAGES);
 
-const LANG_LABELS: Record<string, string> = {
-  ca: "Català", es: "Español", en: "English", va: "Valencià", eu: "Euskera", gl: "Galego",
-};
+const LANG_LABELS: Record<string, string> = I18N_LANGUAGES;
 
 const TRAIN_PRESETS: Record<string, any> = {
   "Cercanías R1": {

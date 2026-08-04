@@ -90,7 +90,7 @@ Se utiliza `better-sqlite3` con `journal_mode = WAL` y `foreign_keys = ON`. El e
 
 ### Migraciones
 
-Runner en `migrations.js` lee `backend/migrations/*.sql` ordenados alfabéticamente y aplica los pendientes (registrados en `schema_migrations`). Actualmente hasta `025-trains-two-numbers.sql`.
+Runner en `migrations.js` lee `backend/migrations/*.sql` ordenados alfabéticamente y aplica los pendientes (registrados en `schema_migrations`). Actualmente hasta `027-displays-busferry.sql`.
 
 ## Rutas
 
