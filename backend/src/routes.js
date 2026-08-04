@@ -34,9 +34,11 @@ import SEED_FIXTURES from "./fixtures/seedTrains.js";
 import { broadcast, getConnectedDevices } from "./ws.js";
 import { getAllRoutes, getAvailableRegions, reloadRoutesDataset } from "./services/routeService.js";
 import { adminAuth } from "./middleware/auth.js";
+import { requireBody } from "./middleware/validation.js";
 import { upload, uploadAudio, uploadTrainTypeFields, validateImageContent, validateAudioContent } from "./services/uploadService.js";
 import { generateRandomTrain, generateTrainFromRoute } from "./services/trainGeneratorService.js";
 import { buildStationBoard } from "./services/boardService.js";
+import StopOperationsService from "./services/stopOperationsService.js";
 import AnnouncementService from "./services/announcementService.js";
 import EventEngine, { getValidTransitions, getAllStates } from "./services/eventEngine.js";
 import SimulationService from "./services/simulationService.js";
@@ -60,6 +62,8 @@ const hardwareService = new HardwareService(db, eventEngine);
 
 const automationService = new AutomationService(db, eventEngine, simulationService);
 automationService.initialize();
+
+const stopOperations = new StopOperationsService({ db, serviceStops, serviceEvents, services });
 
 const r = Router();
 const ping = () => broadcast({ type: "update", at: Date.now() });
@@ -125,7 +129,10 @@ function reorderTrains(ids) {
   ids.forEach((id, idx) => stmt.run(idx, id));
 }
 
-r.put("/trains/reorder", adminAuth, (req, res) => {
+r.put("/trains/reorder", adminAuth, requireBody({ ids: "array" }), (req, res) => {
+  if (!req.body.ids.every((n) => Number.isFinite(Number(n)))) {
+    return res.status(400).json({ error: "ids must be an array of train ids" });
+  }
   reorderTrains(req.body.ids);
   ping();
   res.json(listTrains());
@@ -381,12 +388,12 @@ r.delete("/places/:id", adminAuth, (req, res) => {
 
 // ----- stations -----
 r.get("/stations", (_req, res) => res.json(stations.list()));
-r.post("/stations", adminAuth, (req, res) => {
+r.post("/stations", adminAuth, requireBody({ name: "string" }), (req, res) => {
   stations.create(req.body);
   ping();
   res.status(201).json(stations.list());
 });
-r.put("/stations/:id", adminAuth, (req, res) => {
+r.put("/stations/:id", adminAuth, requireBody({ name: "string?" }), (req, res) => {
   const s = stations.update(Number(req.params.id), req.body);
   if (!s) return res.status(404).end();
   ping();
@@ -507,10 +514,8 @@ r.get("/services", adminAuth, (req, res) => {
 });
 
 // POST /admin/services - Create new service
-r.post("/services", adminAuth, (req, res) => {
+r.post("/services", adminAuth, requireBody({ number: "string" }), (req, res) => {
   const { number, operator_id, train_type_id, origin_place_id, destination_place_id, notes } = req.body;
-
-  if (!number) return res.status(400).json({ status: "error", error: "number is required" });
 
   try {
     const service = services.create({
@@ -586,13 +591,9 @@ r.get("/services/:serviceId/stops", adminAuth, (req, res) => {
 });
 
 // POST /admin/services/:serviceId/stops - Create a stop
-r.post("/services/:serviceId/stops", adminAuth, (req, res) => {
+r.post("/services/:serviceId/stops", adminAuth, requireBody({ station_id: "number", stop_number: "number", stop_type: "string" }), (req, res) => {
   const { serviceId } = req.params;
   const { station_id, stop_number, stop_type, arrival_scheduled, departure_scheduled, platform, sector, notes } = req.body;
-
-  if (!station_id || !stop_number || !stop_type) {
-    return res.status(400).json({ status: "error", error: "station_id, stop_number, stop_type are required" });
-  }
 
   try {
     const stop = serviceStops.create({
@@ -637,13 +638,9 @@ r.delete("/services/:serviceId/stops/:stopId", adminAuth, (req, res) => {
 });
 
 // POST /admin/services/:serviceId/stops/reorder - Reorder stops
-r.post("/services/:serviceId/stops/reorder", adminAuth, (req, res) => {
+r.post("/services/:serviceId/stops/reorder", adminAuth, requireBody({ order: "array" }), (req, res) => {
   const { serviceId } = req.params;
   const { order } = req.body; // array of stop IDs in new order
-
-  if (!Array.isArray(order)) {
-    return res.status(400).json({ status: "error", error: "order must be an array" });
-  }
 
   const reordered = serviceStops.reorder(Number(serviceId), order);
   broadcast({ type: "service_stops_reordered", service_id: Number(serviceId), timestamp: Date.now() });
@@ -653,15 +650,11 @@ r.post("/services/:serviceId/stops/reorder", adminAuth, (req, res) => {
 // ============ SERVICE STOP OPERATIONS ============
 
 // POST /admin/stops/:stopId/arrival - Mark arrival
-r.post("/stops/:stopId/arrival", adminAuth, (req, res) => {
+r.post("/stops/:stopId/arrival", adminAuth, requireBody({ actual_time: "string" }), (req, res) => {
   const { stopId } = req.params;
   const { actual_time, platform } = req.body;
 
-  if (!actual_time) {
-    return res.status(400).json({ status: "error", error: "actual_time is required" });
-  }
-
-  const updated = serviceStops.markArrival(Number(stopId), actual_time, platform);
+  const updated = stopOperations.markArrival(Number(stopId), actual_time, platform);
   if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
   announcementService.onStopUpdate(updated, null);
 
@@ -678,15 +671,11 @@ r.post("/stops/:stopId/arrival", adminAuth, (req, res) => {
 });
 
 // POST /admin/stops/:stopId/departure - Mark departure
-r.post("/stops/:stopId/departure", adminAuth, (req, res) => {
+r.post("/stops/:stopId/departure", adminAuth, requireBody({ actual_time: "string" }), (req, res) => {
   const { stopId } = req.params;
   const { actual_time } = req.body;
 
-  if (!actual_time) {
-    return res.status(400).json({ status: "error", error: "actual_time is required" });
-  }
-
-  const updated = serviceStops.markDeparture(Number(stopId), actual_time);
+  const updated = stopOperations.markDeparture(Number(stopId), actual_time);
   if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
   announcementService.onStopUpdate(updated, null);
 
@@ -702,15 +691,11 @@ r.post("/stops/:stopId/departure", adminAuth, (req, res) => {
 });
 
 // POST /admin/stops/:stopId/pass - Mark as passed (no stop)
-r.post("/stops/:stopId/pass", adminAuth, (req, res) => {
+r.post("/stops/:stopId/pass", adminAuth, requireBody({ actual_time: "string" }), (req, res) => {
   const { stopId } = req.params;
   const { actual_time } = req.body;
 
-  if (!actual_time) {
-    return res.status(400).json({ status: "error", error: "actual_time is required" });
-  }
-
-  const updated = serviceStops.markPass(Number(stopId), actual_time);
+  const updated = stopOperations.markPass(Number(stopId), actual_time);
   if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
 
   broadcast({
@@ -725,15 +710,11 @@ r.post("/stops/:stopId/pass", adminAuth, (req, res) => {
 });
 
 // POST /admin/stops/:stopId/delay - Add delay
-r.post("/stops/:stopId/delay", adminAuth, (req, res) => {
+r.post("/stops/:stopId/delay", adminAuth, requireBody({ minutes: "number" }), (req, res) => {
   const { stopId } = req.params;
   const { minutes, reason } = req.body;
 
-  if (!minutes || isNaN(minutes)) {
-    return res.status(400).json({ status: "error", error: "minutes is required and must be a number" });
-  }
-
-  const updated = serviceStops.addDelay(Number(stopId), Number(minutes), reason || "Manual adjustment");
+  const updated = stopOperations.addDelay(Number(stopId), minutes, reason || "Manual adjustment");
   if (!updated) return res.status(404).json({ status: "error", error: "Stop not found" });
 
   broadcast({
@@ -1003,7 +984,7 @@ r.get("/display-screens/:id", adminAuth, (req, res) => {
   res.json(screen);
 });
 
-r.post("/display-screens", adminAuth, (req, res) => {
+r.post("/display-screens", adminAuth, requireBody({ name: "string" }), (req, res) => {
   const screen = displayScreens.create(req.body);
   ping();
   res.status(201).json(screen);

@@ -1,25 +1,12 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  LayoutDashboard,
-  ShieldCheck,
-  FileJson,
   Route as RouteIcon,
   Building2,
   Train as TrainIcon,
-  Tags,
   MapPin,
-  ClipboardList,
-  Monitor,
-  Building,
-  Palette,
-  Mic,
-  Volume2,
   GitBranch,
-  Volume2 as Megaphone,
-  Radio,
-  Cpu,
-  Brain,
+  Monitor,
 } from "lucide-react";
 import {
   api,
@@ -46,6 +33,8 @@ import SimulationPanel from "../components/admin/SimulationPanel";
 import HardwarePanel from "../components/admin/HardwarePanel";
 import AudioNodesPanel from "../components/admin/AudioNodesPanel";
 import AutomationPanel from "../components/admin/AutomationPanel";
+import AdminSidebar from "../components/admin/AdminSidebar";
+import { findNavTitle } from "../lib/adminNav";
 import { LANGUAGES, type Language } from "../lib/i18n";
 import {
   speak,
@@ -1105,113 +1094,16 @@ export default function Admin() {
     );
   }
 
-  const sidebarGroups = [
-    {
-      label: "General",
-      items: [
-        { id: "dashboard" as TabType, label: "Panel", icon: LayoutDashboard },
-        { id: "validation" as TabType, label: "Validación", icon: ShieldCheck },
-        { id: "import" as TabType, label: "Importación de datos", icon: FileJson },
-      ],
-    },
-    {
-      label: "Infraestructura ferroviaria",
-      items: [
-        { id: "routes" as TabType, label: "Rutas", icon: RouteIcon },
-        { id: "operators" as TabType, label: "Operadores", icon: Building2 },
-        { id: "trains" as TabType, label: "Trenes", icon: TrainIcon },
-        { id: "types" as TabType, label: "Tipos de tren", icon: Tags },
-        { id: "places" as TabType, label: "Destinos", icon: MapPin },
-        { id: "services" as TabType, label: "Servicios", icon: ClipboardList },
-      ],
-    },
-    {
-      label: "Displays y señalética",
-      items: [
-        { id: "displays" as TabType, label: "Displays", icon: Monitor },
-        { id: "station" as TabType, label: "Estación actual", icon: Building },
-        { id: "styles" as TabType, label: "Estilos", icon: Palette },
-      ],
-    },
-    {
-      label: "Audio y locuciones",
-      items: [
-        { id: "voice" as TabType, label: "Voz e idiomas", icon: Mic },
-        { id: "locutions" as TabType, label: "Locuciones", icon: Volume2 },
-      ],
-    },
-    {
-      label: "Información al viajero",
-      items: [
-        { id: "displayScreens" as TabType, label: "Pantallas", icon: Monitor },
-        { id: "megaphony" as TabType, label: "Megafonía", icon: Megaphone },
-        { id: "audioNodes" as TabType, label: "Nodos audio", icon: Radio },
-      ],
-    },
-    {
-      label: "Sistema",
-      items: [
-        { id: "devices" as TabType, label: "Dispositivos", icon: Radio },
-        { id: "hardware" as TabType, label: "Hardware", icon: Cpu },
-        { id: "simulation" as TabType, label: "Simulación", icon: GitBranch },
-        { id: "automation" as TabType, label: "Automatización", icon: Brain },
-      ],
-    },
-  ];
-
-  const getTabLabel = (id: TabType): string => {
-    for (const group of sidebarGroups) {
-      const found = group.items.find((item) => item.id === id);
-      if (found) return found.label;
-    }
-    return "Dashboard";
-  };
-
-  return (
+    return (
     <div className="min-h-screen bg-slate-50 lg:grid lg:grid-cols-[260px_1fr]">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-        </div>
-      )}
-
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 lg:static lg:translate-x-0 lg:z-auto`}>
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-200">
-          <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
-            <p className="text-xs text-slate-500">Administración</p>
-          </div>
-        </div>
-        <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
-          {sidebarGroups.map((group) => (
-            <div key={group.label}>
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
-              <div className="space-y-0.5">
-                {group.items.map((tab) => {
-                  const Icon = tab.icon;
-                  return (
-                    <button
-                      key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                        activeTab === tab.id
-                          ? "bg-blue-50 text-blue-900 font-semibold"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <Icon size={17} className="shrink-0" />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </aside>
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeId={activeTab}
+        variant="grid"
+        onNavigate={() => { if (window.innerWidth < 1024) setSidebarOpen(false); }}
+      />
 
       {/* Main area */}
       <div className="flex min-w-0 flex-col">
@@ -1226,7 +1118,7 @@ export default function Admin() {
                 </svg>
               </button>
               <div>
-                <h2 className="text-lg font-bold text-slate-900">{getTabLabel(activeTab)}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{findNavTitle(activeTab)}</h2>
                 <p className="text-sm text-slate-500">
                   {config.station_name || "No configurada"} · {routes.length} rutas · {stations.length} estaciones
                 </p>

@@ -6,11 +6,7 @@ import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "..
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
-import {
-  LayoutDashboard, ShieldCheck, FileJson, Route as RouteIcon, Building2,
-  Train as TrainIcon, Tags, MapPin, ClipboardList, Monitor, Building,
-  Palette, Mic, Volume2, GitBranch, Radio, Cpu, Brain, Megaphone,
-} from "lucide-react";
+import AdminSidebar from "../components/admin/AdminSidebar";
 
 const defaultConfig = (stationName = ""): Config => ({
   station_name: stationName,
@@ -49,60 +45,6 @@ const EVENT_TYPES: { id: string; label: string }[] = [
   { id: "TRAIN_DELAYED", label: "Tren amb retard" },
   { id: "TRAIN_CANCELLED", label: "Tren cancel·lat" },
   { id: "PLATFORM_CHANGE", label: "Canvi de via" },
-];
-
-const sidebarGroups = [
-  {
-    label: "General",
-    items: [
-      { id: "dashboard", label: "Panel", icon: LayoutDashboard, to: "/admin" },
-      { id: "validation", label: "Validación", icon: ShieldCheck, to: "/admin?tab=validation" },
-      { id: "import", label: "Importación de datos", icon: FileJson, to: "/admin?tab=import" },
-    ],
-  },
-  {
-    label: "Infraestructura ferroviaria",
-    items: [
-      { id: "routes", label: "Rutas", icon: RouteIcon, to: "/admin?tab=routes" },
-      { id: "operators", label: "Operadores", icon: Building2, to: "/admin?tab=operators" },
-      { id: "trains", label: "Trenes", icon: TrainIcon, to: "/admin?tab=trains" },
-      { id: "types", label: "Tipos de tren", icon: Tags, to: "/admin?tab=types" },
-      { id: "places", label: "Destinos", icon: MapPin, to: "/admin?tab=places" },
-      { id: "services", label: "Servicios", icon: ClipboardList, to: "/admin?tab=services" },
-    ],
-  },
-  {
-    label: "Displays y señalética",
-    items: [
-      { id: "displays", label: "Displays", icon: Monitor, to: "/admin/displays" },
-      { id: "station", label: "Estación actual", icon: Building, to: "/admin?tab=station" },
-      { id: "styles", label: "Estilos", icon: Palette, to: "/admin?tab=styles" },
-    ],
-  },
-  {
-    label: "Audio y locuciones",
-    items: [
-      { id: "voice", label: "Voz e idiomas", icon: Mic, to: "/admin?tab=voice" },
-      { id: "locutions", label: "Locuciones", icon: Volume2, to: "/admin?tab=locutions" },
-    ],
-  },
-  {
-    label: "Información al viajero",
-    items: [
-      { id: "displayScreens", label: "Pantallas", icon: Monitor, to: "/admin?tab=displayScreens" },
-      { id: "megaphony", label: "Megafonía", icon: Megaphone, to: "/admin?tab=megaphony" },
-      { id: "audioNodes", label: "Nodos audio", icon: Radio, to: "/admin?tab=audioNodes" },
-    ],
-  },
-  {
-    label: "Sistema",
-    items: [
-      { id: "devices", label: "Dispositivos", icon: Radio, to: "/admin?tab=devices" },
-      { id: "hardware", label: "Hardware", icon: Cpu, to: "/admin?tab=hardware" },
-      { id: "simulation", label: "Simulación", icon: GitBranch, to: "/admin?tab=simulation" },
-      { id: "automation", label: "Automatización", icon: Brain, to: "/admin?tab=automation" },
-    ],
-  },
 ];
 
 const formatPlatform = (train: Train) => {
@@ -440,53 +382,12 @@ export default function DisplayConfigPage() {
   if (displayMode === "multiple" && !displayedStation) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
-            <div className="absolute inset-0 bg-black/40" />
-          </div>
-        )}
-        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
-          <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
-              <div>
-                <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
-                <p className="text-xs text-slate-500">Administración</p>
-              </div>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
-            {sidebarGroups.map((group) => (
-              <div key={group.label}>
-                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.id}
-                        to={item.to}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                          item.id === "displays"
-                            ? "bg-blue-50 text-blue-900 font-semibold"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        }`}
-                      >
-                        <Icon size={17} className="shrink-0" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <AdminSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activeId="displays"
+          variant="fixed"
+        />
         <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
           <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
@@ -553,53 +454,12 @@ export default function DisplayConfigPage() {
   if (!displayedStation) {
     return (
       <div className="min-h-screen bg-slate-50">
-        {sidebarOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
-            <div className="absolute inset-0 bg-black/40" />
-          </div>
-        )}
-        <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
-          <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
-              <div>
-                <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
-                <p className="text-xs text-slate-500">Administración</p>
-              </div>
-            </div>
-            <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
-            </button>
-          </div>
-          <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
-            {sidebarGroups.map((group) => (
-              <div key={group.label}>
-                <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
-                <div className="space-y-0.5">
-                  {group.items.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <Link
-                        key={item.id}
-                        to={item.to}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                          item.id === "displays"
-                            ? "bg-blue-50 text-blue-900 font-semibold"
-                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                        }`}
-                      >
-                        <Icon size={17} className="shrink-0" />
-                        <span>{item.label}</span>
-                      </Link>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </aside>
+        <AdminSidebar
+          open={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          activeId="displays"
+          variant="fixed"
+        />
         <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
           <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
             <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
@@ -631,53 +491,12 @@ export default function DisplayConfigPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
-          <div className="absolute inset-0 bg-black/40" />
-        </div>
-      )}
-      <aside className={`${sidebarOpen ? "translate-x-0" : "-translate-x-full"} fixed inset-y-0 left-0 z-50 w-[260px] flex flex-col border-r border-slate-200 bg-white transition-transform duration-200 ${sidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"} lg:fixed`}>
-        <div className="flex items-center justify-between gap-3 px-5 py-5 border-b border-slate-200">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-900 rounded-lg flex items-center justify-center font-bold text-white text-sm">RB</div>
-            <div>
-              <h1 className="text-base font-bold text-slate-900">RailBoard</h1>
-              <p className="text-xs text-slate-500">Administración</p>
-            </div>
-          </div>
-          <button onClick={() => setSidebarOpen(false)} className="hidden lg:flex w-6 h-6 items-center justify-center rounded hover:bg-slate-100 text-slate-400 hover:text-slate-600" title="Amagar sidebar">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div className="flex-1 px-3 py-4 overflow-y-auto space-y-6">
-          {sidebarGroups.map((group) => (
-            <div key={group.label}>
-              <div className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-slate-400">{group.label}</div>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.id}
-                      to={item.to}
-                      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
-                        item.id === "displays"
-                          ? "bg-blue-50 text-blue-900 font-semibold"
-                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                      }`}
-                    >
-                      <Icon size={17} className="shrink-0" />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-      </aside>
+      <AdminSidebar
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeId="displays"
+        variant="fixed"
+      />
       <div className={`min-h-screen flex flex-col transition-all duration-200 ${sidebarOpen ? "lg:ml-[260px]" : "lg:ml-0"}`}>
         <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
           <div className="flex items-center justify-between px-4 md:px-6 lg:px-8 py-3">
