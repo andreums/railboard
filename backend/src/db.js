@@ -962,21 +962,21 @@ function toSlug(name) {
 export const displayScreens = {
   list: () =>
     db.prepare(`
-      SELECT ds.*, s.name as station_name, s.short as station_short
+      SELECT ds.*, s.name as station_name, s.short as station_short, s.logo_url as station_logo_url
       FROM display_screens ds
       LEFT JOIN stations s ON s.id = ds.station_id
       ORDER BY ds.created_at DESC
     `).all(),
   get: (id) => {
     let screen = db.prepare(`
-      SELECT ds.*, s.name as station_name, s.short as station_short
+      SELECT ds.*, s.name as station_name, s.short as station_short, s.logo_url as station_logo_url
       FROM display_screens ds
       LEFT JOIN stations s ON s.id = ds.station_id
       WHERE ds.id = ?
     `).get(id);
     if (!screen && /^\d+$/.test(id)) {
       screen = db.prepare(`
-        SELECT ds.*, s.name as station_name, s.short as station_short
+        SELECT ds.*, s.name as station_name, s.short as station_short, s.logo_url as station_logo_url
         FROM display_screens ds
         LEFT JOIN stations s ON s.id = ds.station_id
         WHERE ds.rowid = ?

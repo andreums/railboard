@@ -292,30 +292,29 @@ function TrainInfoDisplay(props: BoardProps) {
   return <TrainHero {...props} />;
 }
 
-function ClockDisplay({ screen, rows, lang, clock }: BoardProps) {
-  const time = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
-  const dateLocale = lang === "ca" ? "ca-ES" : lang === "es" ? "es-ES" : lang === "fr" ? "fr-FR" : lang === "eu" ? "eu-ES" : lang === "gl" ? "gl-ES" : "en-US";
-  const date = clock.toLocaleDateString(dateLocale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const nextTrains = rows.slice(0, 5);
+function ClockDisplay({ screen, clock }: BoardProps) {
+  const hhmm = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
+  const ss = String(clock.getSeconds()).padStart(2, "0");
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-6 md:p-12 flex flex-col items-center justify-center">
-      <div className="text-8xl md:text-[12rem] font-bold tabular-nums tracking-tight text-white mb-4">{time}</div>
-      <div className="text-xl md:text-2xl text-slate-400 capitalize mb-2">{date}</div>
-      {screen.station_name && (
-        <div className="text-lg md:text-xl text-slate-500 mt-2">{screen.station_name}</div>
-      )}
-      {nextTrains.length > 0 && (
-        <div className="mt-8 md:mt-12 w-full max-w-lg">
-          <div className="text-sm text-slate-500 uppercase tracking-wider mb-3 text-center">{t("upcoming-trains", lang)}</div>
-          {nextTrains.map((row: any, i: number) => (
-            <div key={row.id || i} className="flex items-center justify-between py-2 border-b border-slate-800 text-lg">
-              <div className="tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</div>
-              <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate mx-4 flex-1 text-center" containerClass="mx-4 flex-1 text-center" />
-              <div className="text-slate-500">{platText(row, lang)}</div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div
+      className="min-h-screen flex flex-col items-center justify-center gap-10 md:gap-16 px-6"
+      style={{ backgroundColor: "#0a1642" }}
+    >
+      {screen.station_logo_url ? (
+        <img
+          src={fileUrl(screen.station_logo_url) || ""}
+          alt={screen.station_name || screen.name}
+          className="h-20 md:h-36 w-auto object-contain"
+          onError={onImgError}
+        />
+      ) : screen.station_name ? (
+        <div className="text-3xl md:text-5xl font-bold text-white tracking-wide text-center">{screen.station_name}</div>
+      ) : null}
+
+      <div className="flex items-end leading-none text-white tabular-nums font-bold">
+        <span className="text-[16vw] md:text-[11rem]">{hhmm}</span>
+        <span className="text-[7vw] md:text-[4.75rem] ml-1 md:ml-2 mb-1 md:mb-3 opacity-90">:{ss}</span>
+      </div>
     </div>
   );
 }

@@ -197,7 +197,8 @@ r.patch("/trains/:id/platform", adminAuth, (req, res) => {
   const result = eventEngine.firePlatformChange(Number(req.params.id), req.body.platform, req.body.sector, req.body.source || "manual");
   if (result.error) return res.status(400).json(result);
   ping();
-  res.json(result);
+  const t = getTrain(Number(req.params.id));
+  res.json(t || result);
 });
 
 // Train state info
@@ -215,9 +216,10 @@ r.patch("/trains/:id/delay", adminAuth, (req, res) => {
   const cur = getTrain(Number(req.params.id));
   if (!cur) return res.status(404).end();
   const minutes = Number(req.body.minutes || 0);
-  const newStatus = minutes > 0 ? "DELAYED" : cur.status;
-  const result = eventEngine.fireStateChange(cur.id, newStatus, req.body.source || "manual", { delayMinutes: minutes, reason: req.body.reason });
-  if (result.error) return res.status(400).json(result);
+  if (minutes > 0) {
+    const result = eventEngine.fireStateChange(cur.id, "DELAYED", req.body.source || "manual", { delayMinutes: minutes, reason: req.body.reason });
+    if (result.error && !String(result.error).includes("Invalid transition")) return res.status(400).json(result);
+  }
   const t = updateTrain(cur.id, {
     expected_time: addMinutes(cur.expected_time, minutes),
     delay_minutes: minutes,

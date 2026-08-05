@@ -6,9 +6,9 @@ const VALID_TRANSITIONS = {
   APPROACHING: ["ARRIVING", "DELAYED", "CANCELLED"],
   ARRIVING:    ["STOPPED", "DELAYED", "CANCELLED"],
   STOPPED:     ["BOARDING", "ARRIVED", "CANCELLED"],
-  BOARDING:    ["READY_TO_DEPART", "CANCELLED"],
-  READY_TO_DEPART: ["DEPARTING", "CANCELLED"],
-  DEPARTING:   ["DEPARTED", "CANCELLED"],
+  BOARDING:    ["READY_TO_DEPART", "DELAYED", "CANCELLED"],
+  READY_TO_DEPART: ["DEPARTING", "DELAYED", "CANCELLED"],
+  DEPARTING:   ["DEPARTED", "DELAYED", "CANCELLED"],
   DEPARTED:    ["FINISHED"],
   ARRIVED:     ["FINISHED"],
   DELAYED:     ["SCHEDULED", "APPROACHING", "ARRIVING", "STOPPED", "BOARDING", "READY_TO_DEPART", "CANCELLED"],
@@ -31,13 +31,34 @@ const STATE_DISPLAY_NAMES = {
   FINISHED:      { ca: "Finalitzat", es: "Finalizado", en: "Finished" },
 };
 
+const STATE_TITLES = {
+  SCHEDULED: "Scheduled",
+  APPROACHING: "Approaching",
+  ARRIVING: "Arriving",
+  STOPPED: "Stopped",
+  BOARDING: "Boarding",
+  READY_TO_DEPART: "Ready to depart",
+  DEPARTING: "Departing",
+  DEPARTED: "Departed",
+  ARRIVED: "Arrived",
+  DELAYED: "Delayed",
+  CANCELLED: "Cancelled",
+  FINISHED: "Finished",
+};
+
+const toUpper = (state) => String(state || "").toUpperCase();
+
+export function toTitleState(state) {
+  return STATE_TITLES[toUpper(state)] || state;
+}
+
 export function getValidTransitions(fromState) {
-  return VALID_TRANSITIONS[fromState] || [];
+  return VALID_TRANSITIONS[toUpper(fromState)] || [];
 }
 
 export function isValidTransition(fromState, toState) {
-  const allowed = VALID_TRANSITIONS[fromState];
-  return allowed && allowed.includes(toState);
+  const allowed = VALID_TRANSITIONS[toUpper(fromState)];
+  return allowed && allowed.includes(toUpper(toState));
 }
 
 export function getStateDisplayName(state, language = "ca") {
@@ -138,11 +159,12 @@ class EventEngine {
       }
 
       const now = new Date().toISOString();
+      const storedStatus = toTitleState(toState);
 
       // Update train state
       this.db
         .prepare("UPDATE trains SET status = ?, state_source = ?, state_updated_at = ? WHERE id = ?")
-        .run(toState, source, now, trainId);
+        .run(storedStatus, source, now, trainId);
 
       // Log event
       const event = {
@@ -155,7 +177,7 @@ class EventEngine {
         stationId: train.station_id,
         number: train.number,
         platform: train.platform,
-        trainData: { ...train, status: toState, state_source: source, state_updated_at: now },
+        trainData: { ...train, status: storedStatus, state_source: source, state_updated_at: now },
       };
 
       this._logEvent(trainId, null, "TRAIN_STATE_CHANGED", fromState, toState, source, train.station_id, details);

@@ -684,6 +684,7 @@ export type DisplayScreen = {
   updated_at: string;
   station_name?: string;
   station_short?: string;
+  station_logo_url?: string | null;
 };
 
 export type Device = {

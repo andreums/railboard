@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent, within } from "@testing-library/react";
+import { MemoryRouter, Routes, Route } from "react-router-dom";
 import Admin from "../Admin";
 import { api, connectWS } from "../../lib/api";
 
@@ -56,22 +57,31 @@ beforeEach(() => {
   mockedApi.deletePlace.mockResolvedValue(undefined as any);
 });
 
+function renderAdmin(initialEntry: string) {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/admin/:tab" element={<Admin />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 async function renderAdminOnPlacesTab() {
-  render(<Admin />);
-  await waitFor(() => expect(screen.getByText("Destinos")).toBeInTheDocument());
-  fireEvent.click(screen.getByText("Destinos"));
+  renderAdmin("/admin/places");
   await waitFor(() => expect(screen.getByPlaceholderText("Nombre del nuevo destino...")).toBeInTheDocument());
 }
 
 describe("Admin", () => {
   it("shows a loading state before config resolves", () => {
     mockedApi.getConfig.mockReturnValue(new Promise(() => {}));
-    render(<Admin />);
+    renderAdmin("/admin");
     expect(screen.getByText("Cargando panel...")).toBeInTheDocument();
   });
 
   it("loads the dashboard once data resolves", async () => {
-    render(<Admin />);
+    renderAdmin("/admin");
     await waitFor(() => expect(screen.getAllByText(/Atocha/).length).toBeGreaterThan(0));
   });
 
@@ -120,7 +130,7 @@ describe("Admin", () => {
     const mockedConnectWS = vi.mocked(connectWS);
     mockedConnectWS.mockReturnValue({ close, on: vi.fn(() => () => {}) } as any);
 
-    const { unmount } = render(<Admin />);
+    const { unmount } = renderAdmin("/admin");
     await waitFor(() => expect(mockedConnectWS).toHaveBeenCalled());
     unmount();
     expect(close).toHaveBeenCalled();
