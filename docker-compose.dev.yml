@@ -11,6 +11,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-railboard}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
       - DB_PATH=/app/data/data.db
+      - TRUST_PROXY=${TRUST_PROXY:-0}
       - RATE_LIMIT_MAX=1000
     ports:
       - "4000:4000"
@@ -21,7 +22,6 @@ services:
       - ./backend/data:/app/data
       - ./backend/uploads:/app/uploads
       - ./backend/scripts:/app/scripts
-      - ./backend/data:/app/data
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
       interval: 15s

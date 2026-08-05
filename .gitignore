@@ -12,3 +12,5 @@ backend/uploads/*
 frontend/tsconfig.tsbuildinfo
 backend/*.aiff
 backend/railboard.db
+capturaadif.png
+backups/

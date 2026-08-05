@@ -11,6 +11,7 @@ services:
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-railboard}
       - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:5173}
       - DB_PATH=/app/data/data.db
+      - TRUST_PROXY=${TRUST_PROXY:-0}
       - RATE_LIMIT_MAX=120
     volumes:
       - db-data:/app/data
