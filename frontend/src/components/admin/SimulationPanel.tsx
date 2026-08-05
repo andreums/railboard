@@ -11,7 +11,6 @@ export default function SimulationPanel() {
   const [clock, setClock] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [sequences, setSequences] = useState<any[]>([]);
-  const [selectedSeq, setSelectedSeq] = useState<any>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   const [newSeq, setNewSeq] = useState({ name: "", trainId: "", loop: false, steps: [{ eventType: STATE_OPTIONS[0], delaySeconds: 10, autoProceed: true }] });
@@ -48,7 +47,7 @@ export default function SimulationPanel() {
   };
 
   const handlePause = async (paused: boolean) => {
-    const result = await api.setSimulationPaused(paused);
+    await api.setSimulationPaused(paused);
     notify(paused ? "Pausado" : "Reanudado");
     refresh();
   };
@@ -95,7 +94,6 @@ export default function SimulationPanel() {
   const handleDeleteSeq = async (id: number) => {
     await api.deleteSimulationSequence(id);
     notify("Secuencia eliminada");
-    setSelectedSeq(null);
     refresh();
   };
 

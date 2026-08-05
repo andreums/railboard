@@ -47,7 +47,6 @@ export default function OperatorLogo({
   const logoSrc = showTypeLogo ? fileUrl(typeLogo) : defaultCommuterLogo ? defaultCommuterLogo : operatorLogo ? fileUrl(operatorLogo) : null;
 
   if (isCercanias || isAVE) {
-    const bgColor = isAVE ? "#9B1B7A" : "#FFFFFF";
     const labelColor = isAVE ? "#FFFFFF" : "#071E43";
 
     return (

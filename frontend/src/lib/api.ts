@@ -188,7 +188,7 @@ const json = (path: string, init?: RequestInit) =>
     let body: any;
     try {
       body = await r.json();
-    } catch (e) {
+    } catch {
       body = await r.text();
     }
     const message = body && (body.error || body.message) ? body.error || body.message : String(body);

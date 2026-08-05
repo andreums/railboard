@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { api, fileUrl, connectWS, type Train, type Operator, type TrainType, type Station, type AudioAsset, type SoundRule, type SoundProfile } from "../../lib/api";
 import { Volume2, Music, Settings, Play, List, Clock, History, Upload, Trash2, Plus, Mic, Speaker, Square, Ear, FileText, Save } from "lucide-react";
-import { speak, speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
+import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../../lib/tts";
 import { LANGUAGES as I18N_LANGUAGES } from "../../lib/i18n";
 
-type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "locales" | "templates";
+type TabType = "dashboard" | "queue" | "history" | "audio" | "rules" | "profiles" | "test" | "templates";
 
 const EVENT_TYPES = [
   "TRAIN_ANNOUNCEMENT", "COMPACT_SERVICE_ANNOUNCEMENT",
@@ -941,7 +941,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
                 <div className="flex gap-2">
                   <button onClick={async () => {
                     const userLangAudio = getLangAudioMap();
-                    for (const { eventType, result } of testAllResults) {
+                    for (const { result } of testAllResults) {
                       const texts = result.composed || result;
                       const langs = Object.keys(texts).filter((k) => !["eventType","chime","ruleApplied","queueId","status"].includes(k));
                       const merged = { ...result.chime?.languageSounds, ...userLangAudio };

@@ -9,18 +9,6 @@ const TRIGGER_TYPES = [
   { value: "periodic", label: "Periódico" },
 ];
 
-const ACTION_TYPES = [
-  { value: "state_change", label: "Cambiar estado" },
-  { value: "platform_change", label: "Cambiar vía" },
-  { value: "delay", label: "Añadir retraso" },
-  { value: "log", label: "Registrar" },
-];
-
-const EVENT_STATES = [
-  "SCHEDULED", "APPROACHING", "ARRIVING", "STOPPED", "BOARDING",
-  "READY_TO_DEPART", "DEPARTING", "DEPARTED", "DELAYED", "CANCELLED",
-];
-
 export default function AutomationPanel() {
   const [tab, setTab] = useState<"rules" | "suggestions">("suggestions");
   const [rules, setRules] = useState<any[]>([]);

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { setCredentials } from "../lib/auth";
 
 type Props = {
   onSubmit: (username: string, password: string) => void;
