@@ -15,6 +15,8 @@ import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSo
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
+import { normalizeStops, stopsToDisplayText, type TrainStop } from "../lib/trainStops";
+import StopsEditor from "../components/admin/StopsEditor";
 
 const STATUSES: Train["status"][] = ["Scheduled", "Boarding", "Delayed", "Departed", "Arrived", "Cancelled"];
 
@@ -266,7 +268,7 @@ function CommuterBadge({ code, color }: { code: string; color?: string | null })
 function TrainSummary({ train }: { train: Train }) {
   const service = [train.type_code, train.operator_name].filter(Boolean).join(" · ") || "Sin tipo";
   const expectedChanged = train.expected_time !== train.scheduled_time;
-  const stopsText = train.stops?.length ? train.stops.join(" · ") : "Sin paradas intermedias";
+  const stopsText = train.stops?.length ? stopsToDisplayText(train.stops) : "Sin paradas intermedias";
   const isCommuter = /^(C(-\d+)?|R\d+[A-Z]?)$/i.test(train.type_code || "");
   const meta = [
     `ID ${train.id}`,
@@ -466,11 +468,11 @@ function TrainForm({
   onCancel: () => void;
 }) {
   const [v, setV] = useState<Partial<Train>>(value);
-  const [stopsText, setStopsText] = useState((value.stops || []).join("\n"));
+  const [stops, setStops] = useState<TrainStop[]>(normalizeStops(value.stops));
 
   useEffect(() => {
     setV({ ...value, station_id: value.station_id ?? stations[0]?.id ?? null });
-    setStopsText((value.stops || []).join("\n"));
+    setStops(normalizeStops(value.stops));
   }, [value, stations]);
 
   const set = (k: keyof Train, val: any) => setV((s) => ({ ...s, [k]: val }));
@@ -503,13 +505,9 @@ function TrainForm({
 
   const estimatedFromDelay = calculateEstimatedTime(v.scheduled_time || "12:00", delayMinutes);
 
-  const handleStopsChange = (text: string) => {
-    setStopsText(text);
-    const stops = text
-      .split(/[\r\n;]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-    set("stops", stops);
+  const handleStopsChange = (next: TrainStop[]) => {
+    setStops(next);
+    set("stops", next);
   };
 
   const placeNames = places.map((p) => p.name);
@@ -647,14 +645,8 @@ function TrainForm({
           onChange={(e) => set("observations", e.target.value)}
         />
       </Field>
-      <Field label="Paradas intermedias (una por línea; `;` también separa)" wide>
-        <textarea
-          rows={4}
-          placeholder="Escribe una parada por línea. Usa ';' para separar en la misma línea si quieres."
-          className="bg-black/40 rounded px-3 py-2 w-full resize-vertical"
-          value={stopsText}
-          onChange={(e) => handleStopsChange(e.target.value)}
-        />
+      <Field label="Paradas intermedias" wide>
+        <StopsEditor stops={stops} onChange={handleStopsChange} variant="dark" />
       </Field>
 
       <div className="col-span-2 flex gap-2 justify-end mt-2">
@@ -670,7 +662,7 @@ function TrainForm({
             🔊 Escuchar
           </button>
         )}
-        <button onClick={() => onSave(v)} className="px-4 py-2 rounded bg-board-amber text-board-bg font-bold">
+        <button onClick={() => onSave({ ...v, stops: normalizeStops(stops) })} className="px-4 py-2 rounded bg-board-amber text-board-bg font-bold">
           Guardar
         </button>
       </div>

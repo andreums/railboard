@@ -35,12 +35,15 @@ export default function OperatorLogo({
   typeLogo?: string | null;
 }) {
   const normalizedName = (operatorName || "").toLowerCase().trim();
-  const isCercanias = normalizedName.includes("cercanías") || normalizedName.includes("cercanias") || /^(MA-)?C\d*[A-Z]?$/i.test(typeCode || "");
-  const isRegional = /^(MA-)?R\d*[A-Z]?$/i.test(typeCode || "");
+  const isCercanias =
+    normalizedName.includes("cercanías") ||
+    normalizedName.includes("cercanias") ||
+    /^([A-Z]{2,3}-)?C(-\d+[A-Z]?|\d+[A-Z]?)?$/i.test(typeCode || "");
+  const isRegional = /^([A-Z]{2,3}-)?R(-\d+[A-Z]?|\d+[A-Z]?)?$/i.test(typeCode || "");
   const isAVE = normalizedName.includes("ave") || typeCode === "AVE";
 
   const showTypeLogo = (isCercanias || isRegional) && typeLogo;
-  const defaultCommuterLogo = isCercanias ? fileUrl("/uploads/cercanias-logo.svg") : null;
+  const defaultCommuterLogo = isCercanias ? fileUrl("/uploads/CERCANIAS.png") : null;
   const logoSrc = showTypeLogo ? fileUrl(typeLogo) : defaultCommuterLogo ? defaultCommuterLogo : operatorLogo ? fileUrl(operatorLogo) : null;
 
   if (isCercanias || isAVE) {
@@ -52,13 +55,14 @@ export default function OperatorLogo({
         style={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "flex-start",
           borderRadius: "clamp(12px, 1vw, 22px)",
           width: "clamp(140px, 11vw, 235px)",
           height: "clamp(40px, 3.2vw, 68px)",
           flexShrink: 0,
           overflow: "hidden",
           padding: "clamp(2px, 0.2vw, 6px)",
-        }} 
+        }}
       >
         {logoSrc ? (
           <img
@@ -80,7 +84,7 @@ export default function OperatorLogo({
               fontWeight: 700,
               fontSize: "clamp(16px, 1.4vw, 26px)",
               lineHeight: 1,
-              textAlign: "center",
+              textAlign: "left",
               whiteSpace: "nowrap",
             }}
           >
@@ -98,8 +102,7 @@ export default function OperatorLogo({
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "#FFFFFF",
+          justifyContent: "flex-start",
           borderRadius: "clamp(12px, 1vw, 22px)",
           width: "clamp(140px, 11vw, 235px)",
           height: "clamp(40px, 3.2vw, 68px)",
@@ -132,7 +135,7 @@ export default function OperatorLogo({
       style={{
         display: "flex",
         alignItems: "center",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         backgroundColor: bgColor,
         borderRadius: "clamp(12px, 1vw, 22px)",
         width: "clamp(140px, 11vw, 235px)",
@@ -149,7 +152,7 @@ export default function OperatorLogo({
           fontWeight: 700,
           fontSize: "clamp(14px, 1.2vw, 22px)",
           lineHeight: 1,
-          textAlign: "center",
+          textAlign: "left",
           whiteSpace: "nowrap",
         }}
       >

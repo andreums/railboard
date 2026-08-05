@@ -157,7 +157,7 @@ export default function TrainSettings() {
           <Catalog
             items={trainTypes.map((t) => ({
               id: t.id,
-              label: `${t.code} — ${t.name}`,
+              label: `${t.code} — ${t.name}${t.is_cercanias ? " (cercanías)" : ""}${t.category ? ` · ${t.category}` : ""}${t.attribute ? ` · ${t.attribute}` : ""}`,
               extra: t.logo_url ? (
                 <img src={fileUrl(t.logo_url)!} className="h-6" alt={t.code} onError={(e) => handleImgError(e, t.code)} />
               ) : (
@@ -244,6 +244,33 @@ export default function TrainSettings() {
                       {"{origin}"}
                     </p>
                   </div>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4"
+                      checked={!!editingType.is_cercanias}
+                      onChange={(e) => setEditingType({ ...editingType, is_cercanias: e.target.checked ? 1 : 0 })}
+                    />
+                    Es cercanías
+                  </label>
+                  <select
+                    className="bg-black/40 rounded px-3 py-2 text-board-ink"
+                    value={editingType.category || ""}
+                    onChange={(e) => setEditingType({ ...editingType, category: e.target.value })}
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {["Alta Velocidad", "Media Distancia", "Regional", "Cercanías", "Internacional", "Larga Distancia"].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className="bg-black/40 rounded px-3 py-2 text-board-ink"
+                    placeholder="Atributo libre (ej: Rodalies de Catalunya)"
+                    value={editingType.attribute || ""}
+                    onChange={(e) => setEditingType({ ...editingType, attribute: e.target.value })}
+                  />
                   <div className="flex gap-2">
                     <button
                       onClick={async () => {
@@ -257,6 +284,9 @@ export default function TrainSettings() {
                             typeLogo,
                             undefined,
                             editingType.announce_template || null,
+                            !!editingType.is_cercanias,
+                            editingType.category || null,
+                            editingType.attribute || null,
                           )
                           .then(() => {
                             setEditingType(null);
@@ -371,20 +401,44 @@ function TrainTypeCreate({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [color, setColor] = useState("#7c1d2e");
   const [logo, setLogo] = useState<File | null>(null);
+  const [isCercanias, setIsCercanias] = useState(false);
+  const [category, setCategory] = useState("");
+  const [attribute, setAttribute] = useState("");
   return (
     <div className="flex flex-col gap-2">
       <input className="bg-black/40 rounded px-2 py-1 text-board-ink" placeholder="Código (AVE)" value={code} onChange={(e) => setCode(e.target.value)} />
       <input className="bg-black/40 rounded px-2 py-1 text-board-ink" placeholder="Nombre" value={name} onChange={(e) => setName(e.target.value)} />
       <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
       <input type="file" accept="image/*" onChange={(e) => setLogo(e.target.files?.[0] ?? null)} />
+      <select className="bg-black/40 rounded px-2 py-1 text-board-ink" value={category} onChange={(e) => setCategory(e.target.value)}>
+        <option value="">— Sin categoría —</option>
+        {["Alta Velocidad", "Media Distancia", "Regional", "Cercanías", "Internacional", "Larga Distancia"].map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <input
+        className="bg-black/40 rounded px-2 py-1 text-board-ink"
+        placeholder="Atributo libre"
+        value={attribute}
+        onChange={(e) => setAttribute(e.target.value)}
+      />
+      <label className="flex items-center gap-2 text-sm cursor-pointer">
+        <input type="checkbox" className="w-4 h-4" checked={isCercanias} onChange={(e) => setIsCercanias(e.target.checked)} />
+        Es cercanías
+      </label>
       <button
         className="bg-board-amber text-board-bg font-bold rounded py-1"
         onClick={async () => {
           if (code && name) {
-            await api.createTrainType(code, name, color, logo);
+            await api.createTrainType(code, name, color, logo, undefined, isCercanias, category || null, attribute || null);
             setCode("");
             setName("");
             setLogo(null);
+            setCategory("");
+            setAttribute("");
+            setIsCercanias(false);
             onCreated();
           }
         }}

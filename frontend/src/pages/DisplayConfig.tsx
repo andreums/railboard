@@ -7,6 +7,8 @@ import { handleImgError } from "../lib/svgPlaceholder";
 import { buildSectorOptions } from "../lib/trainOptions";
 import { fetchRegions } from "../services/routeApi";
 import AdminSidebar from "../components/admin/AdminSidebar";
+import { normalizeStops, type TrainStop } from "../lib/trainStops";
+import StopsEditor from "../components/admin/StopsEditor";
 
 const defaultConfig = (stationName = ""): Config => ({
   station_name: stationName,
@@ -79,7 +81,7 @@ export default function DisplayConfigPage() {
   const [audioAssets, setAudioAssets] = useState<{ id: number; name: string; asset_type: string }[]>([]);
   const [editingTrain, setEditingTrain] = useState<Partial<Train> | null>(null);
   const [trainSaving, setTrainSaving] = useState(false);
-  const [editingStopsText, setEditingStopsText] = useState("");
+  const [editingStops, setEditingStops] = useState<TrainStop[]>([]);
   const [stationNameDraft, setStationNameDraft] = useState("");
   const [trainIconMode, setTrainIconMode] = useState<"none" | "operator" | "type" | "destination" | "custom">("destination");
 
@@ -300,17 +302,14 @@ export default function DisplayConfigPage() {
             station_id: displayedStation.id,
           },
     );
-    setEditingStopsText((train?.stops || []).join("\n"));
+    setEditingStops(normalizeStops(train?.stops));
   };
 
   const saveTrain = async () => {
     if (!editingTrain || !displayedStation) return;
     try {
       setTrainSaving(true);
-      const stops = editingStopsText
-        .split(/[\r\n;]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const stops = normalizeStops(editingStops);
       const payload = {
         ...editingTrain,
         station_id: displayedStation.id,
@@ -321,7 +320,7 @@ export default function DisplayConfigPage() {
       if (editingTrain.id) await api.updateTrain(editingTrain.id, payload);
       else await api.createTrain(payload);
       setEditingTrain(null);
-      setEditingStopsText("");
+      setEditingStops([]);
       await load();
     } catch (err: any) {
       setError(err?.message || "No se pudo guardar el tren");
@@ -1319,15 +1318,10 @@ export default function DisplayConfigPage() {
                     onChange={(e) => setEditingTrain({ ...editingTrain, observations: e.target.value })}
                   />
                 </label>
-                <label className="block md:col-span-2">
+                <div className="block md:col-span-2">
                   <div className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Paradas intermedias</div>
-                  <textarea
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none transition min-h-24 resize-y"
-                    placeholder="Una parada por línea. Usa ';' para separar en la misma línea."
-                    value={editingStopsText}
-                    onChange={(e) => setEditingStopsText(e.target.value)}
-                  />
-                </label>
+                  <StopsEditor stops={editingStops} onChange={setEditingStops} variant="light" />
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-2 mt-5">

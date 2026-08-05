@@ -7,7 +7,7 @@ import { resolveDisplayLanguage } from "../lib/tts";
 import BoardHeader from "../components/pis/BoardHeader";
 import DepartureRow from "../components/pis/DepartureRow";
 
-const SUPPORTED_LANGUAGES = new Set<string>(["es", "ca", "en", "fr", "eu", "gl"]);
+const SUPPORTED_LANGUAGES = new Set<string>(["es", "ca", "va", "en", "fr", "eu", "gl"]);
 
 function resolveDisplayLanguages(config: Config | null): Language[] {
   const rawList = Array.isArray(config?.languages)

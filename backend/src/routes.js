@@ -318,6 +318,9 @@ r.post("/train-types", adminAuth, uploadTrainTypeFields, validateImageContent, (
       logo_url: logo_url ?? existing.logo_url,
       destination_icon_url: destination_icon_url ?? existing.destination_icon_url,
       announce_template: req.body.announce_template,
+      is_cercanias: req.body.is_cercanias,
+      category: req.body.category,
+      attribute: req.body.attribute,
     });
   } else {
     trainTypes.create({
@@ -327,6 +330,9 @@ r.post("/train-types", adminAuth, uploadTrainTypeFields, validateImageContent, (
       logo_url,
       destination_icon_url,
       announce_template: req.body.announce_template,
+      is_cercanias: req.body.is_cercanias,
+      category: req.body.category,
+      attribute: req.body.attribute,
     });
   }
   ping();
@@ -345,6 +351,9 @@ r.put("/train-types/:id", adminAuth, uploadTrainTypeFields, validateImageContent
     logo_url,
     destination_icon_url,
     announce_template: req.body.announce_template,
+    is_cercanias: req.body.is_cercanias,
+    category: req.body.category,
+    attribute: req.body.attribute,
   });
   ping();
   res.json(trainTypes.list());

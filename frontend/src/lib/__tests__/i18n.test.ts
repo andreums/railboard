@@ -14,6 +14,10 @@ describe("i18n", () => {
     expect(t("departures", "ca")).toBe("Sortides");
   });
 
+  it("returns Valencian translation for 'departures'", () => {
+    expect(t("departures", "va")).toBe("Eixides");
+  });
+
   it("returns French translation for 'departures'", () => {
     expect(t("departures", "fr")).toBe("DÉPARTS");
   });
@@ -31,7 +35,7 @@ describe("i18n", () => {
   });
 
   it("has all keys across all languages", () => {
-    const langs = ["es", "ca", "en", "fr", "eu", "gl"] as const;
+    const langs = ["es", "ca", "va", "en", "fr", "eu", "gl"] as const;
     const esKeys = Object.keys(i18n.es);
 
     for (const lang of langs) {
@@ -44,6 +48,7 @@ describe("i18n", () => {
   it("has all language codes", () => {
     expect(i18n.es).toBeDefined();
     expect(i18n.ca).toBeDefined();
+    expect(i18n.va).toBeDefined();
     expect(i18n.en).toBeDefined();
     expect(i18n.fr).toBeDefined();
     expect(i18n.eu).toBeDefined();

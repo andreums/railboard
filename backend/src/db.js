@@ -3,6 +3,7 @@ import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import { normalizeStops } from "./utils/stops.js";
 import { runMigrations } from "./migrations.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -159,7 +160,7 @@ export function createTrain(t) {
     origin: t.origin,
     destination: t.destination,
     destination2: t.destination2 || null,
-    stops: JSON.stringify(t.stops || []),
+    stops: JSON.stringify(normalizeStops(t.stops)),
     scheduled_time: t.scheduled_time,
     expected_time: t.expected_time || t.scheduled_time,
     platform: t.platform || "-",
@@ -199,7 +200,7 @@ export function updateTrain(id, t) {
     origin: next.origin,
     destination: next.destination,
     destination2: next.destination2 || null,
-    stops: JSON.stringify(next.stops || []),
+    stops: JSON.stringify(normalizeStops(next.stops)),
     scheduled_time: next.scheduled_time,
     expected_time: next.expected_time,
     platform: next.platform || "-",
@@ -252,10 +253,10 @@ export const operators = {
 
 export const trainTypes = {
   list: () => db.prepare("SELECT * FROM train_types ORDER BY code").all(),
-  create: ({ code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template }) =>
+  create: ({ code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template, is_cercanias, category, attribute }) =>
     db
       .prepare(
-        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template) VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO train_types (code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template, is_cercanias, category, attribute) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
       )
       .run(
         code,
@@ -265,12 +266,15 @@ export const trainTypes = {
         pre_announce_ogg || null,
         destination_icon_url || null,
         announce_template || null,
+        is_cercanias ? 1 : 0,
+        category || null,
+        attribute || null,
       ),
-  update: (id, { code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template }) => {
+  update: (id, { code, name, color, logo_url, pre_announce_ogg, destination_icon_url, announce_template, is_cercanias, category, attribute }) => {
     const cur = db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
     if (!cur) return null;
     db.prepare(
-      "UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=?, destination_icon_url=?, announce_template=? WHERE id=?",
+      "UPDATE train_types SET code=?, name=?, color=?, logo_url=?, pre_announce_ogg=?, destination_icon_url=?, announce_template=?, is_cercanias=?, category=?, attribute=? WHERE id=?",
     ).run(
       code ?? cur.code,
       name ?? cur.name,
@@ -279,6 +283,9 @@ export const trainTypes = {
       pre_announce_ogg !== undefined ? pre_announce_ogg : cur.pre_announce_ogg,
       destination_icon_url !== undefined ? destination_icon_url : cur.destination_icon_url,
       announce_template !== undefined ? announce_template : cur.announce_template,
+      is_cercanias !== undefined ? (is_cercanias ? 1 : 0) : cur.is_cercanias,
+      category !== undefined ? category : cur.category,
+      attribute !== undefined ? attribute : cur.attribute,
       id,
     );
     return db.prepare("SELECT * FROM train_types WHERE id = ?").get(id);
@@ -338,7 +345,7 @@ const parseConfigJson = (value) => {
   }
 };
 
-const SUPPORTED_DISPLAY_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+const SUPPORTED_DISPLAY_LANGUAGES = new Set(["es", "ca", "va", "en", "fr", "eu", "gl"]);
 
 const normalizeDisplayLanguage = (value) => {
   const lang = String(value || "")
@@ -1045,7 +1052,7 @@ export const displayScreens = {
       LEFT JOIN stations s ON s.id = t.station_id
       WHERE t.station_id = ?
       ORDER BY t.sort_order ASC, t.scheduled_time ASC
-    `).all(stationId);
+    `).all(stationId).map((row) => ({ ...row, stops: normalizeStops(row.stops) }));
 
     return { display, rows };
   },

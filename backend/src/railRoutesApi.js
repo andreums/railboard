@@ -1,6 +1,7 @@
 import { Router } from "express";
 import logger from "./logger.js";
 import { listTrains, services, serviceStops, stations, getStationDisplayConfig, trainTypes } from "./db.js";
+import { stopsToText } from "./utils/stops.js";
 import {
   getAllRoutes,
   getRouteByCode,
@@ -135,7 +136,7 @@ function buildRowsFromTrains(stationId, mode) {
       platform: t.platform || "?",
       sector: t.sector || "",
       status: t.status || "Scheduled",
-      stopsText: Array.isArray(t.stops) ? t.stops.join(" · ") : "",
+      stopsText: stopsToText(t.stops),
       observations: t.observations || "",
       fareRestrictions: t.fare_restrictions || null,
     };

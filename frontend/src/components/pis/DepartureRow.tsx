@@ -103,7 +103,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
   const iconMode = train.icon_mode || (showDestinationIcon !== false ? "destination" : "none");
   let iconUrl: string | undefined | null = null;
   if (iconMode === "custom") iconUrl = train.custom_icon_url;
-  else if (iconMode === "destination") iconUrl = train.type_destination_icon || train.operator_logo;
+  else if (iconMode === "destination") iconUrl = train.type_destination_icon || (isCommuter ? null : train.operator_logo);
   else if (iconMode === "type") iconUrl = train.type_logo;
   else if (iconMode === "operator") iconUrl = train.operator_logo;
 

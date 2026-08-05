@@ -183,7 +183,7 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
 
   // Test form state
   const [testEventType, setTestEventType] = useState("TRAIN_ANNOUNCEMENT");
-  const [testLanguages, setTestLanguages] = useState(["ca", "es", "en", "eu", "gl"]);
+  const [testLanguages, setTestLanguages] = useState(["ca", "va", "es", "en", "eu", "gl"]);
   const [testTrainId, setTestTrainId] = useState<number | null>(null);
   const [testPresetId, setTestPresetId] = useState("Cercanías C1");
   const [testResult, setTestResult] = useState<any>(null);
@@ -193,6 +193,13 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
   const [testLangAudio, setTestLangAudio] = useState<Record<string, number | null>>({});
   const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const langDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Per-station megaphony language toggles
+  const [langConfigStationId, setLangConfigStationId] = useState<number | null>(null);
+  const [langConfigLanguages, setLangConfigLanguages] = useState<string[]>([]);
+  const [langConfigLoading, setLangConfigLoading] = useState(false);
+  const [langConfigSaving, setLangConfigSaving] = useState(false);
+  const [langConfigDirty, setLangConfigDirty] = useState(false);
 
   // Template editor state
   const [templateLang, setTemplateLang] = useState("ca");
@@ -298,6 +305,50 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, [langDropdownOpen]);
+
+  useEffect(() => {
+    if (langConfigStationId == null && stations.length > 0) setLangConfigStationId(stations[0].id);
+  }, [stations, langConfigStationId]);
+
+  useEffect(() => {
+    if (langConfigStationId == null) return;
+    let cancelled = false;
+    setLangConfigLoading(true);
+    api.getStationAnnouncementConfig(langConfigStationId)
+      .then((cfg) => {
+        if (cancelled) return;
+        const raw = cfg?.languages;
+        const parsed = Array.isArray(raw)
+          ? raw
+          : typeof raw === "string"
+            ? (() => { try { return JSON.parse(raw); } catch { return ["ca", "es", "en"]; } })()
+            : ["ca", "es", "en"];
+        setLangConfigLanguages(parsed);
+        setLangConfigDirty(false);
+      })
+      .catch(() => { if (!cancelled) setLangConfigLanguages(["ca", "es", "en"]); })
+      .finally(() => { if (!cancelled) setLangConfigLoading(false); });
+    return () => { cancelled = true; };
+  }, [langConfigStationId]);
+
+  const toggleLangConfigLanguage = (lang: string) => {
+    setLangConfigLanguages((prev) => (prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]));
+    setLangConfigDirty(true);
+  };
+
+  const saveLangConfig = async () => {
+    if (langConfigStationId == null) return;
+    try {
+      setLangConfigSaving(true);
+      await api.saveStationAnnouncementConfig(langConfigStationId, { languages: langConfigLanguages });
+      notify("success", "Idiomas de megafonía guardados");
+      setLangConfigDirty(false);
+    } catch (err: any) {
+      notify("error", err.message);
+    } finally {
+      setLangConfigSaving(false);
+    }
+  };
 
   const getTestTrain = () => {
     if (testTrainId) return trains.find((t) => t.id === testTrainId);
@@ -562,6 +613,64 @@ export default function MegaphonyPanel({ operators, trainTypes, trains, stations
               <div className="text-sm text-slate-500 mb-1">Assets de audio</div>
               <div className="text-2xl font-bold text-slate-800">{audioAssets.length}</div>
             </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className="flex items-center justify-between gap-3 mb-1 flex-wrap">
+              <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+                <Mic size={16} /> Idiomas de megafonía
+              </h3>
+              <div className="flex items-center gap-2">
+                <select
+                  value={langConfigStationId ?? ""}
+                  onChange={(e) => setLangConfigStationId(e.target.value ? Number(e.target.value) : null)}
+                  className="border border-slate-200 rounded-lg px-2 py-1 text-xs"
+                >
+                  {stations.map((s) => (
+                    <option key={s.id} value={s.id}>{s.short || s.name}</option>
+                  ))}
+                </select>
+                {langConfigDirty && (
+                  <button
+                    onClick={saveLangConfig}
+                    disabled={langConfigSaving}
+                    className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-medium hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <Save size={12} /> {langConfigSaving ? "Guardant..." : "Guardar"}
+                  </button>
+                )}
+              </div>
+            </div>
+            <p className="text-xs text-slate-400 mb-3">
+              Tria en quins idiomes es generen i reprodueixen els anuncis automàtics de megafonia per a esta estació.
+            </p>
+            {langConfigLoading ? (
+              <p className="text-sm text-slate-400">Carregant...</p>
+            ) : stations.length === 0 ? (
+              <p className="text-sm text-slate-400">No hi ha estacions configurades.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {LANGUAGES.map((lang) => {
+                  const active = langConfigLanguages.includes(lang);
+                  return (
+                    <label
+                      key={lang}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer text-sm transition ${
+                        active ? "border-blue-200 bg-blue-50 text-blue-900" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleLangConfigLanguage(lang)}
+                        className="rounded border-slate-300 accent-blue-900"
+                      />
+                      {LANG_LABELS[lang] || lang}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="bg-white rounded-xl border border-slate-200 p-5">

@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { stopsToNames } from "../utils/stops.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const LOCALES_DIR = path.resolve(__dirname, "../../locales");
@@ -193,7 +194,7 @@ function buildStoppingPatternBlock(train, language) {
   if (!locale?.stopping_patterns) return null;
 
   const pattern = train.stoppingPattern || train.stopPattern;
-  const stops = train.stops || train.intermediateStops || [];
+  const stops = stopsToNames(train.stops || train.intermediateStops || []);
 
   if (pattern === "ALL_STATIONS") {
     return locale.stopping_patterns.ALL_STATIONS + ".";

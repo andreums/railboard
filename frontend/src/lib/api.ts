@@ -1,6 +1,7 @@
 import { fetchRoutes } from "../services/routeApi";
 import type { Language } from "./i18n";
 import { authHeaders, clearCredentials, getAuthToken } from "./auth";
+import type { TrainStop } from "./trainStops";
 
 export const API_URL = (import.meta as any).env.VITE_API_URL ?? "http://localhost:4000";
 
@@ -27,7 +28,7 @@ export type Train = {
   origin: string;
   destination: string;
   destination2?: string | null;
-  stops: string[];
+  stops: TrainStop[];
   stopping_pattern?: string | null;
   except_stations?: string[];
   fare_restrictions?: Record<string, boolean> | null;
@@ -59,6 +60,9 @@ export type TrainType = {
   pre_announce_ogg?: string | null;
   destination_icon_url?: string | null;
   announce_template?: string | null;
+  is_cercanias?: number;
+  category?: string | null;
+  attribute?: string | null;
 };
 export type TrainIcon = { id: number; name: string; icon_url: string; created_at?: string };
 export type Route = {
@@ -310,13 +314,25 @@ export const api = {
   deleteOperatorPre: (id: number) => authFetch(`/operators/${id}/pre-announce`, { method: "DELETE" }),
 
   listTrainTypes: (): Promise<TrainType[]> => json("/train-types"),
-  createTrainType: (code: string, name: string, color: string, logo?: File | null, destinationIcon?: File | null) => {
+  createTrainType: (
+    code: string,
+    name: string,
+    color: string,
+    logo?: File | null,
+    destinationIcon?: File | null,
+    isCercanias?: boolean,
+    category?: string | null,
+    attribute?: string | null,
+  ) => {
     const fd = new FormData();
     fd.append("code", code);
     fd.append("name", name);
     fd.append("color", color);
     if (logo) fd.append("logo", logo);
     if (destinationIcon) fd.append("destination_icon", destinationIcon);
+    if (isCercanias !== undefined) fd.append("is_cercanias", isCercanias ? "1" : "0");
+    if (category !== undefined) fd.append("category", category ?? "");
+    if (attribute !== undefined) fd.append("attribute", attribute ?? "");
     return authFetch("/train-types", { method: "POST", body: fd }).then((r) => r.json());
   },
   updateTrainType: (
@@ -327,6 +343,9 @@ export const api = {
     logo?: File | null,
     destinationIcon?: File | null,
     announceTemplate?: string | null,
+    isCercanias?: boolean,
+    category?: string | null,
+    attribute?: string | null,
   ) => {
     const fd = new FormData();
     fd.append("code", code);
@@ -335,6 +354,9 @@ export const api = {
     if (logo) fd.append("logo", logo);
     if (destinationIcon) fd.append("destination_icon", destinationIcon);
     if (announceTemplate !== undefined) fd.append("announce_template", announceTemplate ?? "");
+    if (isCercanias !== undefined) fd.append("is_cercanias", isCercanias ? "1" : "0");
+    if (category !== undefined) fd.append("category", category ?? "");
+    if (attribute !== undefined) fd.append("attribute", attribute ?? "");
     return authFetch(`/train-types/${id}`, { method: "PUT", body: fd }).then((r) => r.json());
   },
   deleteTrainType: (id: number) => json(`/train-types/${id}`, { method: "DELETE" }),

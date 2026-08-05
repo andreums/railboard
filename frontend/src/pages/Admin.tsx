@@ -49,6 +49,8 @@ import {
 } from "../lib/tts";
 import { handleImgError } from "../lib/svgPlaceholder";
 import { buildPlatformOptions, buildSectorOptions } from "../lib/trainOptions";
+import { normalizeStops, type TrainStop } from "../lib/trainStops";
+import StopsEditor from "../components/admin/StopsEditor";
 
 type TabType =
   | "dashboard"
@@ -133,21 +135,22 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
 }> = [
   {
     key: "departure",
-    label: { es: "Salida", ca: "Eixida", en: "Departure", fr: "Départ", eu: "Irteera", gl: "Saída" },
+    label: { es: "Salida", ca: "Eixida", va: "Eixida", en: "Departure", fr: "Départ", eu: "Irteera", gl: "Saída" },
     build: (language) => renderTemplate(defaultTemplate("departures", language), SAMPLE_DEPARTURE, language),
   },
   {
     key: "arrival",
-    label: { es: "Llegada", ca: "Arribada", en: "Arrival", fr: "Arrivée", eu: "Iritsiera", gl: "Chegada" },
+    label: { es: "Llegada", ca: "Arribada", va: "Arribada", en: "Arrival", fr: "Arrivée", eu: "Iritsiera", gl: "Chegada" },
     build: (language) => renderTemplate(defaultTemplate("arrivals", language), SAMPLE_ARRIVAL, language),
   },
   {
     key: "delay",
-    label: { es: "Retraso", ca: "Retard", en: "Delay", fr: "Retard", eu: "Atzerapena", gl: "Retraso" },
+    label: { es: "Retraso", ca: "Retard", va: "Retard", en: "Delay", fr: "Retard", eu: "Atzerapena", gl: "Retraso" },
     build: (language) =>
       ({
         es: "Atención. El tren AVE 123 con destino a Barcelona Sants presenta un retraso de 12 minutos por una incidencia en la infraestructura.",
         ca: "Atenció. El tren AVE 123 amb destinació a Barcelona Sants presenta un retard de 12 minuts per una incidència a la infraestructura.",
+        va: "Atenció. El tren AVE 123 amb destinació a Barcelona Sants presenta un retard de 12 minuts per una incidència en la infraestructura.",
         en: "Attention. Train AVE 123 to Barcelona Sants is running 12 minutes late due to an infrastructure incident.",
         fr: "Attention. Le train AVE 123 à destination de Barcelone-Sants accuse un retard de 12 minutes en raison d’un incident d’infrastructure.",
         eu: "Adi. Barcelona Santsera doan AVE 123 trenak 12 minutuko atzerapena du azpiegiturako gorabehera baten ondorioz.",
@@ -156,11 +159,12 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
   },
   {
     key: "cancelled",
-    label: { es: "Cancelación", ca: "Cancel·lació", en: "Cancellation", fr: "Annulation", eu: "Ezeztapena", gl: "Cancelación" },
+    label: { es: "Cancelación", ca: "Cancel·lació", va: "Cancel·lació", en: "Cancellation", fr: "Annulation", eu: "Ezeztapena", gl: "Cancelación" },
     build: (language) =>
       ({
         es: "Atención. El tren AVE 123 ha sido cancelado por motivos operativos. Rogamos disculpen las molestias.",
         ca: "Atenció. El tren AVE 123 ha estat cancel·lat per motius operatius. Disculpeu les molèsties.",
+        va: "Atenció. El tren AVE 123 ha sigut cancel·lat per motius operatius. Disculpeu les molèsties.",
         en: "Attention. Train AVE 123 has been cancelled for operational reasons. We apologise for the inconvenience.",
         fr: "Attention. Le train AVE 123 a été annulé pour des raisons opérationnelles. Nous vous prions de nous excuser pour la gêne occasionnée.",
         eu: "Adi. AVE 123 trena arrazoi operatiboengatik ezeztatu da. Barkatu eragozpenak.",
@@ -169,11 +173,12 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
   },
   {
     key: "maintenance",
-    label: { es: "Obras", ca: "Obres", en: "Maintenance", fr: "Travaux", eu: "Mantentzea", gl: "Obras" },
+    label: { es: "Obras", ca: "Obres", va: "Obres", en: "Maintenance", fr: "Travaux", eu: "Mantentzea", gl: "Obras" },
     build: (language) =>
       ({
         es: "Atención. Rogamos disculpen las molestias. Se están realizando trabajos de mantenimiento en la infraestructura.",
         ca: "Atenció. Disculpeu les molèsties. S’estan realitzant treballs de manteniment a la infraestructura.",
+        va: "Atenció. Disculpeu les molèsties. S’estan realitzant treballs de manteniment en la infraestructura.",
         en: "Attention. We apologise for the inconvenience. Maintenance work is being carried out on the infrastructure.",
         fr: "Attention. Nous vous prions de nous excuser pour la gêne occasionnée. Des travaux de maintenance sont en cours sur l’infrastructure.",
         eu: "Adi. Barkatu eragozpenak. Azpiegituran mantentze lanak egiten ari dira.",
@@ -185,6 +190,7 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
     label: {
       es: "Cambio de vía",
       ca: "Canvi de via",
+      va: "Canvi de via",
       en: "Platform change",
       fr: "Changement de voie",
       eu: "Nasa aldaketa",
@@ -194,6 +200,7 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
       ({
         es: "Atención. El tren AVE 123 efectuará su salida por la vía 4, sector B. Les rogamos consulten el panel.",
         ca: "Atenció. El tren AVE 123 efectuarà la sortida per la via 4, sector B. Consulteu el panell.",
+        va: "Atenció. El tren AVE 123 efectuarà l’eixida per la via 4, sector B. Consulteu el panell.",
         en: "Attention. Train AVE 123 will depart from platform 4, sector B. Please check the information board.",
         fr: "Attention. Le train AVE 123 partira voie 4, secteur B. Veuillez consulter le panneau.",
         eu: "Adi. AVE 123 trena 4. bidetik, B sektorean, irtengo da. Mesedez, kontsultatu panela.",
@@ -205,6 +212,7 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
     label: {
       es: "Servicio normal",
       ca: "Servei normal",
+      va: "Servei normal",
       en: "Normal service",
       fr: "Service normal",
       eu: "Zerbitzu arrunta",
@@ -214,6 +222,7 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
       ({
         es: "Atención. Servicio habitual. No se registran incidencias en la circulación.",
         ca: "Atenció. Servei habitual. No es registren incidències en la circulació.",
+        va: "Atenció. Servei habitual. No es registren incidències en la circulació.",
         en: "Attention. Normal service is operating. No incidents have been reported.",
         fr: "Attention. Service normal en cours. Aucun incident n’a été signalé.",
         eu: "Adi. Zerbitzu arrunta martxan dago. Ez da gorabeherarik jakinarazi.",
@@ -222,11 +231,12 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
   },
   {
     key: "welcome",
-    label: { es: "Bienvenida", ca: "Benvinguda", en: "Welcome", fr: "Bienvenue", eu: "Ongi etorri", gl: "Benvida" },
+    label: { es: "Bienvenida", ca: "Benvinguda", va: "Benvinguda", en: "Welcome", fr: "Bienvenue", eu: "Ongi etorri", gl: "Benvida" },
     build: (language) =>
       ({
         es: "Bienvenidos a la estación. Mantengan su billete a mano y no crucen las vías.",
         ca: "Benvinguts a l’estació. Mantingueu el vostre bitllet a mà i no creueu les vies.",
+        va: "Benvinguts a l’estació. Mantingueu el vostre bitllet a mà i no creueu les vies.",
         en: "Welcome to the station. Please keep your ticket handy and do not cross the tracks.",
         fr: "Bienvenue en gare. Gardez votre billet à portée de main et ne traversez pas les voies.",
         eu: "Ongi etorri geltokira. Gorde txartela eskura eta ez gurutzatu bideak.",
@@ -235,11 +245,12 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
   },
   {
     key: "closing",
-    label: { es: "Cierre", ca: "Tancament", en: "Closing", fr: "Fermeture", eu: "Itxiera", gl: "Peche" },
+    label: { es: "Cierre", ca: "Tancament", va: "Tancament", en: "Closing", fr: "Fermeture", eu: "Itxiera", gl: "Peche" },
     build: (language) =>
       ({
         es: "Atención. La estación va a cerrar en breve. Asegúrense de recoger todas sus pertenencias.",
         ca: "Atenció. L’estació tancarà en breu. Assegureu-vos de recollir totes les vostres pertinences.",
+        va: "Atenció. L’estació tancarà en breu. Assegureu-vos de recollir totes les vostres pertinences.",
         en: "Attention. The station will close shortly. Please make sure you have all your belongings.",
         fr: "Attention. La gare va fermer prochainement. Veuillez vérifier que vous avez bien toutes vos affaires.",
         eu: "Adi. Geltokia laster itxiko da. Ziurtatu zure gauza guztiak jasotzen dituzula.",
@@ -248,11 +259,12 @@ const ANNOUNCEMENT_SCENARIOS: Array<{
   },
   {
     key: "information",
-    label: { es: "Información", ca: "Informació", en: "Information", fr: "Information", eu: "Informazioa", gl: "Información" },
+    label: { es: "Información", ca: "Informació", va: "Informació", en: "Information", fr: "Information", eu: "Informazioa", gl: "Información" },
     build: (language) =>
       ({
         es: "Atención. Para información adicional, consulten los paneles de salida o al personal de estación.",
         ca: "Atenció. Per a informació addicional, consulteu els panells de sortida o el personal de l’estació.",
+        va: "Atenció. Per a informació addicional, consulteu els panells d’eixida o el personal de l’estació.",
         en: "Attention. For further information, please check the departure boards or ask station staff.",
         fr: "Attention. Pour toute information complémentaire, veuillez consulter les panneaux de départ ou le personnel en gare.",
         eu: "Adi. Informazio gehiago nahi izanez gero, kontsultatu irteera panelak edo geltokiko langileak.",
@@ -491,10 +503,14 @@ export default function Admin() {
   const [trains, setTrains] = useState<Train[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [trainTypes, setTrainTypes] = useState<TrainType[]>([]);
+  const [typeSearch, setTypeSearch] = useState("");
+  const [typeCercaniasFilter, setTypeCercaniasFilter] = useState("all");
+  const [typeCategoryFilter, setTypeCategoryFilter] = useState("all");
+  const [typeAttributeFilter, setTypeAttributeFilter] = useState("");
   const [modal, setModal] = useState<Notification | null>(null);
   const [editingTrain, setEditingTrain] = useState<Train | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Train>>({});
-  const [editStopsText, setEditStopsText] = useState("");
+  const [editStops, setEditStops] = useState<TrainStop[]>([]);
   const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
   const [editingType, setEditingType] = useState<TrainType | null>(null);
   const [operatorLogo, setOperatorLogo] = useState<File | null>(null);
@@ -852,22 +868,19 @@ export default function Admin() {
       station_id: selectedTrainStationId,
     });
     setEditingTrain({ id: 0 } as Train);
-    setEditStopsText("");
+    setEditStops([]);
   };
 
   const handleEditTrain = (train: Train) => {
     setEditingTrain(train);
     setEditFormData({ ...train });
-    setEditStopsText((train.stops || []).join("\n"));
+    setEditStops(normalizeStops(train.stops));
   };
 
   const handleSaveEditedTrain = async () => {
     if (!editingTrain) return;
     try {
-      const stops = editStopsText
-        .split(/[\r\n;]+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      const stops = normalizeStops(editStops);
       const payload = { ...editFormData, stops, station_id: selectedTrainStationId ?? editFormData.station_id ?? null };
       if (editingTrain.id && editingTrain.id > 0) {
         await api.updateTrain(editingTrain.id, payload);
@@ -878,7 +891,7 @@ export default function Admin() {
       }
       await refresh();
       setEditingTrain(null);
-      setEditStopsText("");
+      setEditStops([]);
     } catch (err: any) {
       showNotification("error", "✗ Error", err.message || "No se pudo guardar el tren");
     }
@@ -1074,6 +1087,18 @@ export default function Admin() {
     return regionOk && serviceOk && operatorOk;
   });
   const validationSummary = useMemo(() => computeRouteValidation(routes, stations, displays), [routes, stations, displays]);
+  const filteredTrainTypes = useMemo(() => {
+    const q = typeSearch.trim().toLowerCase();
+    return trainTypes.filter((tt) => {
+      if (typeCercaniasFilter === "yes" && !tt.is_cercanias) return false;
+      if (typeCercaniasFilter === "no" && tt.is_cercanias) return false;
+      if (typeCategoryFilter !== "all" && (tt.category || "").toLowerCase() !== typeCategoryFilter.toLowerCase()) return false;
+      const attr = typeAttributeFilter.trim().toLowerCase();
+      if (attr && !(tt.attribute || "").toLowerCase().includes(attr)) return false;
+      if (q && ![tt.code, tt.name, tt.category, tt.attribute].filter(Boolean).some((v) => String(v).toLowerCase().includes(q))) return false;
+      return true;
+    });
+  }, [trainTypes, typeSearch, typeCercaniasFilter, typeCategoryFilter, typeAttributeFilter]);
   const dashboardKpis = [
     { label: "Rutas", value: routes.length, icon: RouteIcon },
     { label: "Estaciones", value: stations.length, icon: MapPin },
@@ -2398,19 +2423,66 @@ export default function Admin() {
                     <span>🏷️</span> Tipos de Tren ({trainTypes.length})
                   </h2>
 
+                  <div className="mb-5 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <input
+                      type="text"
+                      value={typeSearch}
+                      onChange={(e) => setTypeSearch(e.target.value)}
+                      placeholder="🔍 Buscar por código, nombre, categoría o atributo..."
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    />
+                    <select
+                      value={typeCercaniasFilter}
+                      onChange={(e) => setTypeCercaniasFilter(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    >
+                      <option value="all">Cercanías: Todas</option>
+                      <option value="yes">✔ Solo cercanías</option>
+                      <option value="no">✖ Excluir cercanías</option>
+                    </select>
+                    <select
+                      value={typeCategoryFilter}
+                      onChange={(e) => setTypeCategoryFilter(e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    >
+                      <option value="all">Categoría: Todas</option>
+                      {[...new Set(trainTypes.map((tt) => tt.category).filter((c): c is string => Boolean(c)))].sort().map((cat) => (
+                        <option key={cat} value={cat}>
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      value={typeAttributeFilter}
+                      onChange={(e) => setTypeAttributeFilter(e.target.value)}
+                      placeholder="Filtrar por atributo..."
+                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    />
+                  </div>
+
                   {trainTypes.length === 0 ? (
                     <div className="text-center py-8">
                       <p className="text-slate-500">No hay tipos de tren definidos.</p>
                     </div>
+                  ) : filteredTrainTypes.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-slate-500">Ningún tipo coincide con los filtros.</p>
+                    </div>
                   ) : (
                     <div className="space-y-3 mb-6">
-                      {trainTypes.map((tt) => (
+                      {filteredTrainTypes.map((tt) => (
                         <div key={tt.id} className="border border-slate-200 rounded-lg p-4 flex items-center justify-between bg-white">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: tt.color }}></div>
                             <div>
                               <span className="text-slate-900 font-bold font-mono">{tt.code}</span>
                               <span className="text-slate-500 text-sm ml-2">{tt.name}</span>
+                              {tt.is_cercanias && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                                  Cercanías
+                                </span>
+                              )}
                             </div>
                             {tt.logo_url && (
                               <img
@@ -2419,6 +2491,13 @@ export default function Admin() {
                                 className="w-6 h-6 object-contain"
                                 onError={(e) => handleImgError(e, tt.name)}
                               />
+                            )}
+                            {(tt.category || tt.attribute) && (
+                              <span className="text-xs text-slate-400 ml-2">
+                                {tt.category && <span className="font-semibold text-slate-500">{tt.category}</span>}
+                                {tt.category && tt.attribute && " · "}
+                                {tt.attribute && <span>{tt.attribute}</span>}
+                              </span>
                             )}
                           </div>
                           <div className="flex gap-2">
@@ -2476,6 +2555,40 @@ export default function Admin() {
                         className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 focus:outline-none"
                       />
                     </div>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Categoría</label>
+                        <select
+                          id="newTypeCategory"
+                          defaultValue=""
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                        >
+                          <option value="">— Sin categoría —</option>
+                          {["Alta Velocidad", "Media Distancia", "Regional", "Cercanías", "Internacional", "Larga Distancia"].map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Atributo</label>
+                        <input
+                          type="text"
+                          id="newTypeAttribute"
+                          placeholder="Atributo libre (ej: Rodalies de Catalunya)"
+                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    <label className="flex items-center gap-2 mb-3 text-sm text-slate-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        id="newTypeIsCercanias"
+                        className="w-4 h-4 rounded border-slate-300 text-blue-900 focus:ring-blue-900"
+                      />
+                      Es cercanías
+                    </label>
                     <div>
                       <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Icono para Destino</label>
                       <input
@@ -2492,13 +2605,19 @@ export default function Admin() {
                         const color = (document.getElementById("newTypeColor") as HTMLInputElement)?.value;
                         const logoFile = (document.getElementById("newTypeLogo") as HTMLInputElement)?.files?.[0];
                         const iconFile = (document.getElementById("newTypeDestinationIcon") as HTMLInputElement)?.files?.[0];
+                        const category = (document.getElementById("newTypeCategory") as HTMLSelectElement)?.value || null;
+                        const attribute = (document.getElementById("newTypeAttribute") as HTMLInputElement)?.value || null;
+                        const isCercanias = (document.getElementById("newTypeIsCercanias") as HTMLInputElement)?.checked;
                         if (code && name) {
-                          await api.createTrainType(code, name, color, logoFile || null, iconFile || null);
+                          await api.createTrainType(code, name, color, logoFile || null, iconFile || null, isCercanias, category, attribute);
                           (document.getElementById("newTypeCode") as HTMLInputElement).value = "";
                           (document.getElementById("newTypeName") as HTMLInputElement).value = "";
                           (document.getElementById("newTypeColor") as HTMLInputElement).value = "#3E8DCA";
                           (document.getElementById("newTypeLogo") as HTMLInputElement).value = "";
                           (document.getElementById("newTypeDestinationIcon") as HTMLInputElement).value = "";
+                          (document.getElementById("newTypeCategory") as HTMLSelectElement).value = "";
+                          (document.getElementById("newTypeAttribute") as HTMLInputElement).value = "";
+                          (document.getElementById("newTypeIsCercanias") as HTMLInputElement).checked = false;
                           await refresh();
                           showNotification("success", "✓ Tipo creado", "");
                         }
@@ -3262,13 +3381,7 @@ export default function Admin() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Paradas intermedias</label>
-                  <textarea
-                    rows={4}
-                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none resize-y"
-                    placeholder="Una parada por línea. Usa ';' para separar en la misma línea."
-                    value={editStopsText}
-                    onChange={(e) => setEditStopsText(e.target.value)}
-                  />
+                  <StopsEditor stops={editStops} onChange={setEditStops} variant="light" />
                 </div>
 
                 {/* Stopping pattern */}
@@ -3473,6 +3586,40 @@ export default function Admin() {
                     onChange={(e) => setTypeDestinationIcon(e.target.files?.[0] || null)}
                   />
                 </div>
+                <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded border-slate-300 text-blue-900 focus:ring-blue-900"
+                    checked={!!editingType.is_cercanias}
+                    onChange={(e) => setEditingType({ ...editingType, is_cercanias: e.target.checked ? 1 : 0 })}
+                  />
+                  Es cercanías
+                </label>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Categoría</label>
+                  <select
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    value={editingType.category || ""}
+                    onChange={(e) => setEditingType({ ...editingType, category: e.target.value })}
+                  >
+                    <option value="">— Sin categoría —</option>
+                    {["Alta Velocidad", "Media Distancia", "Regional", "Cercanías", "Internacional", "Larga Distancia"].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Atributo</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-900 focus:outline-none"
+                    placeholder="Atributo libre (ej: Rodalies de Catalunya)"
+                    value={editingType.attribute || ""}
+                    onChange={(e) => setEditingType({ ...editingType, attribute: e.target.value })}
+                  />
+                </div>
                 <div className="flex gap-3 pt-4 border-t border-slate-200">
                   <button
                     onClick={async () => {
@@ -3483,6 +3630,10 @@ export default function Admin() {
                         editingType.color,
                         typeLogo || undefined,
                         typeDestinationIcon || undefined,
+                        editingType.announce_template || null,
+                        !!editingType.is_cercanias,
+                        editingType.category || null,
+                        editingType.attribute || null,
                       );
                       setEditingType(null);
                       setTypeLogo(null);

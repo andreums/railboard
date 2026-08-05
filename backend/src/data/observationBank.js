@@ -1,6 +1,6 @@
 import { randomItem } from "../lib/random.js";
 
-export const SUPPORTED_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+export const SUPPORTED_LANGUAGES = new Set(["es", "ca", "va", "en", "fr", "eu", "gl"]);
 
 const OBSERVATION_BANK = {
   es: {
@@ -441,6 +441,9 @@ const OBSERVATION_BANK = {
     ],
   },
 };
+
+// Valencià comparteix pràcticament tot el lèxic amb el català per a estos textos.
+OBSERVATION_BANK.va = OBSERVATION_BANK.ca;
 
 export const normalizeLanguage = (value) => {
   const lang = String(value || "")

@@ -1,4 +1,5 @@
 import { API_URL } from "./api";
+import { stopsToNames, type TrainStop } from "./trainStops";
 
 export type AnnouncePreset = {
   id: string;
@@ -16,7 +17,7 @@ type Trainish = {
   platform?: string | null;
   sector?: string | null;
   status?: string | null;
-  stops?: string[] | null;
+  stops?: (string | TrainStop)[] | null;
   type_pre_announce?: string | null;
   type_announce_template?: string | null;
   operator_pre_announce?: string | null;
@@ -26,6 +27,7 @@ type Trainish = {
 const LANG_TO_BCP47: Record<string, string> = {
   es: "es-ES",
   ca: "ca-ES",
+  va: "ca-ES-valencia",
   en: "en-US",
   fr: "fr-FR",
   eu: "eu-ES",
@@ -70,6 +72,12 @@ const DEFAULT_TEMPLATES: Record<string, AnnouncementTemplates> = {
     arrivals:
       "Atenció. Tren {type_name}{number_text} procedent de {origin}, efectuarà la seva arribada per la via {platform}{sector_text}.",
   },
+  va: {
+    departures:
+      "Atenció. Tren {type_name}{number_text} amb destinació a {destination}, efectuarà la seua eixida per la via {platform}{sector_text}.",
+    arrivals:
+      "Atenció. Tren {type_name}{number_text} procedent de {origin}, efectuarà la seua arribada per la via {platform}{sector_text}.",
+  },
   en: {
     departures: "Attention. Train {type_name}{number_text} to {destination}, will depart from platform {platform}{sector_text}.",
     arrivals: "Attention. Train {type_name}{number_text} from {origin}, will arrive at platform {platform}{sector_text}.",
@@ -104,11 +112,12 @@ const DEFAULT_PRESETS: AnnouncePreset[] = [
   },
 ];
 
-const SUPPORTED_LANGUAGES = new Set(["es", "ca", "en", "fr", "eu", "gl"]);
+const SUPPORTED_LANGUAGES = new Set(["es", "ca", "va", "en", "fr", "eu", "gl"]);
 
 const SECTOR_TEXT_FORMATS: Record<string, string> = {
   es: ", sector {sector}",
   ca: ", sector {sector}",
+  va: ", sector {sector}",
   en: ", sector {sector}",
   fr: ", secteur {sector}",
   eu: ", {sector} sektorean",
@@ -193,7 +202,7 @@ export function renderTemplate(template: string, train: Trainish, language?: str
     sector: sectorValue,
     sector_text: sectorText,
     status: train.status || "",
-    stops: train.stops?.join(", ") || "",
+    stops: stopsToNames(train.stops).join(", "),
   };
   return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] || "");
 }

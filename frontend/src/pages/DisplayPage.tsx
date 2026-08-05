@@ -3,6 +3,7 @@ import { api, fileUrl, connectWS, type DisplayScreen } from "../lib/api";
 import { useParams, Navigate } from "react-router-dom";
 import { useAlternating } from "../lib/useAlternating";
 import { t, type Language } from "../lib/i18n";
+import { normalizeStops } from "../lib/trainStops";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
 
 type BoardProps = { screen: DisplayScreen; rows: any[]; lang: Language; clock: Date };
@@ -26,6 +27,26 @@ function formatDisplayTime(time: string) {
   if (!time) return "--:--";
   return time.length >= 5 ? time.slice(0, 5) : time;
 }
+
+function minutesSinceMidnight(hhmm?: string | null) {
+  if (!hhmm) return null;
+  const [h, m] = hhmm.split(":").map(Number);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+// Fraction of the journey elapsed, from departure to the last known stop time.
+function computeJourneyProgress(startTime: string | undefined, endTime: string | undefined | null, clock: Date) {
+  const start = minutesSinceMidnight(startTime);
+  const end = minutesSinceMidnight(endTime);
+  if (start == null || end == null) return null;
+  const endAdj = end <= start ? end + 24 * 60 : end;
+  const nowRaw = clock.getHours() * 60 + clock.getMinutes() + clock.getSeconds() / 60;
+  const nowAdj = nowRaw < start - 5 ? nowRaw + 24 * 60 : nowRaw;
+  return Math.max(0, Math.min(1, (nowAdj - start) / (endAdj - start)));
+}
+
+const PROGRESS_SEGMENTS = 18;
 
 const fullStatusText = (status: string | undefined, lang: Language) => {
   switch (status) {
@@ -183,101 +204,104 @@ export default function DisplayPage() {
   );
 }
 
-function TopBar({ screen, now, title }: { screen: DisplayScreen; now: string; title?: string }) {
-  return (
-    <div className="flex items-center justify-between mb-4 md:mb-8">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl md:text-3xl font-bold text-slate-300 tabular-nums">{now}</span>
-        {screen.station_name && (
-          <span className="text-lg md:text-xl text-slate-400">{screen.station_name}</span>
-        )}
-      </div>
-      <div className="text-right">
-        <div className="text-lg md:text-xl text-slate-400">{title ?? screen.name}</div>
-      </div>
-    </div>
-  );
-}
-
-function TrainHero({ screen, rows, lang, clock }: BoardProps) {
-  const now = `${String(clock.getHours()).padStart(2, "0")}:${String(clock.getMinutes()).padStart(2, "0")}`;
+function TrainHero({ rows, lang, clock }: BoardProps) {
   const train = rows[0];
-  const upcoming = rows.slice(1, 4);
+  const stops = train ? normalizeStops(train.stops) : [];
+  const delayed = train ? isDelayed(train) : false;
+  const cancelled = train?.status === "Cancelled";
+  const headerTime = train ? train.expected_time || train.scheduled_time : "";
+  const journeyEndTime = stops.length > 0 ? stops[stops.length - 1].time : null;
+  const progress = train ? computeJourneyProgress(train.scheduled_time, journeyEndTime, clock) : null;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-white p-4 md:p-8 flex flex-col">
-      <TopBar screen={screen} now={now} />
+    <div className="min-h-screen flex flex-col text-white" style={{ backgroundColor: "#0a1642" }}>
       {train ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center">
-          <div className="flex items-center gap-3 md:gap-6 mb-4">
-            {train.type_logo && (
-              <img src={fileUrl(train.type_logo) || ""} alt="" className="h-8 md:h-12 opacity-80" onError={onImgError} />
-            )}
-            {train.operator_logo && (
-              <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-6 md:h-10 opacity-60" onError={onImgError} />
-            )}
-            <div className="flex flex-col items-center leading-tight">
-              <span className="text-lg md:text-2xl font-bold text-slate-400">{train.number || ""}</span>
-              {train.number2 && <span className="text-sm md:text-base font-bold text-slate-500">{train.number2}</span>}
+        <>
+          <div className="flex items-start justify-between gap-4 md:gap-8 p-5 md:p-10 pb-4 md:pb-6">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-3 mb-1 md:mb-2">
+                <span className={`text-2xl md:text-5xl font-bold tabular-nums ${delayed ? "text-amber-400" : "text-slate-300"}`}>
+                  {formatDisplayTime(headerTime)}
+                </span>
+                {delayed && (
+                  <span className="text-base md:text-2xl text-slate-500 line-through tabular-nums">
+                    {formatDisplayTime(train.scheduled_time)}
+                  </span>
+                )}
+                {cancelled && (
+                  <span className="text-base md:text-xl font-bold text-red-400 uppercase tracking-wide">{t("cancelled", lang)}</span>
+                )}
+              </div>
+              <AltValue
+                primary={train.destination}
+                secondary={train.destination2}
+                className={`text-4xl md:text-7xl font-bold text-white leading-tight block truncate ${cancelled ? "opacity-50" : ""}`}
+              />
+            </div>
+
+            <div className="flex items-center gap-3 md:gap-6 shrink-0">
+              {(train.type_logo || train.operator_logo) && (
+                <div className="flex flex-col items-center gap-1 md:gap-2">
+                  {train.type_logo && (
+                    <img src={fileUrl(train.type_logo) || ""} alt="" className="h-6 md:h-10 object-contain" onError={onImgError} />
+                  )}
+                  {train.operator_logo && (
+                    <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-5 md:h-8 object-contain opacity-80" onError={onImgError} />
+                  )}
+                </div>
+              )}
+              <div className="text-lg md:text-2xl font-mono text-slate-400 tabular-nums text-right">
+                {train.number}
+                {train.number2 && <div className="text-xs md:text-base text-slate-500">{train.number2}</div>}
+              </div>
+              {train.platform && train.platform !== "-" && (
+                <div className="border-l-4 border-emerald-300 pl-3 md:pl-5">
+                  <div className="text-5xl md:text-8xl font-bold leading-none tabular-nums">{train.platform}</div>
+                  {train.sector && train.sector !== "-" && (
+                    <div className="text-sm md:text-lg text-slate-400 mt-1">{train.sector}</div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="text-5xl md:text-8xl font-bold text-white mb-2 tabular-nums tracking-tight">
-            {formatDisplayTime(train.scheduled_time)}
+          <div className="flex-1 overflow-y-auto px-5 md:px-10">
+            {stops.length > 0 && (
+              <div className="relative">
+                <div className="absolute left-[7px] md:left-[9px] top-3 bottom-3 w-0.5 bg-white/25" />
+                {stops.map((stop, i) => (
+                  <div key={i} className="relative flex items-center gap-4 md:gap-6 py-2.5 md:py-4">
+                    <div className="w-16 md:w-24 shrink-0 text-right text-lg md:text-3xl font-bold tabular-nums text-white">
+                      {stop.time || ""}
+                    </div>
+                    <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-white shrink-0 z-10" />
+                    <div className="text-lg md:text-3xl font-semibold text-white truncate">{stop.station}</div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {isDelayed(train) && train.expected_time && (
-            <div className="text-xl md:text-3xl text-red-400 mb-4">
-              {t("new-time", lang)} {formatDisplayTime(train.expected_time)}
-            </div>
-          )}
-
-          <AltValue primary={train.destination} secondary={train.destination2} className="text-3xl md:text-6xl font-bold text-yellow-300 mb-4 md:mb-6" containerClass="mb-4 md:mb-6" />
-
-          {train.platform && (
-            <div className="flex items-center gap-4 md:gap-6 text-2xl md:text-4xl font-bold mb-4">
-              <span className="text-blue-300">{platText(train, lang)}</span>
-              {train.sector && <span className="text-slate-400">· {train.sector}</span>}
-            </div>
-          )}
-
-          <StatusBadge status={train.status} lang={lang} variant="lg" delayMinutes={train.delay_minutes} />
-
-          {train.stops && train.stops.length > 0 && (
-            <div className="mt-6 md:mt-8 text-sm md:text-base text-slate-400 max-w-lg">
-              <div className="font-semibold text-slate-300 mb-1">{t("stops-label", lang)}</div>
-              <div className="flex flex-wrap justify-center gap-x-3 gap-y-1">
-                {(typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean) : train.stops).map((stop: string, i: number) => (
-                  <span key={i} className="text-slate-400">{stop}{i < (typeof train.stops === "string" ? train.stops.split(/[·|;/\n]+/g).map((s: string) => s.trim()).filter(Boolean).length : train.stops).length - 1 ? " ·" : ""}</span>
+          {progress != null && (
+            <div className="px-5 md:px-10 pb-6 md:pb-10 pt-4">
+              <div className="flex gap-1 md:gap-1.5">
+                {Array.from({ length: PROGRESS_SEGMENTS }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`h-3 md:h-4 flex-1 rounded-full ${i / PROGRESS_SEGMENTS < progress ? "bg-emerald-300" : "bg-white/10"}`}
+                  />
                 ))}
               </div>
             </div>
           )}
 
           {train.observations && (
-            <div className="mt-4 text-sm md:text-base text-yellow-400">{train.observations}</div>
+            <div className="px-5 md:px-10 pb-6 text-sm md:text-base text-amber-300">{train.observations}</div>
           )}
-        </div>
+        </>
       ) : (
         <div className="flex-1 flex items-center justify-center text-2xl md:text-4xl text-slate-600">
           {t("no-train-info", lang)}
-        </div>
-      )}
-
-      {upcoming.length > 0 && (
-        <div className="mt-auto pt-4 border-t border-slate-700">
-          <div className="text-xs md:text-sm text-slate-400 mb-2">{t("upcoming-trains", lang)}</div>
-          <div className="space-y-1">
-            {upcoming.map((row: any, i: number) => (
-              <div key={i} className="flex items-center justify-between text-xs md:text-sm">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-mono tabular-nums text-slate-300">{formatDisplayTime(row.scheduled_time)}</span>
-                  <AltValue primary={row.destination || ""} secondary={row.destination2} className="text-slate-400 truncate" />
-                </div>
-                <span className="text-slate-500">{platText(row, lang)}</span>
-              </div>
-            ))}
-          </div>
         </div>
       )}
     </div>

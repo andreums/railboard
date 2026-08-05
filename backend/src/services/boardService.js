@@ -1,4 +1,5 @@
 import { stations, listTrains, getStationDisplayConfig, services, serviceStops, operators, trainTypes, places } from "../db.js";
+import { stopsToText } from "../utils/stops.js";
 
 export function buildStationBoard(stationId, mode = "departures") {
   const station = stations.list().find((s) => s.id === Number(stationId));
@@ -58,7 +59,7 @@ export function buildStationBoard(stationId, mode = "departures") {
     destination: train.destination || "—",
     destination2: train.destination2 || null,
     origin: train.origin || "—",
-    stopsText: train.stops && train.stops.length > 0 ? train.stops.join(" · ") : "",
+    stopsText: stopsToText(train.stops),
     time: train.scheduled_time || "—",
     expectedTime: train.expected_time || train.scheduled_time || "—",
     delayMinutes: 0,
