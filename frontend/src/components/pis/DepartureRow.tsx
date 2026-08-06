@@ -81,7 +81,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
 ) {
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
-  const place2 = mode === "departures" ? train.destination2 : null;
+  const place2 = train.destination2 || null;
   const num2 = train.number2 || null;
   const hasAlt = !!(place2 || num2);
   const showAlt = useAlternating(hasAlt);
@@ -118,7 +118,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
         height: "clamp(100px, 12.4vh, 150px)",
         backgroundColor: index % 2 === 0 ? "#1A3355" : "#0F2441",
         display: "grid",
-        gridTemplateColumns: "12% 59% 12% 9% 8%",
+        gridTemplateColumns: "10% 61% 12% 9% 8%",
         gridTemplateRows: "55% 45%",
         boxSizing: "border-box",
         paddingTop: "clamp(4px, 0.5vh, 10px)",
@@ -143,7 +143,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
           style={{
             fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",
             fontWeight: 700,
-            fontSize: "clamp(28px, 3vw, 65px)",
+            fontSize: "clamp(22px, 2.2vw, 48px)",
             fontVariantNumeric: "tabular-nums",
             lineHeight: 1,
             whiteSpace: "nowrap",

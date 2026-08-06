@@ -540,7 +540,7 @@ function PlatformDisplay(props: BoardProps) {
 
 function TrainInfoDisplay({ screen, rows, lang, clock }: BoardProps) {
   const train = selectTrainInfoTrain(rows, screen, clock);
-  return <TrainJourneyDisplay train={train} lang={lang} clock={clock} />;
+  return <TrainJourneyDisplay train={train} lang={lang} clock={clock} orientation={screen.orientation} />;
 }
 
 function ClockDisplay({ screen, clock }: BoardProps) {

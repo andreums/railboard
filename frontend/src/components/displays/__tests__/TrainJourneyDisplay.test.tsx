@@ -73,6 +73,18 @@ describe("TrainJourneyDisplay", () => {
     expect(screen.getByText("Cercanías")).toBeInTheDocument();
   });
 
+  it("shows a single-line station ticker without per-stop times in landscape (the default)", () => {
+    render(<TrainJourneyDisplay train={baseTrain} lang="es" clock={clock} />);
+    expect(screen.getByText("Cuenca")).toBeInTheDocument();
+    expect(screen.queryByText("12:55")).not.toBeInTheDocument();
+  });
+
+  it("shows the vertical stop list with per-stop times in portrait", () => {
+    render(<TrainJourneyDisplay train={baseTrain} lang="es" clock={clock} orientation="PORTRAIT" />);
+    expect(screen.getByText("Cuenca")).toBeInTheDocument();
+    expect(screen.getByText("12:55")).toBeInTheDocument();
+  });
+
   it("cleans up its pagination interval on unmount without leaking timers", () => {
     vi.useFakeTimers();
     const manyStops = Array.from({ length: 9 }, (_, i) => ({ station: `Station ${i}`, time: "12:00" }));

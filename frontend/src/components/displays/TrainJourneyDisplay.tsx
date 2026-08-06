@@ -12,7 +12,7 @@ import LineBadge from "../pis/LineBadge";
 
 export type JourneyTrain = TrainInfoRow;
 
-type JourneyProps = { train?: JourneyTrain; lang: Language; clock: Date };
+type JourneyProps = { train?: JourneyTrain; lang: Language; clock: Date; orientation?: "LANDSCAPE" | "PORTRAIT" };
 
 const PAGE_DWELL_MS = 9000;
 const VISIBLE_ROWS = 4;
@@ -33,6 +33,10 @@ if (typeof document !== "undefined" && !document.getElementById(MARQUEE_STYLE_ID
     @keyframes train-journey-vscroll {
       0%, 6% { transform: translateY(0); }
       94%, 100% { transform: translateY(var(--vscroll-distance)); }
+    }
+    @keyframes train-journey-hscroll {
+      0%, 6% { transform: translateX(0); }
+      94%, 100% { transform: translateX(var(--hscroll-distance)); }
     }
   `;
   document.head.appendChild(style);
@@ -300,7 +304,59 @@ const JourneyScroll = memo(function JourneyScroll({ stops, finalStop }: { stops:
   );
 });
 
-export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps) {
+// LANDSCAPE presentation: a single-line horizontal ticker of station names
+// separated by "·" (no per-stop times — matches real wide platform-sign
+// boards), auto-scrolling left to reveal the full itinerary when it doesn't
+// fit, ending on the final destination. Pauses at both ends, same
+// hold-scroll-hold-reset rhythm as JourneyScroll's vertical version.
+const JourneyStationsHorizontal = memo(function JourneyStationsHorizontal({ stops, finalStop }: { stops: TrainStop[]; finalStop?: TrainStop }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [distance, setDistance] = useState(0);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+    const measure = () => setDistance(Math.max(0, Math.ceil(content.scrollWidth - container.clientWidth)));
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [stops]);
+
+  const scrolling = distance > 0;
+  const duration = Math.max(10, distance / MARQUEE_PX_PER_SECOND + 6);
+
+  return (
+    <div ref={containerRef} style={{ height: "100%", overflow: "hidden", display: "flex", alignItems: "center" }}>
+      <div
+        ref={contentRef}
+        style={{
+          display: "flex",
+          alignItems: "baseline",
+          whiteSpace: "nowrap",
+          animation: scrolling ? `train-journey-hscroll ${duration}s ease-in-out infinite` : undefined,
+          ["--hscroll-distance" as string]: `-${distance}px`,
+        }}
+      >
+        {stops.map((stop, index) => {
+          const isTrueEnd = finalStop != null && stop === finalStop;
+          return (
+            <span key={`${stop.station}-${index}`} style={{ display: "inline-flex", alignItems: "baseline" }}>
+              {index > 0 && <span style={{ margin: "0 clamp(18px, 1.6vw, 32px)", opacity: 0.5, fontSize: "clamp(36px, 3.4vw, 64px)" }}>·</span>}
+              <span style={{ fontSize: "clamp(38px, 3.6vw, 70px)", fontWeight: isTrueEnd ? 600 : 400 }}>{stop.station}</span>
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+export default function TrainJourneyDisplay({ train, lang, clock, orientation }: JourneyProps) {
   const reducedMotion = usePrefersReducedMotion();
 
   const stops = useMemo(() => normalizeStops(train?.stops), [train?.stops]);
@@ -342,6 +398,9 @@ export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps
   }
 
   const cancelled = normalizedStatus === "cancelled";
+  // Default to landscape (matches the admin panel's default for new
+  // screens) when a screen predates the orientation field.
+  const landscape = orientation !== "PORTRAIT";
   // Render-time clamp: if the journey just changed and effects haven't
   // committed yet, never index into a shorter `pages` array than the
   // previous train had.
@@ -386,6 +445,8 @@ export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps
           <div style={{ height: "100%", display: "grid", placeItems: "center", fontSize: "clamp(32px, 4vw, 72px)", opacity: 0.7 }}>{train.destination || "--"}</div>
         ) : reducedMotion ? (
           <JourneyRows stops={pages[safePageIndex] || []} finalStop={finalStop} />
+        ) : landscape ? (
+          <JourneyStationsHorizontal stops={stops} finalStop={finalStop} />
         ) : (
           <JourneyScroll stops={stops} finalStop={finalStop} />
         )}
