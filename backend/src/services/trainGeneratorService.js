@@ -9,6 +9,13 @@ import { pickObservation, pickDisplayLanguage } from "../data/observationBank.js
 const COMMUTER_CODE_RE = /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d|^(R\d+[A-Z]?|R2N)$/i;
 const isCommuterCode = (code) => COMMUTER_CODE_RE.test(code || "");
 
+// Rodalies de Catalunya runs its own commuter network (Cercanías branding does
+// not apply there), so Catalan R-lines must not receive the CERCANIAS.png logo.
+const isCatalanRodalies = (route) => {
+  const haystack = `${route?.network || ""} ${route?.name || ""}`.toLowerCase();
+  return haystack.includes("rodalies") || haystack.includes("catalunya");
+};
+
 export function ensureLearnedRailData() {
   const railRoutes = getAllRoutes();
   const baseOperators = ["Renfe", "Iryo", "Ouigo", "SNCF"];
@@ -27,14 +34,23 @@ export function ensureLearnedRailData() {
         code: route.code,
         name: route.name,
         color: route.color,
-        logo_url: isCommuterCode(route.code) ? "/uploads/CERCANIAS.png" : undefined,
+        logo_url: isCommuterCode(route.code) && !isCatalanRodalies(route) ? "/uploads/CERCANIAS.png" : undefined,
       });
     }
   }
 
-  // Set Cercanías logo on existing types that lack it
+  // Set Cercanías logo on existing types that lack it, and remove it from any
+  // Catalan Rodalies type that wrongly has it.
   const allTypes = trainTypes.list();
+  const routeByCode = new Map(railRoutes.map((route) => [route.code, route]));
   for (const tt of allTypes) {
+    const route = routeByCode.get(tt.code);
+    if (isCatalanRodalies(route)) {
+      if (tt.logo_url === "/uploads/CERCANIAS.png") {
+        trainTypes.update(tt.id, { logo_url: null });
+      }
+      continue;
+    }
     if (!tt.logo_url && isCommuterCode(tt.code)) {
       trainTypes.update(tt.id, { logo_url: "/uploads/CERCANIAS.png" });
     }

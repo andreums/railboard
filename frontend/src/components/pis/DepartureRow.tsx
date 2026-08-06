@@ -82,8 +82,10 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
   const isCancelled = train.status === "Cancelled";
   const place = mode === "departures" ? train.destination : train.origin;
   const place2 = mode === "departures" ? train.destination2 : null;
-  const showPlace2 = useAlternating(!!place2);
-  const displayPlace = place2 && showPlace2 ? place2 : place;
+  const num2 = train.number2 || null;
+  const hasAlt = !!(place2 || num2);
+  const showAlt = useAlternating(hasAlt);
+  const displayPlace = showAlt && place2 ? place2 : place;
 
   const platform = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : "";
   const sector = train.sector && train.sector !== "-" ? train.sector : "";
@@ -96,6 +98,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
     : "";
 
   const padNum = train.number ? String(train.number).padStart(5, "0") : "00000";
+  const displayNum = showAlt && num2 ? String(num2).padStart(5, "0") : padNum;
   const hasStops = train.stops && train.stops.length > 0;
   const hasObservations = Boolean(train.observations?.trim());
   const isCommuter = train.type_code && /^([A-Z]{2,3}-)?C(-\d+[A-Z]?|\d+[A-Z]?)?$|^R\d*[A-Z]?$/i.test(train.type_code);
@@ -217,23 +220,8 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
               whiteSpace: "nowrap",
             }}
           >
-            {padNum}
+            {displayNum}
           </span>
-          {train.number2 && (
-            <span
-              style={{
-                fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace",
-                fontWeight: 500,
-                fontSize: "clamp(14px, 1.5vw, 30px)",
-                fontVariantNumeric: "tabular-nums",
-                color: "rgba(255,255,255,0.7)",
-                lineHeight: 1,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {String(train.number2).padStart(5, "0")}
-            </span>
-          )}
         </div>
         <span
           style={{

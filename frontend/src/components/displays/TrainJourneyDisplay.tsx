@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { fileUrl } from "../../lib/api";
 import { useAlternating } from "../../lib/useAlternating";
 import { usePrefersReducedMotion } from "../../lib/usePrefersReducedMotion";
@@ -15,12 +15,78 @@ export type JourneyTrain = TrainInfoRow;
 type JourneyProps = { train?: JourneyTrain; lang: Language; clock: Date };
 
 const PAGE_DWELL_MS = 9000;
-const FADE_MS = 250;
 const VISIBLE_ROWS = 4;
 
 const ORANGE = "#f5a623";
+const MARQUEE_STYLE_ID = "train-journey-marquee-style";
+const MARQUEE_PX_PER_SECOND = 90;
+
+if (typeof document !== "undefined" && !document.getElementById(MARQUEE_STYLE_ID)) {
+  const style = document.createElement("style");
+  style.id = MARQUEE_STYLE_ID;
+  style.textContent = `
+    @keyframes train-journey-marquee {
+      0%, 8% { transform: translateX(0); }
+      50%, 58% { transform: translateX(var(--marquee-distance)); }
+      100% { transform: translateX(0); }
+    }
+    @keyframes train-journey-vscroll {
+      0%, 6% { transform: translateY(0); }
+      94%, 100% { transform: translateY(var(--vscroll-distance)); }
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 export { buildStopPages };
+
+/** A single line of text that pauses, scrolls left to reveal its full
+ * content when it doesn't fit its container, then scrolls back — instead
+ * of clipping with an ellipsis. Falls back to a static ellipsis under
+ * `prefers-reduced-motion` (see usePrefersReducedMotion) since the scroll
+ * itself is the kind of continuous motion that preference asks to avoid. */
+function ScrollingText({ text, style, reducedMotion }: { text: string; style: React.CSSProperties; reducedMotion: boolean }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [overflowPx, setOverflowPx] = useState(0);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const textEl = textRef.current;
+    if (!container || !textEl) return;
+    const measure = () => {
+      const diff = Math.ceil(textEl.scrollWidth - container.clientWidth);
+      setOverflowPx(diff > 0 ? diff : 0);
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    observer.observe(textEl);
+    return () => observer.disconnect();
+  }, [text]);
+
+  const scrolling = overflowPx > 0 && !reducedMotion;
+  const duration = Math.max(6, overflowPx / MARQUEE_PX_PER_SECOND + 3);
+
+  return (
+    <div ref={containerRef} style={{ ...style, overflow: "hidden", whiteSpace: "nowrap" }}>
+      <span
+        ref={textRef}
+        style={{
+          display: "inline-block",
+          overflow: overflowPx > 0 && reducedMotion ? "hidden" : "visible",
+          textOverflow: overflowPx > 0 && reducedMotion ? "ellipsis" : undefined,
+          maxWidth: overflowPx > 0 && reducedMotion ? "100%" : undefined,
+          animation: scrolling ? `train-journey-marquee ${duration}s ease-in-out infinite` : undefined,
+          ["--marquee-distance" as string]: `-${overflowPx}px`,
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
 
 export function formatStopTime(time?: string) {
   if (!time) return "--:--";
@@ -48,7 +114,7 @@ function ImageWithFallback({
   return <img src={src} alt={alt} style={style} onError={() => setFailed(true)} />;
 }
 
-const OperatorProduct = memo(function OperatorProduct({ train }: { train: JourneyTrain }) {
+const OperatorProduct = memo(function OperatorProduct({ train, displayNumber }: { train: JourneyTrain; displayNumber: string }) {
   const operatorLogo = fileUrl(train.operator_logo);
   return (
     <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "clamp(12px, 1vw, 22px)", minWidth: 0, maxWidth: "100%", overflow: "hidden" }}>
@@ -59,8 +125,7 @@ const OperatorProduct = memo(function OperatorProduct({ train }: { train: Journe
         fallback={train.operator_name ? <span style={{ color: "#f7f7f2", fontSize: "clamp(24px, 2.1vw, 42px)", fontWeight: 600 }}>{train.operator_name}</span> : null}
       />
       <div style={{ fontSize: "clamp(32px, 3.2vw, 64px)", fontWeight: 500, lineHeight: 0.95, whiteSpace: "nowrap", color: "#f7f7f2" }}>
-        {train.number || "--"}
-        {train.number2 && <span style={{ display: "block", fontSize: "0.48em", opacity: 0.7 }}>{train.number2}</span>}
+        {displayNumber || "--"}
       </div>
     </div>
   );
@@ -124,71 +189,113 @@ const TrackPanel = memo(function TrackPanel({ platform }: { platform?: string | 
   );
 });
 
-// One node cell owns its own line segments, always anchored to its own
-// horizontal center — no global absolutely-positioned line relying on
-// approximate offsets that drift when row heights change.
-function JourneyNode({ showTop, showBottom }: { showTop: boolean; showBottom: boolean }) {
+const LINE_WIDTH = "clamp(22px, 1.9vw, 34px)";
+const NODE_SIZE = "clamp(54px, 4vw, 64px)";
+
+// One continuous line per row connecting its node to the *previous* row's
+// node center (skipped for the journey's true first stop) — instead of two
+// half-height segments meeting at the row's midpoint. This is the same
+// technique real platform-display boards use (a single element spanning
+// from the previous center to this one) and, unlike two independently
+// rounded halves, it can never leave a hairline subpixel seam at the
+// boundary between rows.
+function JourneyNode({ connectPrev }: { connectPrev: boolean }) {
   return (
     <div style={{ position: "relative", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {showTop && (
-        <span style={{ position: "absolute", left: "50%", top: 0, height: "50%", width: "clamp(8px, 0.5vw, 10px)", transform: "translateX(-50%)", backgroundColor: ORANGE }} />
+      {connectPrev && (
+        <span style={{ position: "absolute", left: "50%", top: "-50%", height: "100%", width: LINE_WIDTH, transform: "translateX(-50%)", backgroundColor: ORANGE }} />
       )}
-      {showBottom && (
-        <span style={{ position: "absolute", left: "50%", top: "50%", height: "50%", width: "clamp(8px, 0.5vw, 10px)", transform: "translateX(-50%)", backgroundColor: ORANGE }} />
-      )}
-      <span style={{ position: "relative", zIndex: 1, width: "clamp(52px, 3.8vw, 60px)", height: "clamp(52px, 3.8vw, 60px)", borderRadius: "50%", backgroundColor: ORANGE, display: "block" }} />
+      <span style={{ position: "relative", zIndex: 1, width: NODE_SIZE, height: NODE_SIZE, borderRadius: "50%", backgroundColor: ORANGE, display: "block" }} />
     </div>
   );
 }
 
+const JOURNEY_GRID_COLUMNS = "clamp(170px, 15vw, 285px) clamp(70px, 6vw, 110px) minmax(0, 1fr)";
+
+function StopRow({ stop, isFirst, isTrueEnd }: { stop: TrainStop; isFirst: boolean; isTrueEnd: boolean }) {
+  return (
+    <div style={{ display: "contents" }}>
+      <div style={{ textAlign: "right", paddingRight: "clamp(12px, 1vw, 24px)", fontSize: "clamp(42px, 4vw, 80px)", fontWeight: 500, fontVariantNumeric: "tabular-nums", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        {formatStopTime(stop.time)}
+      </div>
+      <JourneyNode connectPrev={!isFirst} />
+      <div
+        style={{
+          minWidth: 0,
+          maxWidth: "100%",
+          fontSize: "clamp(44px, 4.25vw, 86px)",
+          fontWeight: isTrueEnd ? 600 : 400,
+          lineHeight: 1.05,
+          display: "-webkit-box",
+          WebkitBoxOrient: "vertical",
+          WebkitLineClamp: 2,
+          overflow: "hidden",
+          overflowWrap: "break-word",
+          alignSelf: "center",
+        }}
+      >
+        {stop.station}
+      </div>
+    </div>
+  );
+}
+
+// Used only for the reduced-motion fallback: a static, paginated page of at
+// most VISIBLE_ROWS stops (see JourneyScroll for the normal, continuously
+// scrolling presentation). Rows keep a fixed 1fr rhythm regardless of how
+// many stops this particular page has, so a 2-stop page doesn't stretch to
+// fill the available height.
 const JourneyRows = memo(function JourneyRows({ stops, finalStop }: { stops: TrainStop[]; finalStop?: TrainStop }) {
-  // Fixed 4 slots regardless of how many stops this page has, so a
-  // 2-stop page keeps the same vertical rhythm as a 4-stop one instead of
-  // stretching to fill the available height.
-  const slots: (TrainStop | undefined)[] = Array.from({ length: VISIBLE_ROWS }, (_, i) => stops[i]);
-  const lastVisibleIndex = stops.length - 1;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: JOURNEY_GRID_COLUMNS, gridTemplateRows: `repeat(${VISIBLE_ROWS}, minmax(0, 1fr))`, alignItems: "stretch", height: "100%" }}>
+      {stops.map((stop, index) => (
+        <StopRow key={`${stop.station}-${index}`} stop={stop} isFirst={index === 0} isTrueEnd={finalStop != null && stop === finalStop} />
+      ))}
+    </div>
+  );
+});
+
+// Normal (motion-allowed) presentation: renders the *entire* itinerary and
+// auto-scrolls it top to bottom inside a fixed-height window when it has
+// more than VISIBLE_ROWS stops, instead of paginating — pauses at the top,
+// scrolls down to reveal the rest (ending on the final destination), pauses
+// at the bottom, then the animation loop restarts (an instant, unanimated
+// jump back to the top, same as a physical station scroller board).
+const JourneyScroll = memo(function JourneyScroll({ stops, finalStop }: { stops: TrainStop[]; finalStop?: TrainStop }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [rowHeight, setRowHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const measure = () => setRowHeight(container.clientHeight / VISIBLE_ROWS);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  const overflowRows = Math.max(0, stops.length - VISIBLE_ROWS);
+  const scrolling = overflowRows > 0 && rowHeight > 0;
+  const distance = overflowRows * rowHeight;
+  const duration = Math.max(8, overflowRows * 3.5 + 6);
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "clamp(170px, 15vw, 285px) clamp(70px, 6vw, 110px) minmax(0, 1fr)",
-        gridTemplateRows: `repeat(${VISIBLE_ROWS}, minmax(0, 1fr))`,
-        alignItems: "stretch",
-        height: "100%",
-      }}
-    >
-      {slots.map((stop, index) => {
-        if (!stop) return <div key={`empty-${index}`} style={{ display: "contents" }} />;
-        const isFirstVisible = index === 0;
-        const isLastVisible = index === lastVisibleIndex;
-        const isTrueEnd = finalStop != null && stop === finalStop;
-        return (
-          <div key={`${stop.station}-${index}`} style={{ display: "contents" }}>
-            <div style={{ textAlign: "right", paddingRight: "clamp(12px, 1vw, 24px)", fontSize: "clamp(42px, 4vw, 80px)", fontWeight: 500, fontVariantNumeric: "tabular-nums", lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-              {formatStopTime(stop.time)}
-            </div>
-            <JourneyNode showTop={!isFirstVisible} showBottom={!(isLastVisible && isTrueEnd)} />
-            <div
-              style={{
-                minWidth: 0,
-                maxWidth: "100%",
-                fontSize: "clamp(44px, 4.25vw, 86px)",
-                fontWeight: isTrueEnd ? 600 : 400,
-                lineHeight: 1.05,
-                display: "-webkit-box",
-                WebkitBoxOrient: "vertical",
-                WebkitLineClamp: 2,
-                overflow: "hidden",
-                overflowWrap: "break-word",
-                alignSelf: "center",
-              }}
-            >
-              {stop.station}
-            </div>
-          </div>
-        );
-      })}
+    <div ref={containerRef} style={{ height: "100%", overflow: "hidden" }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: JOURNEY_GRID_COLUMNS,
+          gridAutoRows: rowHeight > 0 ? `${rowHeight}px` : "minmax(0, 1fr)",
+          animation: scrolling ? `train-journey-vscroll ${duration}s ease-in-out infinite` : undefined,
+          ["--vscroll-distance" as string]: `-${distance}px`,
+        }}
+      >
+        {stops.map((stop, index) => (
+          <StopRow key={`${stop.station}-${index}`} stop={stop} isFirst={index === 0} isTrueEnd={finalStop != null && stop === finalStop} />
+        ))}
+      </div>
     </div>
   );
 });
@@ -203,48 +310,25 @@ export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps
   const pagesKey = useMemo(() => pagesSignature(pages), [pages]);
   const normalizedStatus = useMemo(() => normalizeTrainStatus(train?.status), [train?.status]);
 
+  // Pagination only applies to the reduced-motion fallback — the normal
+  // presentation scrolls the full itinerary continuously instead (see
+  // JourneyScroll) and needs no page timer at all.
   const [pageIndex, setPageIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
-  const showSecondary = useAlternating(Boolean(train?.destination2));
+  const showSecondary = useAlternating(Boolean(train?.destination2 || train?.number2));
 
-  // Reset pagination/transition whenever the selected journey changes, or
-  // when its content changes without the page *count* changing (e.g. an
-  // admin edits a stop time) — a plain `pages.length` dependency would miss
-  // that case.
+  // Reset pagination whenever the selected journey changes, or when its
+  // content changes without the page *count* changing (e.g. an admin edits
+  // a stop time) — a plain `pages.length` dependency would miss that case.
   useEffect(() => {
     setPageIndex(0);
-    setVisible(true);
   }, [journeyKey, pagesKey]);
 
-  const mountedRef = useRef(true);
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (pages.length <= 1) return;
-    let transitionTimer: number | undefined;
+    if (!reducedMotion || pages.length <= 1) return;
     const interval = window.setInterval(() => {
-      if (reducedMotion) {
-        // No animated transition: jump straight to the next page, but keep
-        // the same dwell time so it's still readable.
-        setPageIndex((current) => (current + 1) % pages.length);
-        return;
-      }
-      setVisible(false);
-      transitionTimer = window.setTimeout(() => {
-        if (!mountedRef.current) return;
-        setPageIndex((current) => (current + 1) % pages.length);
-        setVisible(true);
-      }, FADE_MS);
+      setPageIndex((current) => (current + 1) % pages.length);
     }, PAGE_DWELL_MS);
-    return () => {
-      window.clearInterval(interval);
-      if (transitionTimer !== undefined) window.clearTimeout(transitionTimer);
-    };
+    return () => window.clearInterval(interval);
     // journeyKey is included so a train swap (even one that coincidentally
     // keeps the same pages.length) restarts the timer from a clean slate.
   }, [journeyKey, pages.length, reducedMotion]);
@@ -262,9 +346,9 @@ export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps
   // committed yet, never index into a shorter `pages` array than the
   // previous train had.
   const safePageIndex = pageIndex < pages.length ? pageIndex : 0;
-  const activeStops = pages[safePageIndex] || [];
   const observationText = train.observations?.trim();
   const countdown = formatDepartureCountdown(computeDepartureCountdown(train, clock));
+  const displayNumber = showSecondary && train.number2 ? train.number2 : train.number || "--";
 
   return (
     <div style={{ width: "100vw", height: "100vh", overflow: "hidden", backgroundColor: "#001b46", color: "#f7f7f2", fontFamily: "Inter, Arial, \"Helvetica Neue\", sans-serif", display: "flex", flexDirection: "column" }}>
@@ -283,32 +367,27 @@ export default function TrainJourneyDisplay({ train, lang, clock }: JourneyProps
       >
         <div style={{ gridColumn: 1, gridRow: 1, alignSelf: "start", fontSize: "clamp(64px, 6.5vw, 128px)", fontWeight: 500, fontVariantNumeric: "tabular-nums", lineHeight: 0.95 }}>{countdown}</div>
         <div style={{ gridColumn: 2, gridRow: 1, minWidth: 0, maxWidth: "100%", overflow: "hidden", alignSelf: "start", paddingTop: "clamp(8px, 1vh, 16px)" }}>
-          <OperatorProduct train={train} />
+          <OperatorProduct train={train} displayNumber={displayNumber} />
         </div>
         <div style={{ gridColumn: 3, gridRow: "1 / span 2", justifySelf: "end", alignSelf: "stretch" }}>
           <TrackPanel platform={train.platform} />
         </div>
         <div style={{ gridColumn: "1 / 3", gridRow: 2, minWidth: 0, display: "flex", alignItems: "center", gap: "clamp(12px, 1vw, 24px)", alignSelf: "center", overflow: "hidden", opacity: cancelled ? 0.45 : 1 }}>
           <ProductIndicator train={train} />
-          <div style={{ minWidth: 0, fontSize: "clamp(68px, 7vw, 140px)", fontWeight: 400, lineHeight: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            {showSecondary && train.destination2 ? train.destination2 : train.destination || "--"}
-          </div>
+          <ScrollingText
+            text={(showSecondary && train.destination2 ? train.destination2 : train.destination) || "--"}
+            reducedMotion={reducedMotion}
+            style={{ minWidth: 0, flex: "1 1 auto", fontSize: "clamp(68px, 7vw, 140px)", fontWeight: 400, lineHeight: 1 }}
+          />
         </div>
       </header>
-      <main
-        style={{
-          flex: "1 1 auto",
-          minHeight: 0,
-          overflow: "hidden",
-          padding: "clamp(8px, 1vh, 16px) clamp(24px, 3vw, 58px) 0",
-          opacity: visible ? 1 : 0,
-          transition: reducedMotion ? "none" : `opacity ${FADE_MS}ms ease`,
-        }}
-      >
-        {activeStops.length > 0 ? (
-          <JourneyRows stops={activeStops} finalStop={finalStop} />
-        ) : (
+      <main style={{ flex: "1 1 auto", minHeight: 0, overflow: "hidden", padding: "clamp(8px, 1vh, 16px) clamp(24px, 3vw, 58px) 0" }}>
+        {stops.length === 0 ? (
           <div style={{ height: "100%", display: "grid", placeItems: "center", fontSize: "clamp(32px, 4vw, 72px)", opacity: 0.7 }}>{train.destination || "--"}</div>
+        ) : reducedMotion ? (
+          <JourneyRows stops={pages[safePageIndex] || []} finalStop={finalStop} />
+        ) : (
+          <JourneyScroll stops={stops} finalStop={finalStop} />
         )}
       </main>
       {(cancelled || observationText) && (
