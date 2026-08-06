@@ -1,6 +1,6 @@
 import { WebSocketServer } from "ws";
 import logger from "./logger.js";
-import { verifyCredentials, adminClientKey } from "./middleware/auth.js";
+import { verifyCredentials } from "./middleware/auth.js";
 
 let wss = null;
 let db = null;

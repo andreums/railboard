@@ -488,14 +488,13 @@ export default function Admin() {
   const [displays, setDisplays] = useState<DisplaySummary[]>([]);
   const [displaysSaving, setDisplaysSaving] = useState<Record<number, boolean>>({});
   const [routes, setRoutes] = useState<Route[]>([]);
-  const [routesLoading, setRoutesLoading] = useState(false);
-  const [routesError, setRoutesError] = useState<string | null>(null);
-  const [routeRegionFilter, setRouteRegionFilter] = useState("all");
-  const [routeServiceFilter, setRouteServiceFilter] = useState("all");
-  const [routeOperatorFilter, setRouteOperatorFilter] = useState("all");
+  const [, setRoutesLoading] = useState(false);
+  const [, setRoutesError] = useState<string | null>(null);
+  const [routeRegionFilter] = useState("all");
+  const [routeServiceFilter] = useState("all");
+  const [routeOperatorFilter] = useState("all");
   const [routeReloading, setRouteReloading] = useState(false);
-  const [routeDatasetStats, setRouteDatasetStats] = useState<RailwayReloadStats | null>(null);
-  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [, setRouteDatasetStats] = useState<RailwayReloadStats | null>(null);
   const [importSourceName, setImportSourceName] = useState<string>("railboard_routes.json");
   const [importSummary, setImportSummary] = useState<ImportedRouteSummary | null>(null);
   const [importPreview, setImportPreview] = useState<string>("");
@@ -998,15 +997,6 @@ export default function Admin() {
     }
   };
 
-  const handleExportTrains = async () => {
-    try {
-      await api.exportTrains(selectedTrainStationId ?? undefined);
-      showNotification("success", "✓ Exportado", selectedTrainStationId ? "Trenes del display descargados" : "Trenes descargados");
-    } catch (error: any) {
-      showNotification("error", "✗ Error", error?.message || "No se pudieron exportar los trenes");
-    }
-  };
-
   const handleImportJsonFile = async (file: File | null) => {
     if (!file) return;
     setImportLoading(true);
@@ -1039,7 +1029,6 @@ export default function Admin() {
     }
   };
 
-  const lang = (config?.language as string) || "es";
   const editingTrainStationId = Number(editFormData.station_id ?? editingTrain?.station_id ?? selectedTrainStationId ?? null) || null;
   const editingTrainDisplayConfig = displays.find((item) => item.station.id === editingTrainStationId)?.config || config;
   const editingPlatformOptions = buildPlatformOptions(editingTrainDisplayConfig, []);
@@ -1078,7 +1067,6 @@ export default function Admin() {
 
   const routeRegions = Array.from(new Set(routes.map(getRouteRegion))).sort((a, b) => a.localeCompare(b, "es"));
   const routeNetworks = Array.from(new Set(routes.map((route) => route.network))).sort((a, b) => a.localeCompare(b, "es"));
-  const routeServices = Array.from(new Set(routes.map(getRouteService))).sort((a, b) => a.localeCompare(b, "es"));
   const routeOperators = Array.from(new Set(routes.map((route) => route.operator))).sort((a, b) => a.localeCompare(b, "es"));
   const filteredRoutes = routes.filter((route) => {
     const regionOk = routeRegionFilter === "all" || getRouteRegion(route) === routeRegionFilter;

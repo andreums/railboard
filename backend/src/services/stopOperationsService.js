@@ -1,12 +1,8 @@
-import logger from "../logger.js";
-
 // Business logic for service-stop operations (arrivals, departures, passes and
 // delay propagation). Kept separate from db.js: this module owns the *policy*
 // (how delays are computed and propagated, when a service completes), while
 // db.js remains a pure data-access layer. Dependencies are injected so the
 // service is decoupled from how the data layer is structured.
-
-const DEFAULT_CANCEL_REASON = "Cancelled by operator";
 
 export default class StopOperationsService {
   constructor({ db, serviceStops, serviceEvents, services }) {
@@ -128,10 +124,6 @@ export default class StopOperationsService {
     })();
 
     return this.serviceStops.get(id);
-  }
-
-  #cancelReason(reason) {
-    return reason || DEFAULT_CANCEL_REASON;
   }
 
   // ---- helpers ----

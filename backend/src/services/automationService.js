@@ -1,5 +1,4 @@
 import logger from "../logger.js";
-import { broadcast } from "../ws.js";
 
 const DEFAULT_TIME_WINDOWS = {
   SCHEDULED:   { beforeExpected: 300, autoState: "APPROACHING" },

@@ -4,7 +4,7 @@
  * Tests delay propagation and state management
  */
 
-import { db, services, serviceStops, serviceEvents, places, operators, trainTypes, stations } from "../src/db.js";
+import { services, serviceStops, places, operators, trainTypes, stations } from "../src/db.js";
 
 console.log("🌱 Seeding multistation services demo...\n");
 
@@ -59,7 +59,7 @@ const stops1 = [
 ];
 
 stops1.forEach((stopData) => {
-  const stop = serviceStops.create({
+  serviceStops.create({
     service_id: svc1.id,
     ...stopData,
     arrival_expected: stopData.arrival_scheduled,
@@ -112,7 +112,7 @@ const stops2 = [
 ];
 
 stops2.forEach((stopData) => {
-  const stop = serviceStops.create({
+  serviceStops.create({
     service_id: svc2.id,
     ...stopData,
     arrival_expected: stopData.arrival_scheduled,
@@ -156,7 +156,7 @@ const stops3 = [
 ];
 
 stops3.forEach((stopData) => {
-  const stop = serviceStops.create({
+  serviceStops.create({
     service_id: svc3.id,
     ...stopData,
     arrival_expected: stopData.arrival_scheduled,

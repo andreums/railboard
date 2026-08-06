@@ -13,6 +13,7 @@ export default function BoardHeader({
   headerBg,
   headerTextColor,
   logoUrl,
+  platformNumber,
 }: {
   stationName: string;
   mode: "departures" | "arrivals";
@@ -23,6 +24,7 @@ export default function BoardHeader({
   headerBg?: string;
   headerTextColor?: string;
   logoUrl?: string | null;
+  platformNumber?: string;
 }) {
   const bg = headerBg || "#BFEFD5";
   const color = headerTextColor || "#071E43";
@@ -150,6 +152,7 @@ export default function BoardHeader({
           }}
         >
           {t("platform", lang)}
+          {platformNumber ? ` ${platformNumber}` : ""}
         </span>
       </div>
     </header>

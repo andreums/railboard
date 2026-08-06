@@ -182,7 +182,7 @@ export default function Trains() {
                   <div className="text-board-dim text-sm py-4">Arrastra para reordenar</div>
                 ) : (
                   trains.map((train) => (
-                    <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} STATUSES={STATUSES} onEdit={setEditing} />
+                    <TrainRow key={train.id} train={train} announce={announce} refresh={refresh} onEdit={setEditing} />
                   ))
                 )}
               </div>
@@ -385,13 +385,11 @@ function TrainRow({
   train,
   announce,
   refresh,
-  STATUSES,
   onEdit,
 }: {
   train: Train;
   announce: (t: Train) => void;
   refresh: () => void;
-  STATUSES: Train["status"][];
   onEdit: (t: Train) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: String(train.id) });

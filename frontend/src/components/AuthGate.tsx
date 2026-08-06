@@ -46,7 +46,6 @@ export default function AuthGate({ children }: Props) {
     probe(false);
     window.addEventListener("railboard:unauthorized", handleUnauthorized);
     return () => window.removeEventListener("railboard:unauthorized", handleUnauthorized);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleLogin = async (username: string, password: string) => {

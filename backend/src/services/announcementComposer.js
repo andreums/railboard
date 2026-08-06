@@ -181,7 +181,7 @@ function buildPlatformBlock(train, locale, eventType) {
     .replace("{sector}", train.sector || "");
 }
 
-function buildDepartureTimeBlock(train, language, locale) {
+function buildDepartureTimeBlock(train, language) {
   const time = train.departureTime || train.scheduled_time || train.scheduledDeparture;
   if (!time) return null;
   const speechTime = formatTimeForSpeech(time, language);
@@ -297,21 +297,16 @@ export function composeAnnouncement(train, eventType, language) {
   if (!eventConfig) return null;
 
   const serviceIntro = getServiceIntro(train, locale);
-  const destinationBlock = locale.blocks?.destination || "";
-  const originBlock = locale.blocks?.origin || "";
   const platformBlock = buildPlatformBlock(train, locale, eventType);
   const standingBlock = buildStandingBlock(train, locale);
   const platformChangedBlock = eventType === "PLATFORM_CHANGE" ? buildPlatformBlock(train, locale, eventType) : null;
   const delayedBlock = buildDelayedBlock(train, locale);
   const cancelledBlock = buildCancelledBlock(train, locale);
-  const departureTimeBlock = buildDepartureTimeBlock(train, language, locale);
+  const departureTimeBlock = buildDepartureTimeBlock(train, language);
   const stoppingPatternBlock = buildStoppingPatternBlock(train, language);
   const fareRestrictionBlock = buildFareRestrictionBlock(train, language);
   const closingBlock = buildClosingBlock(train, language);
   const accessibilityBlock = buildAccessibilityBlock(train, language);
-
-  const platformVal = train.platform && train.platform !== "-" && train.platform !== "?" ? train.platform : null;
-  const isAtPlatform = standingBlock || (platformVal ? `a la vía ${platformVal}` : null);
 
   const vars = {
     service_intro: serviceIntro || "",

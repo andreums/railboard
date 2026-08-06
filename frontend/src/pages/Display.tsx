@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import { api, connectWS, type Config, type Train, type Station, type Place } from "../lib/api";
+import { api, connectWS, type Config, type Train } from "../lib/api";
 import { useParams } from "react-router-dom";
 import SteamTrain from "../components/SteamTrain";
 import { t, type Language } from "../lib/i18n";
@@ -74,8 +74,6 @@ export default function Display() {
   const { stationId: stationIdParam } = useParams<{ stationId?: string }>();
   const [config, setConfig] = useState<Config | null>(null);
   const [trains, setTrains] = useState<Train[]>([]);
-  const [stations, setStations] = useState<Station[]>([]);
-  const [places, setPlaces] = useState<Place[]>([]);
   const [boardStationName, setBoardStationName] = useState<string>("\u2014");
   const [boardMode, setBoardMode] = useState<"departures" | "arrivals" | "mixed">("departures");
   const [loading, setLoading] = useState(true);
@@ -90,9 +88,7 @@ export default function Display() {
 
   const refresh = async () => {
     try {
-      const [c, st, p] = await Promise.all([api.getConfig(), api.listStations(), api.listPlaces()]);
-      setStations(st);
-      setPlaces(p);
+      const [c, st] = await Promise.all([api.getConfig(), api.listStations()]);
 
       const displayMode = c?.displayMode || "multiple";
       let stationId = 1;
@@ -156,7 +152,7 @@ export default function Display() {
         );
         setBoardMode((boardData?.mode || mode) as "departures" | "arrivals" | "mixed");
         setError(null);
-      } catch (boardError) {
+      } catch {
         try {
           const tr = await api.listTrains();
           setTrains(tr);

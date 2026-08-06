@@ -1041,6 +1041,9 @@ export const displayScreens = {
     const stationId = display.station_id;
     if (!stationId) return { display, rows: [] };
 
+    const isSingleTrainScreen = display.display_type === "PLATFORM" || display.display_type === "TRAIN_INFO";
+    const platformFilter = isSingleTrainScreen && display.platform ? display.platform : null;
+
     const rows = db.prepare(`
       SELECT t.id, t.number, t.number2, t.destination, t.destination2, t.platform, t.sector, t.scheduled_time, t.expected_time, t.status, t.stops, t.observations, t.fare_restrictions, t.custom_icon_url, t.icon_mode,
         o.name as operator_name, o.logo_url as operator_logo,
@@ -1051,8 +1054,9 @@ export const displayScreens = {
       LEFT JOIN train_types tc ON tc.id = t.train_type_id
       LEFT JOIN stations s ON s.id = t.station_id
       WHERE t.station_id = ?
+      ${platformFilter ? "AND t.platform = ?" : ""}
       ORDER BY t.sort_order ASC, t.scheduled_time ASC
-    `).all(stationId).map((row) => ({ ...row, stops: normalizeStops(row.stops) }));
+    `).all(...(platformFilter ? [stationId, platformFilter] : [stationId])).map((row) => ({ ...row, stops: normalizeStops(row.stops) }));
 
     return { display, rows };
   },

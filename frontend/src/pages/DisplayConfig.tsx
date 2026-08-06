@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams, useNavigate } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api, fileUrl, type Config, type DisplaySummary, type Operator, type Train, type TrainType } from "../lib/api";
 import { LANGUAGES, t, type Language } from "../lib/i18n";
 import { speakWithFallback, loadVoiceSettings, getVoiceURIForLanguage } from "../lib/tts";
@@ -60,7 +60,6 @@ const formatPlatform = (train: Train) => {
 
 export default function DisplayConfigPage() {
   const { stationId } = useParams<{ stationId?: string }>();
-  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"config" | "platforms" | "style" | "trains" | "types">("config");
   const [displays, setDisplays] = useState<DisplaySummary[]>([]);
@@ -1356,7 +1355,7 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
     try {
       await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, undefined, draft || null);
       onUpdated();
-    } catch (err) {
+    } catch {
       alert("Error al guardar la plantilla");
     }
   };
@@ -1386,7 +1385,7 @@ function TypeCard({ type, onUpdated }: { type: TrainType; onUpdated: () => void 
                 try {
                   await api.updateTrainType(type.id, type.code, type.name, type.color, undefined, file);
                   onUpdated();
-                } catch (err) {
+                } catch {
                   alert("Error al subir icono");
                 }
               }

@@ -7,7 +7,7 @@ import { handleImgError } from "../../lib/svgPlaceholder";
 import { useAlternating } from "../../lib/useAlternating";
 import { t, type Language } from "../../lib/i18n";
 
-function ScrollText({
+export function ScrollText({
   text,
   color,
   fontSize,

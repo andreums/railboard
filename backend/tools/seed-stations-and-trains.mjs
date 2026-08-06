@@ -26,7 +26,7 @@ function ensureStations() {
   const existing = stations.list();
   const byName = new Map(existing.map((s) => [normalize(s.name), s]));
 
-  for (const [idx, seed] of STATIONS.entries()) {
+  for (const seed of STATIONS) {
     const key = normalize(seed.name);
     const found = byName.get(key);
     if (!found) {

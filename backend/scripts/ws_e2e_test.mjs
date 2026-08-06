@@ -3,7 +3,6 @@
   Usage: node scripts/ws_e2e_test.mjs
 */
 import WebSocket from "ws";
-import http from "http";
 import { exec as _exec } from "child_process";
 import { promisify } from "util";
 const exec = promisify(_exec);
@@ -18,7 +17,7 @@ async function getTrainsViaCurl() {
     const url = `http://${host}:${API_PORT}/admin/trains`;
     const { stdout } = await exec(`curl -sS -u admin:railboard ${url}`);
     return JSON.parse(stdout || "[]");
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -31,7 +30,7 @@ function waitForWSMessage(ws, timeout = 5000) {
         const m = JSON.parse(String(data));
         clearTimeout(timer);
         resolve(m);
-      } catch (e) {
+      } catch {
         // ignore non-json
       }
     });
@@ -65,7 +64,7 @@ async function run() {
     if (stderr) console.error("curl stderr:", stderr);
     try {
       console.log("response", JSON.parse(stdout || "{}"));
-    } catch (e) {
+    } catch {
       console.log(stdout);
     }
   } catch (e) {

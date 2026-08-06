@@ -17,19 +17,6 @@ const STATE_BUTTONS = [
 
 const QUICK_DELAYS = [5, 10, 15, 30];
 
-const STATUS_MAP: Record<string, string> = {
-  SCHEDULED: "Scheduled",
-  APPROACHING: "Scheduled",
-  ARRIVING: "Scheduled",
-  STOPPED: "Scheduled",
-  BOARDING: "Boarding",
-  READY_TO_DEPART: "Scheduled",
-  DEPARTING: "Scheduled",
-  DEPARTED: "Departed",
-  DELAYED: "Delayed",
-  CANCELLED: "Cancelled",
-};
-
 export default function Operator() {
   const navigate = useNavigate();
   const [trains, setTrains] = useState<Train[]>([]);
@@ -68,7 +55,7 @@ export default function Operator() {
   const handleDelay = async (minutes: number) => {
     if (!selectedId) return;
     try {
-      const result = await api.addTrainDelay(selectedId, minutes, delayReason || undefined);
+      await api.addTrainDelay(selectedId, minutes, delayReason || undefined);
       notify(`+${minutes} min`);
       refresh();
     } catch (err: any) { notify(err.message); }
@@ -77,7 +64,7 @@ export default function Operator() {
   const handlePlatform = async (platform: string, sector?: string) => {
     if (!selectedId) return;
     try {
-      const result = await api.changeTrainPlatform(selectedId, platform, sector);
+      await api.changeTrainPlatform(selectedId, platform, sector);
       notify(`Vía ${platform}`);
       refresh();
     } catch (err: any) { notify(err.message); }
@@ -87,7 +74,7 @@ export default function Operator() {
     if (!selectedId || !selectedTrain) return;
     try {
       const et = eventType || "TRAIN_ANNOUNCEMENT";
-      const result = await api.triggerAnnouncementEvent({
+      await api.triggerAnnouncementEvent({
         train: selectedTrain,
         eventType: et,
         stationId: selectedTrain.station_id,

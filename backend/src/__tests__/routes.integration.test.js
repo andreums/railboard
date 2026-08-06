@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import os from "os";
 
-let appModule, dbModule;
+let dbModule;
 const TEST_PASSWORD = "test-pass-123";
 const AUTH = { user: "admin", pass: TEST_PASSWORD };
 const encode = (u, p) => Buffer.from(`${u}:${p}`).toString("base64");

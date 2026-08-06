@@ -1,10 +1,21 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, type ReactNode } from "react";
 import { api, fileUrl, connectWS, type DisplayScreen } from "../lib/api";
 import { useParams, Navigate } from "react-router-dom";
 import { useAlternating } from "../lib/useAlternating";
 import { t, type Language } from "../lib/i18n";
 import { normalizeStops } from "../lib/trainStops";
+import BoardHeader from "../components/pis/BoardHeader";
+import LineBadge from "../components/pis/LineBadge";
+import { ScrollText } from "../components/pis/DepartureRow";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
+
+if (!document.getElementById("board-fonts")) {
+  const link = document.createElement("link");
+  link.id = "board-fonts";
+  link.rel = "stylesheet";
+  link.href = "/fonts/fonts.css";
+  document.head.appendChild(link);
+}
 
 type BoardProps = { screen: DisplayScreen; rows: any[]; lang: Language; clock: Date };
 
@@ -111,7 +122,6 @@ export default function DisplayPage() {
   const [board, setBoard] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [clock, setClock] = useState(new Date());
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => setClock(new Date()), 1000);
@@ -128,10 +138,22 @@ export default function DisplayPage() {
         const data = await api.getDisplayScreenBoard(displayId);
         if (cancelled) return;
         if (!data) { setError("Display no encontrado"); return; }
-        setScreen(data.display || data);
+        const display = data.display || data;
+        console.log(`[display ${displayId}] params:`, {
+          display_type: display.display_type,
+          platform: display.platform,
+          sector: display.sector,
+          station_id: display.station_id,
+          station_name: display.station_name,
+          language: display.language,
+          max_rows: display.max_rows,
+          refresh_mode: display.refresh_mode,
+        }, "rows:", data.rows?.length ?? 0, data.rows);
+        setScreen(display);
         setBoard(data.rows || []);
         setError(null);
-      } catch {
+      } catch (err) {
+        console.log(`[display ${displayId}] error`, err);
         if (!cancelled) setError("Error al cargar datos");
       }
     };
@@ -204,7 +226,93 @@ export default function DisplayPage() {
   );
 }
 
-function TrainHero({ rows, lang, clock }: BoardProps) {
+function VerticalAutoScroll({ children }: { children: ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    let raf = 0;
+    let paused = false;
+    let last: number | null = null;
+    let pauseTimer: ReturnType<typeof setTimeout> | null = null;
+    const PX_PER_SEC = 26;
+    const PAUSE_MS = 5000;
+
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      if (paused) return;
+      if (last === null) { last = now; return; }
+      const dt = (now - last) / 1000;
+      last = now;
+      const max = el.scrollHeight - el.clientHeight;
+      if (max <= 0) return;
+      const next = el.scrollTop + PX_PER_SEC * dt;
+      if (next >= max) {
+        el.scrollTop = max;
+        paused = true;
+        pauseTimer = setTimeout(() => {
+          el.scrollTop = 0;
+          paused = false;
+          last = null;
+        }, PAUSE_MS);
+      } else {
+        el.scrollTop = next;
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (pauseTimer) clearTimeout(pauseTimer);
+    };
+  }, []);
+
+  return (
+    <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+      {children}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "clamp(40px, 5vh, 80px)",
+          pointerEvents: "none",
+          background: "linear-gradient(to bottom, #0a1642, rgba(10,22,66,0))",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "clamp(40px, 5vh, 80px)",
+          pointerEvents: "none",
+          background: "linear-gradient(to top, #0a1642, rgba(10,22,66,0))",
+        }}
+      />
+    </div>
+  );
+}
+
+function HeroDestination({ primary, secondary }: { primary: string; secondary?: string | null }) {
+  const showSecond = useAlternating(!!secondary);
+  const display = secondary && showSecond ? secondary : primary;
+  return (
+    <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+      <ScrollText
+        text={display}
+        color="#FFFFFF"
+        fontSize="clamp(36px, 4vw, 80px)"
+        fontWeight={700}
+        fontFamily="'Roboto Condensed', 'Oswald', Arial, sans-serif"
+      />
+    </div>
+  );
+}
+
+function TrainHero({ screen, rows, lang, clock }: BoardProps) {
   const train = rows[0];
   const stops = train ? normalizeStops(train.stops) : [];
   const delayed = train ? isDelayed(train) : false;
@@ -213,96 +321,215 @@ function TrainHero({ rows, lang, clock }: BoardProps) {
   const journeyEndTime = stops.length > 0 ? stops[stops.length - 1].time : null;
   const progress = train ? computeJourneyProgress(train.scheduled_time, journeyEndTime, clock) : null;
 
-  return (
-    <div className="min-h-screen flex flex-col text-white" style={{ backgroundColor: "#0a1642" }}>
-      {train ? (
-        <>
-          <div className="flex items-start justify-between gap-4 md:gap-8 p-5 md:p-10 pb-4 md:pb-6">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-3 mb-1 md:mb-2">
-                <span className={`text-2xl md:text-5xl font-bold tabular-nums ${delayed ? "text-amber-400" : "text-slate-300"}`}>
-                  {formatDisplayTime(headerTime)}
-                </span>
-                {delayed && (
-                  <span className="text-base md:text-2xl text-slate-500 line-through tabular-nums">
-                    {formatDisplayTime(train.scheduled_time)}
-                  </span>
-                )}
-                {cancelled && (
-                  <span className="text-base md:text-xl font-bold text-red-400 uppercase tracking-wide">{t("cancelled", lang)}</span>
-                )}
-              </div>
-              <AltValue
-                primary={train.destination}
-                secondary={train.destination2}
-                className={`text-4xl md:text-7xl font-bold text-white leading-tight block truncate ${cancelled ? "opacity-50" : ""}`}
-              />
-            </div>
+  const stationName = screen.station_name || "";
+  const logoUrl = screen.station_logo_url || null;
+  const headerPlatform = screen.platform || (train?.platform && train.platform !== "-" ? train.platform : "") || undefined;
 
-            <div className="flex items-center gap-3 md:gap-6 shrink-0">
-              {(train.type_logo || train.operator_logo) && (
-                <div className="flex flex-col items-center gap-1 md:gap-2">
-                  {train.type_logo && (
-                    <img src={fileUrl(train.type_logo) || ""} alt="" className="h-6 md:h-10 object-contain" onError={onImgError} />
-                  )}
-                  {train.operator_logo && (
-                    <img src={fileUrl(train.operator_logo) || ""} alt="" className="h-5 md:h-8 object-contain opacity-80" onError={onImgError} />
-                  )}
-                </div>
-              )}
-              <div className="text-lg md:text-2xl font-mono text-slate-400 tabular-nums text-right">
-                {train.number}
-                {train.number2 && <div className="text-xs md:text-base text-slate-500">{train.number2}</div>}
-              </div>
-              {train.platform && train.platform !== "-" && (
-                <div className="border-l-4 border-emerald-300 pl-3 md:pl-5">
-                  <div className="text-5xl md:text-8xl font-bold leading-none tabular-nums">{train.platform}</div>
-                  {train.sector && train.sector !== "-" && (
-                    <div className="text-sm md:text-lg text-slate-400 mt-1">{train.sector}</div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-5 md:px-10">
-            {stops.length > 0 && (
-              <div className="relative">
-                <div className="absolute left-[7px] md:left-[9px] top-3 bottom-3 w-0.5 bg-white/25" />
-                {stops.map((stop, i) => (
-                  <div key={i} className="relative flex items-center gap-4 md:gap-6 py-2.5 md:py-4">
-                    <div className="w-16 md:w-24 shrink-0 text-right text-lg md:text-3xl font-bold tabular-nums text-white">
-                      {stop.time || ""}
-                    </div>
-                    <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-white shrink-0 z-10" />
-                    <div className="text-lg md:text-3xl font-semibold text-white truncate">{stop.station}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {progress != null && (
-            <div className="px-5 md:px-10 pb-6 md:pb-10 pt-4">
-              <div className="flex gap-1 md:gap-1.5">
-                {Array.from({ length: PROGRESS_SEGMENTS }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`h-3 md:h-4 flex-1 rounded-full ${i / PROGRESS_SEGMENTS < progress ? "bg-emerald-300" : "bg-white/10"}`}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {train.observations && (
-            <div className="px-5 md:px-10 pb-6 text-sm md:text-base text-amber-300">{train.observations}</div>
-          )}
-        </>
-      ) : (
+  if (!train) {
+    return (
+      <div className="h-screen flex flex-col overflow-hidden text-white" style={{ backgroundColor: "#0a1642" }}>
+        <BoardHeader
+          stationName={stationName}
+          mode="departures"
+          lang={lang}
+          clockMode="real"
+          logoUrl={logoUrl}
+          platformNumber={headerPlatform}
+        />
         <div className="flex-1 flex items-center justify-center text-2xl md:text-4xl text-slate-600">
           {t("no-train-info", lang)}
         </div>
+      </div>
+    );
+  }
+
+  const isCommuter = train.type_code && /^([A-Z]{2,3}-)?C(-\d+[A-Z]?|\d+[A-Z]?)?$|^R\d*[A-Z]?$/i.test(train.type_code);
+  const iconMode = train.icon_mode || "destination";
+  let iconUrl: string | undefined | null = null;
+  if (iconMode === "custom") iconUrl = train.custom_icon_url;
+  else if (iconMode === "destination") iconUrl = train.type_destination_icon || (isCommuter ? null : train.operator_logo);
+  else if (iconMode === "type") iconUrl = train.type_logo;
+  else if (iconMode === "operator") iconUrl = train.operator_logo;
+
+  return (
+    <div className="h-screen flex flex-col overflow-hidden text-white" style={{ backgroundColor: "#0a1642" }}>
+      <BoardHeader
+        stationName={stationName}
+        mode="departures"
+        lang={lang}
+        clockMode="real"
+        logoUrl={logoUrl}
+        platformNumber={headerPlatform}
+      />
+
+      {/* Hero: hora + insignia/icono/destino + logos/número/vía */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "clamp(12px, 1.5vw, 30px)",
+          padding: "clamp(14px, 1.6vh, 26px) clamp(12px, 1.5vw, 30px)",
+          backgroundColor: "rgba(255,255,255,0.04)",
+          borderBottom: "1px solid rgba(255,255,255,0.08)",
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: "clamp(6px, 0.8vw, 16px)", flexShrink: 0 }}>
+          <span
+            style={{
+              fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",
+              fontWeight: 700,
+              fontSize: "clamp(40px, 4.5vw, 90px)",
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+              color: delayed ? "#FBBF24" : "#FFFFFF",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {formatDisplayTime(headerTime)}
+          </span>
+          {delayed && (
+            <span
+              style={{
+                fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",
+                fontWeight: 700,
+                fontSize: "clamp(18px, 1.8vw, 36px)",
+                lineHeight: 1,
+                fontVariantNumeric: "tabular-nums",
+                color: "rgba(255,255,255,0.45)",
+                textDecoration: "line-through",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {formatDisplayTime(train.scheduled_time)}
+            </span>
+          )}
+        </div>
+
+        <div
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "clamp(8px, 0.8vw, 16px)",
+            opacity: cancelled ? 0.45 : 1,
+          }}
+        >
+          {isCommuter && train.type_code && <LineBadge code={train.type_code} color={train.type_color} />}
+          {iconUrl && (
+            <img
+              src={fileUrl(iconUrl)!}
+              alt=""
+              style={{ height: "clamp(24px, 2.4vw, 48px)", width: "auto", flexShrink: 0, objectFit: "contain" }}
+              onError={onImgError}
+            />
+          )}
+          <HeroDestination primary={train.destination} secondary={train.destination2} />
+          {cancelled && (
+            <span
+              style={{
+                fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",
+                fontWeight: 700,
+                fontSize: "clamp(18px, 1.8vw, 36px)",
+                lineHeight: 1,
+                color: "#F87171",
+                textTransform: "uppercase",
+                flexShrink: 0,
+              }}
+            >
+              {t("cancelled", lang)}
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: "clamp(8px, 1vw, 20px)", flexShrink: 0 }}>
+          {(train.type_logo || train.operator_logo) && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "clamp(2px, 0.3vw, 6px)" }}>
+              {train.type_logo && (
+                <img src={fileUrl(train.type_logo) || ""} alt="" style={{ height: "clamp(24px, 2.4vw, 48px)", objectFit: "contain" }} onError={onImgError} />
+              )}
+              {train.operator_logo && (
+                <img src={fileUrl(train.operator_logo) || ""} alt="" style={{ height: "clamp(18px, 1.8vw, 36px)", objectFit: "contain", opacity: 0.8 }} onError={onImgError} />
+              )}
+            </div>
+          )}
+          <div style={{ textAlign: "right", lineHeight: 1 }}>
+            <div
+              style={{
+                fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace",
+                fontWeight: 600,
+                fontSize: "clamp(22px, 2.2vw, 44px)",
+                fontVariantNumeric: "tabular-nums",
+                color: "#FFFFFF",
+              }}
+            >
+              {train.number}
+            </div>
+            {train.number2 && (
+              <div style={{ fontFamily: "'Roboto Mono', 'JetBrains Mono', monospace", fontSize: "clamp(13px, 1.3vw, 26px)", color: "rgba(255,255,255,0.7)" }}>
+                {train.number2}
+              </div>
+            )}
+          </div>
+          {train.platform && train.platform !== "-" && (
+            <div style={{ borderLeft: "4px solid #6EE7B7", paddingLeft: "clamp(10px, 1vw, 20px)" }}>
+              <div
+                style={{
+                  fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif",
+                  fontWeight: 700,
+                  fontSize: "clamp(40px, 4.5vw, 90px)",
+                  lineHeight: 1,
+                  color: "#FFFFFF",
+                }}
+              >
+                {train.platform}
+              </div>
+              {train.sector && train.sector !== "-" && (
+                <div style={{ fontFamily: "'Roboto Condensed', 'Oswald', Arial, sans-serif", fontSize: "clamp(14px, 1.4vw, 28px)", color: "rgba(255,255,255,0.7)", marginTop: "clamp(2px, 0.3vh, 6px)" }}>
+                  {train.sector}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Lista de estaciones con auto-scroll */}
+      <VerticalAutoScroll>
+        <div style={{ padding: "clamp(16px, 2vh, 32px) clamp(12px, 1.5vw, 30px)", paddingBottom: "clamp(32px, 4vh, 64px)" }}>
+          {stops.length > 0 && (
+            <div className="relative">
+              <div className="absolute left-[7px] md:left-[9px] top-3 bottom-3 w-0.5 bg-white/25" />
+              {stops.map((stop, i) => (
+                <div key={i} className="relative flex items-center gap-4 md:gap-6 py-2.5 md:py-4">
+                  <div className="w-16 md:w-24 shrink-0 text-right text-lg md:text-3xl font-bold tabular-nums text-white">
+                    {stop.time || ""}
+                  </div>
+                  <div className="w-3.5 h-3.5 md:w-5 md:h-5 rounded-full bg-white shrink-0 z-10" />
+                  <div className="text-lg md:text-3xl font-semibold text-white truncate">{stop.station}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </VerticalAutoScroll>
+
+      {progress != null && (
+        <div className="px-5 md:px-10 pb-6 md:pb-10 pt-4 flexShrink-0">
+          <div className="flex gap-1 md:gap-1.5">
+            {Array.from({ length: PROGRESS_SEGMENTS }).map((_, i) => (
+              <div
+                key={i}
+                className={`h-3 md:h-4 flex-1 rounded-full ${i / PROGRESS_SEGMENTS < progress ? "bg-emerald-300" : "bg-white/10"}`}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {train.observations && (
+        <div className="px-5 md:px-10 pb-6 text-sm md:text-base text-amber-300 flexShrink-0">{train.observations}</div>
       )}
     </div>
   );
