@@ -63,7 +63,7 @@ const normalizeStation = (value) =>
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
 
-const stationIndex = (stationNames, name) => {
+export const stationIndex = (stationNames, name) => {
   const target = normalizeStation(name);
   if (!target) return -1;
   const exact = stationNames.findIndex((station) => normalizeStation(station) === target);
@@ -124,7 +124,7 @@ const getRouteRegion = (route) => {
   return route.network;
 };
 
-function orderedIntermediateStops(stationNames, fromIndex, toIndex) {
+export function orderedIntermediateStops(stationNames, fromIndex, toIndex) {
   if (fromIndex === toIndex) return [];
   const step = fromIndex < toIndex ? 1 : -1;
   const stops = [];
@@ -283,9 +283,11 @@ export function generateRandomTrain(body) {
         ? Math.max(1, scheduledOffset - randomInt(1, Math.min(7, profile.delayMax)))
         : scheduledOffset;
   const status = rawStatus === "Advanced" ? "Scheduled" : rawStatus;
-  const maxStopLimit = Math.min(9, routeStops.length);
-  const stopLimit = route.code === "C-3" ? routeStops.length : maxStopLimit > 0 ? randomInt(Math.min(4, maxStopLimit), maxStopLimit) : 0;
-  const stops = routeStops.slice(0, stopLimit);
+  // Always the full, continuous, correctly-ordered set of intermediate stops for
+  // this route/direction — never an arbitrary random subset (see root-cause notes
+  // in orderedIntermediateStops/generateTrainFromRoute for why this must not be
+  // sliced or capped).
+  const stops = routeStops;
   const usedNumbers = new Set(existing.map((t) => t.number));
   const availableNumbers = route.numbers.filter((number) => !usedNumbers.has(number));
   const observations = isCommuterCode(route.code)
@@ -346,18 +348,18 @@ export function generateTrainFromRoute(code, body) {
   const station = config.station_name || "Madrid Puerta de Atocha";
   const stationRow = stations.list().find((s) => normalizeStation(s.name) === normalizeStation(station)) || null;
   const stationConfig = stationRow ? getStationDisplayConfig(stationRow.id) : config;
-  const routeStationIndex = route.stations.indexOf(station);
+  const routeStationIndex = stationIndex(route.stations, station);
   const currentIndex = routeStationIndex >= 0 ? routeStationIndex : 0;
   const direction = currentIndex === 0 ? 1 : currentIndex === route.stations.length - 1 ? -1 : randomItem([-1, 1]);
   const terminalIndex = direction === 1 ? route.stations.length - 1 : 0;
   const [fromIndex, toIndex] = mode === "arrivals" ? [terminalIndex, currentIndex] : [currentIndex, terminalIndex];
 
-  const orderedIntermediateStopsSlice = (stationNames, from, to) => {
-    const [start, end] = from <= to ? [from, to] : [to, from];
-    return stationNames.slice(start + 1, end);
-  };
-
-  const routeStops = orderedIntermediateStopsSlice(route.stations, fromIndex, toIndex);
+  // Reuse the same journey-computation helper as generateRandomTrain instead of a
+  // second, slightly different local implementation: the previous local copy
+  // re-sorted [from, to] before slicing, which silently discarded the travel
+  // direction and always returned stops in forward/ascending route order even
+  // for reverse journeys.
+  const routeStops = orderedIntermediateStops(route.stations, fromIndex, toIndex);
   const op = opList[0];
   const type = typeList.find((t) => t.code === route.code) || randomItem(typeList);
 
@@ -370,9 +372,7 @@ export function generateTrainFromRoute(code, body) {
     return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   };
 
-  const maxStopLimit = Math.min(9, routeStops.length);
-  const stopLimit = maxStopLimit > 0 ? randomInt(Math.min(3, maxStopLimit), maxStopLimit) : 0;
-  const stops = routeStops.slice(0, stopLimit);
+  const stops = routeStops;
 
   return createTrain({
     number: availableNumbers.length ? randomItem(availableNumbers) : randomItem(route.numbers),
