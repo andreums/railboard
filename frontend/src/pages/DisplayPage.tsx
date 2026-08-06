@@ -7,6 +7,7 @@ import { normalizeStops } from "../lib/trainStops";
 import LineBadge from "../components/pis/LineBadge";
 import { ScrollText } from "../components/pis/DepartureRow";
 import TrainJourneyDisplay from "../components/displays/TrainJourneyDisplay";
+import { selectTrainInfoTrain } from "../components/displays/trainInfoDisplay.selector";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
 
 if (!document.getElementById("board-fonts")) {
@@ -537,8 +538,9 @@ function PlatformDisplay(props: BoardProps) {
   return <TrainHero {...props} />;
 }
 
-function TrainInfoDisplay(props: BoardProps) {
-  return <TrainJourneyDisplay {...props} />;
+function TrainInfoDisplay({ screen, rows, lang, clock }: BoardProps) {
+  const train = selectTrainInfoTrain(rows, screen, clock);
+  return <TrainJourneyDisplay train={train} lang={lang} clock={clock} />;
 }
 
 function ClockDisplay({ screen, clock }: BoardProps) {
