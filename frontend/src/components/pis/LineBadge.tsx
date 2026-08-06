@@ -1,8 +1,8 @@
 export default function LineBadge({ code, color }: { code: string; color?: string | null }) {
   const raw = code.toUpperCase().trim();
   const cleaned = raw.replace(/^[A-Z]+-/, "");
-  const m = cleaned.match(/^(C)(\d.*)$/);
-  const label = m ? `${m[1]}-${m[2]}` : cleaned;
+  const commuterMatch = raw.match(/(?:^|-)C-?(\d+[A-Z]?)(?:$|\s)/);
+  const label = commuterMatch ? `C-${commuterMatch[1]}` : cleaned;
   const bg = color && color.trim() ? color : "#2E4DA7";
 
   return (

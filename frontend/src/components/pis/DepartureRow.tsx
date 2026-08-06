@@ -168,19 +168,7 @@ const DepartureRow = forwardRef<HTMLDivElement, DepartureRowProps>(function Depa
         {isCommuter && train.type_code && (
           <LineBadge code={train.type_code} color={train.type_color} />
         )}
-        {iconUrl && (
-          <img
-            src={fileUrl(iconUrl)!}
-            alt=""
-            style={{
-              height: "clamp(18px, 1.8vw, 40px)",
-              width: "auto",
-              flexShrink: 0,
-              objectFit: "contain",
-            }}
-            onError={(e) => handleImgError(e, train.destination || "")}
-          />
-        )}
+        
         <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
           <ScrollText
             text={displayPlace}

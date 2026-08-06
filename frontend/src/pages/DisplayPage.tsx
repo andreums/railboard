@@ -4,9 +4,9 @@ import { useParams, Navigate } from "react-router-dom";
 import { useAlternating } from "../lib/useAlternating";
 import { t, type Language } from "../lib/i18n";
 import { normalizeStops } from "../lib/trainStops";
-import BoardHeader from "../components/pis/BoardHeader";
 import LineBadge from "../components/pis/LineBadge";
 import { ScrollText } from "../components/pis/DepartureRow";
+import TrainJourneyDisplay from "../components/displays/TrainJourneyDisplay";
 const onImgError = (e: React.SyntheticEvent<HTMLImageElement>) => { (e.target as HTMLImageElement).style.display = "none"; };
 
 if (!document.getElementById("board-fonts")) {
@@ -206,10 +206,12 @@ export default function DisplayPage() {
   const type = screen.display_type;
   const lang = (screen.language || "ca") as Language;
   const rows = board.slice(0, screen.max_rows || 10);
+  const bgColor =
+    type === "PLATFORM" || type === "TRAIN_INFO" || type === "CLOCK" ? "#0a1642" : "#0f172a";
+  const scale = 0.85 * (screen.font_scale || 1);
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-white overflow-hidden" style={{ zoom: 0.85 * (screen.font_scale || 1) }}>
-      {type === "PLATFORM" ? (
+  const content = (
+      type === "PLATFORM" ? (
         <PlatformDisplay screen={screen} rows={rows} lang={lang} clock={clock} />
       ) : type === "CLOCK" ? (
         <ClockDisplay screen={screen} rows={rows} lang={lang} clock={clock} />
@@ -221,7 +223,12 @@ export default function DisplayPage() {
         <BUSTERMDisplay screen={screen} rows={rows} lang={lang} type={type} clock={clock} />
       ) : (
         <BoardDisplay screen={screen} rows={rows} lang={lang} type={type} clock={clock} />
-      )}
+        )
+  );
+
+  return (
+    <div className="h-screen w-screen overflow-hidden text-white" style={{ backgroundColor: bgColor }}>
+      {type === "TRAIN_INFO" ? content : <div style={{ width: "100vw", height: "100vh", transform: `scale(${scale})`, transformOrigin: "center center" }}>{content}</div>}
     </div>
   );
 }
@@ -268,7 +275,7 @@ function VerticalAutoScroll({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={wrapRef} style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+    <div ref={wrapRef} style={{ flex: 1, minHeight: 0, position: "relative", overflowY: "auto", overflowX: "hidden", scrollbarWidth: "none" }}>
       {children}
       <div
         style={{
@@ -322,22 +329,14 @@ function TrainHero({ screen, rows, lang, clock }: BoardProps) {
   const progress = train ? computeJourneyProgress(train.scheduled_time, journeyEndTime, clock) : null;
 
   const stationName = screen.station_name || "";
-  const logoUrl = screen.station_logo_url || null;
-  const headerPlatform = screen.platform || (train?.platform && train.platform !== "-" ? train.platform : "") || undefined;
+  const stationLogo = screen.station_logo_url ? fileUrl(screen.station_logo_url) || "/adif.svg" : "/adif.svg";
 
   if (!train) {
     return (
       <div className="h-screen flex flex-col overflow-hidden text-white" style={{ backgroundColor: "#0a1642" }}>
-        <BoardHeader
-          stationName={stationName}
-          mode="departures"
-          lang={lang}
-          clockMode="real"
-          logoUrl={logoUrl}
-          platformNumber={headerPlatform}
-        />
-        <div className="flex-1 flex items-center justify-center text-2xl md:text-4xl text-slate-600">
-          {t("no-train-info", lang)}
+        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+          <img src={stationLogo} alt={stationName} style={{ height: "clamp(40px, 4vw, 80px)", width: "auto", objectFit: "contain" }} onError={onImgError} />
+          <div className="text-2xl md:text-4xl text-slate-600">{t("no-train-info", lang)}</div>
         </div>
       </div>
     );
@@ -353,16 +352,7 @@ function TrainHero({ screen, rows, lang, clock }: BoardProps) {
 
   return (
     <div className="h-screen flex flex-col overflow-hidden text-white" style={{ backgroundColor: "#0a1642" }}>
-      <BoardHeader
-        stationName={stationName}
-        mode="departures"
-        lang={lang}
-        clockMode="real"
-        logoUrl={logoUrl}
-        platformNumber={headerPlatform}
-      />
-
-      {/* Hero: hora + insignia/icono/destino + logos/número/vía */}
+      {/* Hero: logo estación + hora + insignia/icono/destino + logos/número/vía */}
       <div
         style={{
           display: "flex",
@@ -374,6 +364,14 @@ function TrainHero({ screen, rows, lang, clock }: BoardProps) {
           flexShrink: 0,
         }}
       >
+        <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+          <img
+            src={stationLogo}
+            alt={stationName}
+            style={{ height: "clamp(36px, 3.4vw, 68px)", width: "auto", flexShrink: 0, objectFit: "contain" }}
+            onError={onImgError}
+          />
+        </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: "clamp(6px, 0.8vw, 16px)", flexShrink: 0 }}>
           <span
             style={{
@@ -540,7 +538,7 @@ function PlatformDisplay(props: BoardProps) {
 }
 
 function TrainInfoDisplay(props: BoardProps) {
-  return <TrainHero {...props} />;
+  return <TrainJourneyDisplay {...props} />;
 }
 
 function ClockDisplay({ screen, clock }: BoardProps) {

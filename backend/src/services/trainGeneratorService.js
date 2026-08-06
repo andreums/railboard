@@ -3,6 +3,12 @@ import { getAllRoutes } from "./routeService.js";
 import { randomItem, randomInt } from "../lib/random.js";
 import { pickObservation, pickDisplayLanguage } from "../data/observationBank.js";
 
+// Cercanías / commuter line codes (e.g. "C-1", "MA-C1", "R2N"). Kept as a single
+// source of truth: used for the CERCANIAS.png logo assignment and to skip the
+// flavor-text observations that don't make sense on a commuter board.
+const COMMUTER_CODE_RE = /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d|^(R\d+[A-Z]?|R2N)$/i;
+const isCommuterCode = (code) => COMMUTER_CODE_RE.test(code || "");
+
 export function ensureLearnedRailData() {
   const railRoutes = getAllRoutes();
   const baseOperators = ["Renfe", "Iryo", "Ouigo", "SNCF"];
@@ -17,23 +23,19 @@ export function ensureLearnedRailData() {
   const knownTypes = trainTypes.list().map((t) => t.code);
   for (const route of railRoutes) {
     if (!knownTypes.includes(route.code)) {
-      const isCommuter =
-        /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d/i.test(route.code) ||
-        /^(R\d+[A-Z]?|R2N)$/i.test(route.code);
       trainTypes.create({
         code: route.code,
         name: route.name,
         color: route.color,
-        logo_url: isCommuter ? "/uploads/CERCANIAS.png" : undefined,
+        logo_url: isCommuterCode(route.code) ? "/uploads/CERCANIAS.png" : undefined,
       });
     }
   }
 
   // Set Cercanías logo on existing types that lack it
-  const commuterRegex = /^([A-Z]{2}-)?C(-\d+[A-Z]?)?$|^[A-Z]{2}-C\d|^(R\d+[A-Z]?|R2N)$/i;
   const allTypes = trainTypes.list();
   for (const tt of allTypes) {
-    if (!tt.logo_url && commuterRegex.test(tt.code)) {
+    if (!tt.logo_url && isCommuterCode(tt.code)) {
       trainTypes.update(tt.id, { logo_url: "/uploads/CERCANIAS.png" });
     }
   }
@@ -63,7 +65,16 @@ const normalizeStation = (value) =>
 
 const stationIndex = (stationNames, name) => {
   const target = normalizeStation(name);
-  return stationNames.findIndex((station) => normalizeStation(station) === target);
+  if (!target) return -1;
+  const exact = stationNames.findIndex((station) => normalizeStation(station) === target);
+  if (exact >= 0) return exact;
+  // Display station names (e.g. "MADRID PUERTA DE ATOCHA") often don't match the
+  // shorter/official route data names (e.g. "Atocha") exactly — fall back to a
+  // bidirectional substring match before giving up.
+  return stationNames.findIndex((station) => {
+    const norm = normalizeStation(station);
+    return norm.length > 0 && (target.includes(norm) || norm.includes(target));
+  });
 };
 
 const isTruthy = (value) => value === true || value === 1 || value === "1" || value === "true";
@@ -202,7 +213,23 @@ export function generateRandomTrain(body) {
   const stationConfig = stationRow ? getStationDisplayConfig(stationRow.id) : config;
   const routesAtStation = railRoutes.filter((r) => stationIndex(r.stations, station) >= 0);
   const requestedRegion = String(stationConfig?.routeRegion || "").trim();
-  const routePoolSource = routesAtStation.length ? routesAtStation : railRoutes;
+  let routePoolSource;
+  if (routesAtStation.length) {
+    // Routes that actually stop at this station are inherently regionally correct.
+    routePoolSource = routesAtStation;
+  } else if (requestedRegion) {
+    // No route matches the station by name, but the display has an explicit region
+    // configured — use it as the source of truth instead of guessing.
+    routePoolSource = railRoutes;
+  } else {
+    // Never silently fall back to the entire nationwide route pool: without a
+    // station match or an explicit region we can't guarantee the generated train
+    // belongs to this display's region.
+    throw httpError(
+      400,
+      `No se encontraron rutas para la estación "${station}". Configura la región del display en Configuración → Región / ciudad.`,
+    );
+  }
   const routePool = requestedRegion ? routePoolSource.filter((route) => getRouteRegion(route) === requestedRegion) : routePoolSource;
   if (!routePool.length) {
     throw httpError(
@@ -261,10 +288,12 @@ export function generateRandomTrain(body) {
   const stops = routeStops.slice(0, stopLimit);
   const usedNumbers = new Set(existing.map((t) => t.number));
   const availableNumbers = route.numbers.filter((number) => !usedNumbers.has(number));
-  const observations = pickObservation({
-    language: pickDisplayLanguage(stationConfig || config),
-    status,
-  });
+  const observations = isCommuterCode(route.code)
+    ? ""
+    : pickObservation({
+        language: pickDisplayLanguage(stationConfig || config),
+        status,
+      });
 
   const stoppingPattern = route.code === "C-3" ? "ALL_STATIONS"
     : /^(C|R\d+[A-Z]?|R2N)$/i.test(route.code) ? "SEMI_FAST"
