@@ -31,12 +31,19 @@ app.use((req, _res, next) => {
 app.use(requestLogger);
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 
+// CORS_ORIGIN accepts a comma-separated list so the same deployment can serve
+// both the built frontend (e.g. http://localhost via nginx) and a local Vite
+// dev server (e.g. http://localhost:5173) at once, instead of having to swap
+// a single value back and forth between the two.
+const corsOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173")
+  .split(",")
+  .map((o) => o.trim())
+  .filter(Boolean);
 app.use(
   cors({
     origin: (origin, callback) => {
-      const corsOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
       // Allow exact match or any localhost port in development
-      if (!origin || origin === corsOrigin || (process.env.NODE_ENV !== "production" && origin?.startsWith("http://localhost:"))) {
+      if (!origin || corsOrigins.includes(origin) || (process.env.NODE_ENV !== "production" && origin?.startsWith("http://localhost:"))) {
         callback(null, true);
       } else {
         callback(new Error("CORS not allowed"));
@@ -49,15 +56,6 @@ app.use(
 
 const rateLimitWindowMs = 60 * 1000;
 const rateLimitMax = process.env.RATE_LIMIT_MAX ? Number(process.env.RATE_LIMIT_MAX) : process.env.NODE_ENV === "production" ? 120 : 1000;
-const generalLimiter = rateLimit({
-  windowMs: rateLimitWindowMs,
-  // Allow a higher limit during development to avoid hitting the limiter
-  max: rateLimitMax,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
-});
-app.use("/admin", generalLimiter);
 
 // Public API rate limit (defends /api/stations/search and /api/stations/:id/board
 // from abuse/DoS). Public read endpoints get a generous but bounded limit.
@@ -68,6 +66,28 @@ const publicLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
 });
+
+// A few GET routes under /admin require no authentication and are polled
+// continuously by unattended public display boards (Display.tsx refreshes
+// every 5s), not just by a human in the admin panel — they belong on the
+// generous public tier like /api, not the stricter admin one meant to bound
+// a logged-in dashboard session. Without this, a couple of display tabs alone
+// exhaust the 120/min admin budget and the board starts 429ing.
+const PUBLIC_ADMIN_GET_PATHS = new Set(["/config", "/stations", "/trains"]);
+const isPublicAdminGet = (req) => req.method === "GET" && PUBLIC_ADMIN_GET_PATHS.has(req.path);
+
+const generalLimiter = rateLimit({
+  windowMs: rateLimitWindowMs,
+  // Allow a higher limit during development to avoid hitting the limiter
+  max: rateLimitMax,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: isPublicAdminGet,
+  message: { error: "Demasiadas peticiones. Intenta de nuevo en un minuto." },
+});
+app.use("/admin", generalLimiter);
+app.use("/admin", (req, res, next) => (isPublicAdminGet(req) ? publicLimiter(req, res, next) : next()));
+
 app.use("/api", publicLimiter);
 
 const writeLimiter = rateLimit({
